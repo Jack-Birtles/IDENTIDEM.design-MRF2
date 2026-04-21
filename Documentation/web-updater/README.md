@@ -27,14 +27,13 @@ This repo includes a static firmware updater site in `docs/` that uses Web Seria
 5. The static app in `docs/` loads `firmware/versions.json`, defaults the selector to the latest entry, and points ESP Web Tools to the selected manifest.
 6. The release notes panel shows notes for the selected version and the immediately previous version, with a link to the full changelog.
 
-## Flash behaviour: updates vs new installs
+## Settings preservation
 
-The manifest uses ESP Web Tools' `new_install_parts` feature to preserve camera settings on firmware updates:
+Camera settings are stored in NVS (ESP32 non-volatile storage) at flash address `0x9000`. None of the five flashed images overlap that address, so all saved settings survive a web updater firmware upgrade. New settings introduced by a firmware update will simply load their defaults on first boot until changed.
 
-- **Firmware update** (device already has MRF2 firmware): only `firmware.bin` is flashed. The bootloader, partition table, and NVS storage are untouched, so all saved settings survive.
-- **New install** (first-time setup or blank device): ESP Web Tools detects no valid firmware and additionally flashes `new_install_parts` (bootloader, partitions, boot_app0, tinyuf2) before flashing `firmware.bin`.
+The manifest sets `new_install_prompt_erase: false`, which prevents the flasher from erasing the device before writing. A full chip erase is never performed by the web updater.
 
-If you need to do a full re-flash of a device that already has firmware (e.g. to recover from a corrupted partition table), use the PlatformIO method described in `Documentation/flash-firmware/README.md`.
+If you need to reset all settings to factory defaults, use the factory reset option in the camera's settings menu, or reflash via PlatformIO as described in `Documentation/flash-firmware/README.md`.
 
 ## Browser requirements
 
