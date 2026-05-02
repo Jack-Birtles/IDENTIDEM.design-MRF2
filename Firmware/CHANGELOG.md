@@ -2,7 +2,7 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
-## Unreleased
+## 10.4.6 - 2026-05-02
 
 - Fix 6x9 frame spacing: reduce interframe advance by 1-2 encoder ticks per gap (cumulative 9 ticks at frame 8, recovering ~21mm = approximately 1/4 frame).
 - Fix light meter overexposure: lower calibration constant K from 20 to 7 to correct approximately 1.5-stop overexposure on the BH1750 sensor as installed.
