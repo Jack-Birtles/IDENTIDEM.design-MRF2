@@ -2,6 +2,15 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## Unreleased
+
+- Fix 6x9 frame spacing: reduce interframe advance by 1-2 encoder ticks per gap (cumulative 9 ticks at frame 8, recovering ~21mm = approximately 1/4 frame).
+- Fix light meter overexposure: lower calibration constant K from 20 to 7 to correct approximately 1.5-stop overexposure on the BH1750 sensor as installed.
+- Improve LiDAR accuracy at 2m and below:
+  - Reduce sensor frame rate from 50fps to 20fps for 2.5x more integration time per measurement, improving SNR in bright ambient conditions.
+  - Add gentle temporal blend (12% previous / 88% current) when high-confidence readings are at or below 2m, reducing single-frame noise without introducing lag.
+- Fix distance display test: update assertion to reflect v10.4.5 near-range 2dp precision (150cm now shows as `1.50m` not `1.5m`).
+
 ## 10.4.5 - 2026-04-16
 
 - Distance display below 2m now shows two decimal places (e.g. `1.85m`) instead of one.

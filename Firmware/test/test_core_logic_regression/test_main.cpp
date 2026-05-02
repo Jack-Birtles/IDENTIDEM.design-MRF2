@@ -268,7 +268,7 @@ void test_lidar_candidate_selection_and_blend()
   TEST_ASSERT_EQUAL_INT(4, candidate.quality_level);
   TEST_ASSERT_GREATER_THAN_INT(0, candidate.confidence);
 
-  TEST_ASSERT_EQUAL_INT(200, blendLidarDistance(100, 200, 80));
+  TEST_ASSERT_EQUAL_INT(188, blendLidarDistance(100, 200, 80)); // near-range high-conf blend: 100*0.12 + 200*0.88 = 188
   TEST_ASSERT_EQUAL_INT(135, blendLidarDistance(100, 200, 60));
   TEST_ASSERT_EQUAL_INT(131, blendLidarDistance(100, 200, 40));
 }
@@ -299,7 +299,7 @@ void test_lidar_invalid_and_display_formatting()
   formatDistanceDisplay(1900, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("Inf.", formattedDistance);
   formatDistanceDisplay(150, formattedDistance, sizeof(formattedDistance));
-  TEST_ASSERT_EQUAL_STRING("1.5m", formattedDistance);
+  TEST_ASSERT_EQUAL_STRING("1.50m", formattedDistance); // near-range precision: 2dp below 2m
 }
 
 void test_lidar_low_confidence_tracks_beyond_previous_distance()
@@ -574,20 +574,21 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("Dark!", formattedShutter);
   formatShutterSpeed(50000.0f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
+  // K=7: speed = 64*7/(320*400) = 0.0035 → rounds to 0.004 → 1/250
   formatShutterSpeed(320.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("1/125 sec.", formattedShutter);
-  // speed = 3.2s → rounds to 3s
+  TEST_ASSERT_EQUAL_STRING("1/250 sec.", formattedShutter);
+  // K=7: speed = 4*7/(0.5*50) = 1.12s → rounds to 1s
   formatShutterSpeed(0.5f, 2.0f, 50, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("3 sec.", formattedShutter);
-  // speed = 2.0s → whole seconds
+  TEST_ASSERT_EQUAL_STRING("1 sec.", formattedShutter);
+  // K=7: speed = 4*7/(0.4*100) = 0.7s → 1/2 range
   formatShutterSpeed(0.4f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("2 sec.", formattedShutter);
-  // speed = 1.6s → rounds to 1.5s
+  TEST_ASSERT_EQUAL_STRING("1/2 sec.", formattedShutter);
+  // K=7: speed = 4*7/(0.5*100) = 0.56s → 1/2 range
   formatShutterSpeed(0.5f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("1.5 sec.", formattedShutter);
-  // speed = 800s → 13m20s
+  TEST_ASSERT_EQUAL_STRING("1/2 sec.", formattedShutter);
+  // K=7: speed = 4*7/(0.001*100) = 280s → 4m40s
   formatShutterSpeed(0.001f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("13m20s", formattedShutter);
+  TEST_ASSERT_EQUAL_STRING("4m40s", formattedShutter);
   // absurdly dark → capped at 25m0s
   formatShutterSpeed(0.00001f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);

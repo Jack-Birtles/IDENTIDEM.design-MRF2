@@ -477,6 +477,12 @@ int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confi
 
   if (confidence >= LIDAR_CONFIDENCE_HIGH)
   {
+    if (next_distance_cm <= LIDAR_NEAR_HIGH_CONF_BLEND_MAX_CM)
+    {
+      float blended = static_cast<float>(previous_distance_cm) * LIDAR_NEAR_HIGH_CONF_BLEND +
+                      static_cast<float>(next_distance_cm) * (1.0f - LIDAR_NEAR_HIGH_CONF_BLEND);
+      return static_cast<int>(roundf(blended));
+    }
     return next_distance_cm;
   }
 

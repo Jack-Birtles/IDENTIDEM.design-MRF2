@@ -130,7 +130,7 @@ const int DEFAULT_RETICLE_OFFSET_Y = 0;  // Default reticle Y offset for optical
 const int RETICLE_OFFSET_MIN = -20;      // Minimum reticle offset in pixels.
 const int RETICLE_OFFSET_MAX = 20;       // Maximum reticle offset in pixels.
 const int LIDAR_DISTANCE_DIVISOR = 10;           // Raw LiDAR millimetre-to-centimetre divisor.
-const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate — lower = more integration time per frame.
+const uint16_t LIDAR_FRAME_RATE_FPS = 20;        // Sensor frame rate — lower = more integration time per frame.
 const unsigned long LIDAR_NO_DATA_TIMEOUT_MS = 1000; // Hold last reading before showing placeholder.
 const int LIDAR_FAR_SIGNAL_LOSS_CM = 300;         // Show "Inf." instead of "..." when signal lost above this distance.
 const int LIDAR_RECOVERY_ERROR_THRESHOLD = 3;    // Errors before recovery path escalates.
@@ -164,6 +164,8 @@ const int LIDAR_CONFIDENCE_MEDIUM = 55;          // Medium-confidence threshold.
 const float LIDAR_MEDIUM_CONF_BLEND = 0.35f;     // Blend factor when confidence is medium.
 const float LIDAR_LOW_CONF_BLEND_MIN = 0.20f;    // Minimum blend at low confidence.
 const float LIDAR_LOW_CONF_BLEND_MAX = 0.35f;    // Maximum blend at low confidence.
+const float LIDAR_NEAR_HIGH_CONF_BLEND = 0.12f;  // Prior weight in near-range high-confidence blend (12% previous).
+const int LIDAR_NEAR_HIGH_CONF_BLEND_MAX_CM = 200; // Near-range blend ceiling — applies at or below 2m.
 const int LIDAR_LOW_CONF_MAX_STEP_CM = 300;      // Max accepted per-frame distance step at low confidence.
 const int LIDAR_FUSION_AGREE_DELTA_CM = 30;      // Agreement delta between primary/secondary returns.
 const int LIDAR_FUSION_CONF_BONUS = 6;           // Confidence bonus when candidates agree.
@@ -513,6 +515,6 @@ const int CALIB_STATUS_Y2 = 106;             // Calibration status line 2 Y.
 // ---------------------------------------------------------------------------
 // Light meter exposure constant
 // ---------------------------------------------------------------------------
-const int K = 20; // Calibration constant used in EV/shutter equations.
+const int K = 7; // Calibration constant used in EV/shutter equations. Tuned for BH1750 sensor geometry; corrects ~1.5-stop overexposure vs K=12.5 standard.
 
 #endif // MRFCONSTANTS_H
