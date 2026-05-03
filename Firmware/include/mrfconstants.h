@@ -186,6 +186,9 @@ const float LIDAR_PRIOR_RANGE_SCALE_FAR = 0.35f; // Prior penalty scale at far r
 const float LIDAR_PRIOR_RANGE_SCALE_VERY_FAR = 0.2f; // Prior penalty scale at max range (8m+) — minimal influence.
 const float LIDAR_LENS_PRIOR_WEIGHT_GOOD = 0.025f;    // Lens-prior pull when confidence is good.
 const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when confidence is excellent.
+const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 200;      // Apply plausibility gate only when lens is focused at or below 2m (parallax matters most close).
+const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Reject LiDAR readings more than this far beyond the lens prior — almost certainly a beam-miss past the subject.
+const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 8;  // Accept LiDAR after this many consecutive plausibility rejections (lets the user re-focus past the previous target without being permanently stuck).
 
 // ---------------------------------------------------------------------------
 // Film counter/encoder filtering

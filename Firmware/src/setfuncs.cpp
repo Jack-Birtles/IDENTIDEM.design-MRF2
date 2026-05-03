@@ -44,6 +44,7 @@ LensSpikeFilterState lensSpikeFilter;
 LensSnapState lensSnap;
 LightMeterSmoothingState lightMeterSmoothing;
 LidarRecoveryState lidarRecoveryState = {};
+int consecutive_implausible_lidar_frames = 0;
 
 bool getLensPriorCm(int &lens_prior_cm)
 {
@@ -123,6 +124,25 @@ void setDistance()
         clearLidarDisplay(prev_distance >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf." : "...");
       }
       return;
+    }
+
+    // Plausibility gate: when the lens is focused close, reject LiDAR readings
+    // that significantly overshoot the lens prior — almost certainly a beam-miss
+    // past the framed subject. Hold the previous valid value instead. After a
+    // streak of rejections, fall through so the user can deliberately re-focus
+    // past the previous LiDAR target without being stuck.
+    if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
+    {
+      consecutive_implausible_lidar_frames++;
+      if (consecutive_implausible_lidar_frames < LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES)
+      {
+        return;
+      }
+      // Fall through: streak exceeded, accept the reading.
+    }
+    else
+    {
+      consecutive_implausible_lidar_frames = 0;
     }
 
     updateLidarRecoveryState(lidarRecoveryState, LidarRecoveryEvent::VALID_MEASUREMENT, now);

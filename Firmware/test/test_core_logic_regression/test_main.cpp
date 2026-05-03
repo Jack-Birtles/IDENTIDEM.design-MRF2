@@ -276,6 +276,37 @@ void test_lidar_candidate_selection_and_blend()
   TEST_ASSERT_EQUAL_INT(131, blendLidarDistance(100, 200, 40));
 }
 
+void test_lidar_plausibility_gate_rejects_overshoot()
+{
+  // Lens at 1.0m, LiDAR returns something far past +overshoot threshold: implausible.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 100));
+  // Lens at 1.5m, LiDAR returns 4.0m: implausible (well past +200cm overshoot).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(400, 150));
+}
+
+void test_lidar_plausibility_gate_allows_undershoot_and_far_focus()
+{
+  // Lens at 1.0m, LiDAR returns 1.2m: well within overshoot delta — allowed.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(120, 100));
+  // Lens at 1.0m, LiDAR returns 0.6m: undershoot is allowed (e.g. something passed in front).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(60, 100));
+  // Lens focused beyond near-range gate boundary: gate disabled regardless of overshoot.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500));
+  // No lens prior available: gate disabled.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0));
+  // Lens at boundary itself (200cm) still gated; lens just past it (201cm) not gated.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 200));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 201));
+}
+
+void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
+{
+  // Lens at 100cm: 100+200=300 is the boundary. Reading 300cm is NOT implausible (strict greater-than).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100));
+  // 301cm IS implausible.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
+}
+
 void test_lidar_invalid_and_display_formatting()
 {
   DTSMeasurement measurement = {};
@@ -612,6 +643,9 @@ int main(int, char **)
   RUN_TEST(test_calibration_rejects_truly_unstable_readings);
   RUN_TEST(test_prefs_migration_mode_and_blob_apply);
   RUN_TEST(test_lidar_candidate_selection_and_blend);
+  RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
+  RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
+  RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
   RUN_TEST(test_lidar_invalid_and_display_formatting);
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);

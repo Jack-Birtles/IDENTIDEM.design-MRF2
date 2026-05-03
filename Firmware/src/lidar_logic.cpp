@@ -433,6 +433,19 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
   return fallbackPrimary;
 }
 
+bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
+{
+  if (lens_prior_cm <= 0 || lens_prior_cm > LIDAR_PLAUSIBILITY_LENS_NEAR_CM)
+  {
+    return false;
+  }
+  if (lidar_distance_cm <= 0)
+  {
+    return false;
+  }
+  return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
+}
+
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence)
 {
   if (previous_distance_cm <= 0)
