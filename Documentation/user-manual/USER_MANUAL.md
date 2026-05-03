@@ -243,19 +243,31 @@ Current frame ranges are format-bound:
 6. **Bright top** (if Auto): maximum brightness ceiling (`50%`–`100%` in `10%` steps, default `100%`). Displayed as **Bright level** if Manual: fixed brightness (`5%`–`100%` in `5%` steps, default `100%`).
 7. **Sleep timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m30s`).
 8. **LiDAR idle timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m`).
-9. **Focus reticle >**: enter visual reticle offset adjustment (see below).
-10. **Back <<**: return to setup root menu.
+9. **LiDAR offset**: cycles the LiDAR distance correction in `10mm` steps from `0mm` to `800mm` (default `400mm`). Compensates for the physical offset between the LiDAR sensor and the lens plane so the displayed distance matches reality. Tune by aiming at a target a known distance away (e.g. a tape measure at 1.00m) and adjusting until the **Dist** readout on the main screen agrees. Changes take effect immediately — no reboot needed.
+10. **Focus reticle >**: enter visual reticle offset adjustment (see below).
+11. **Back <<**: return to setup root menu.
 
 #### Focus reticle adjustment
 
 ![Focus reticle adjustment](images/config-reticle-adjust.svg)
 
-This screen lets you visually align the focus reticle to the camera's optical centre. Only the reticle dot is shown on an otherwise blank screen.
+This screen lets you visually align the focus reticle to the camera's optical centre. The current X/Y offsets are shown at the top with a `>` marker on the active axis. A small reference crosshair marks the unmodified centre so you can see how far the dot has moved; the dot snaps onto the crosshair when both offsets are zero.
 
 1. **Horizontal**: press **L** to move left, **R** to move right. **Long press either button** to advance to vertical adjustment.
 2. **Vertical**: press **L** to move up, **R** to move down. **Long press either button** to save the new offsets and return to UI Settings.
 
 Offsets are stored in non-volatile memory and survive reboots. Range: -20 to +20 pixels in each axis.
+
+##### Calibrating the reticle position
+
+The LiDAR emits an infrared (IR) laser dot that you can't see with the naked eye but most digital cameras can. Use this to align the on-screen reticle with where the LiDAR is actually pointing:
+
+1. Set up a focus target with a clear centre mark (e.g. a printed crosshair or "+") at a few metres' distance.
+2. Aim the camera so the LiDAR dot lands on the centre of the focus target. View the IR dot through a phone camera or any digital camera without an IR-cut filter — most front-facing phone cameras work; some rear cameras filter IR too aggressively to see it.
+3. With the IR dot held on the target centre, enter **Setup > UI Settings > Focus reticle >** and adjust the on-screen reticle until it sits over the same point on the camera's view as the IR dot.
+4. Long-press to save.
+
+Only do this if the reticle and LiDAR dot disagree noticeably; the factory default offset is usually close enough for most users.
 
 ### System Health screen
 
