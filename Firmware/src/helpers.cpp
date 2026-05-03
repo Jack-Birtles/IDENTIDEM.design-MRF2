@@ -72,6 +72,7 @@ void writeSettingsPrefs()
   prefs.putInt("lvl_trim_pn10", level_trim_portrait_neg_deci_deg);
   prefs.putInt("reticle_x", reticle_offset_x);
   prefs.putInt("reticle_y", reticle_offset_y);
+  prefs.putInt("lidar_off", lidar_distance_offset_mm);
   prefs.putBool("bright_auto", brightness_auto);
   prefs.putInt("bright_man_pct", brightness_manual_pct);
   prefs.putInt("bright_top_pct", brightness_auto_top_pct);
@@ -313,6 +314,8 @@ void loadPrefs()
   level_trim_portrait_neg_deci_deg = prefs.getInt("lvl_trim_pn10", legacy_trim_pn * 10);
   reticle_offset_x = prefs.getInt("reticle_x", DEFAULT_RETICLE_OFFSET_X);
   reticle_offset_y = prefs.getInt("reticle_y", DEFAULT_RETICLE_OFFSET_Y);
+  lidar_distance_offset_mm = prefs.getInt("lidar_off", DEFAULT_LIDAR_DISTANCE_OFFSET_MM);
+  lidar_distance_offset_mm = constrain(lidar_distance_offset_mm, LIDAR_DISTANCE_OFFSET_MIN_MM, LIDAR_DISTANCE_OFFSET_MAX_MM);
   brightness_auto = prefs.getBool("bright_auto", DEFAULT_BRIGHTNESS_AUTO);
   brightness_manual_pct = prefs.getInt("bright_man_pct", DEFAULT_BRIGHTNESS_MANUAL_PCT);
   brightness_auto_top_pct = prefs.getInt("bright_top_pct", DEFAULT_BRIGHTNESS_AUTO_TOP_PCT);

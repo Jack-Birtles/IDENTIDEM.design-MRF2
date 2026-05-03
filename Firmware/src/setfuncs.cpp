@@ -76,7 +76,7 @@ void applyLidarCalibrationProfile()
   // same value twice on a no-op transition is harmless.
   lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
   lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-  lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
+  lidar.setDistanceOffset(static_cast<int16_t>(lidar_distance_offset_mm));
 }
 
 void clearLidarDisplay(const char *placeholder)

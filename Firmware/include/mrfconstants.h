@@ -138,7 +138,7 @@ const unsigned long LIDAR_RECOVERY_TIMEOUT_MS = 1500; // Timeout window triggeri
 const unsigned long LIDAR_RECOVERY_RETRY_BASE_MS = 250; // Initial retry backoff.
 const unsigned long LIDAR_RECOVERY_RETRY_MAX_MS = 2000; // Max retry backoff.
 const float LIDAR_LIBRARY_DISTANCE_SCALE = 1.0f; // Library-side linear distance scale.
-const int LIDAR_LIBRARY_DISTANCE_OFFSET_MM = 400; // Library-side linear distance offset.
+// LiDAR distance offset is now a runtime preference (lidar_distance_offset_mm) — see DEFAULT_LIDAR_DISTANCE_OFFSET_MM below.
 const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 40; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Aligned with our pipeline floor (LIDAR_FUSION_MIN_INTENSITY) so the library's quality enum reflects the same intensity bar we apply downstream.
 const int LIDAR_RANGE_NEAR_CM = 200;             // Single source of truth for the "near range" boundary (≤2m). Aliased by the constants below.
 const int LIDAR_FUSION_MIN_INTENSITY = 40;       // Near-range (≤2m) minimum intensity — strict for accuracy.
@@ -274,6 +274,10 @@ const int DEFAULT_FRAME_SPACING_OFFSET = 0;         // Default film frame-spacin
 const int DEFAULT_LEVEL_TRIM_LANDSCAPE_DECI_DEG = 0;    // Default landscape level trim in 0.1-degree units.
 const int DEFAULT_LEVEL_TRIM_PORTRAIT_POS_DECI_DEG = 0; // Default portrait (+) level trim in 0.1-degree units.
 const int DEFAULT_LEVEL_TRIM_PORTRAIT_NEG_DECI_DEG = 0; // Default portrait (-) level trim in 0.1-degree units.
+const int DEFAULT_LIDAR_DISTANCE_OFFSET_MM = 400;    // Default LiDAR distance offset in mm (sensor-to-lens-plane geometry).
+const int LIDAR_DISTANCE_OFFSET_MIN_MM = 0;          // Minimum user-adjustable LiDAR distance offset.
+const int LIDAR_DISTANCE_OFFSET_MAX_MM = 800;        // Maximum user-adjustable LiDAR distance offset.
+const int LIDAR_DISTANCE_OFFSET_STEP_MM = 10;        // Step size for LiDAR distance offset adjustment.
 const uint16_t PREFS_SCHEMA_VERSION = 2;            // Preferences schema version for migration.
 
 // ---------------------------------------------------------------------------
@@ -383,6 +387,7 @@ enum ConfigUiStep
   CONFIG_UI_STEP_BRIGHTNESS_VALUE,       // Display brightness level.
   CONFIG_UI_STEP_SLEEP_TIMEOUT,          // Sleep timeout selector.
   CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT,     // LiDAR idle-timeout selector.
+  CONFIG_UI_STEP_LIDAR_OFFSET,           // LiDAR distance offset (calibration).
   CONFIG_UI_STEP_RETICLE_ADJUST,         // Enter reticle offset adjustment.
   CONFIG_UI_STEP_BACK,                   // Back to setup root.
   CONFIG_UI_STEP_COUNT

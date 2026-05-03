@@ -909,6 +909,11 @@ void drawUiConfigUI()
   u8g2.print(getSleepTimeoutModeLabel(lidar_idle_timeout_mode));
   u8g2.print(F(" "));
 
+  selectConfigMenuRow(CONFIG_UI_STEP_LIDAR_OFFSET, config_step == CONFIG_UI_STEP_LIDAR_OFFSET);
+  u8g2.print(F(" LiDAR offset: "));
+  u8g2.print(lidar_distance_offset_mm);
+  u8g2.print(F("mm "));
+
   selectConfigMenuRow(CONFIG_UI_STEP_RETICLE_ADJUST, config_step == CONFIG_UI_STEP_RETICLE_ADJUST);
   u8g2.print(F(" Focus reticle > "));
 
