@@ -139,7 +139,7 @@ const unsigned long LIDAR_RECOVERY_RETRY_BASE_MS = 250; // Initial retry backoff
 const unsigned long LIDAR_RECOVERY_RETRY_MAX_MS = 2000; // Max retry backoff.
 const float LIDAR_LIBRARY_DISTANCE_SCALE = 1.0f; // Library-side linear distance scale.
 // LiDAR distance offset is now a runtime preference (lidar_distance_offset_mm) — see DEFAULT_LIDAR_DISTANCE_OFFSET_MM below.
-const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 40; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Aligned with our pipeline floor (LIDAR_FUSION_MIN_INTENSITY) so the library's quality enum reflects the same intensity bar we apply downstream.
+const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 20; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Kept lower than our pipeline's LIDAR_FUSION_MIN_INTENSITY=40 floor so weak-but-valid returns reach our scoring pipeline (which applies the harder gate). Aligning the two values caused near-range drop-outs in bright ambient light.
 const int LIDAR_RANGE_NEAR_CM = 200;             // Single source of truth for the "near range" boundary (≤2m). Aliased by the constants below.
 const int LIDAR_FUSION_MIN_INTENSITY = 40;       // Near-range (≤2m) minimum intensity — strict for accuracy.
 const int LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM = LIDAR_RANGE_NEAR_CM; // Near-range boundary for intensity gating.
@@ -148,7 +148,7 @@ const int LIDAR_FUSION_INTENSITY_FAR_RANGE_CM = 700;  // Far-range boundary (≤
 const int LIDAR_FUSION_MIN_INTENSITY_MID = 10;   // Mid-range minimum intensity (2–5m).
 const int LIDAR_FUSION_MIN_INTENSITY_FAR = 3;    // Far-range minimum intensity (5–7m).
 const int LIDAR_FUSION_MIN_INTENSITY_MAX_RANGE = 1; // Beyond-far minimum intensity (8m+): just get a value.
-const int LIDAR_SNR_PERMILLE_TARGET_NEAR = 300;  // Target SNR (permille) for near returns (≤2m) — strict.
+const int LIDAR_SNR_PERMILLE_TARGET_NEAR = 180;  // Target SNR (permille) for near returns (≤2m). Was 300; relaxed after field reports of near-range drop-outs in full sun against open sky/distant background. The temporal blend now provides the stability that the strict SNR target was protecting.
 const int LIDAR_SNR_PERMILLE_TARGET_MID = 150;   // Target SNR (permille) for mid returns (2–5m) — moderate.
 const int LIDAR_SNR_PERMILLE_TARGET_FAR = 40;    // Target SNR (permille) for far returns (5–7m) — relaxed.
 const int LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE = 10; // Target SNR (permille) at max range (8m+) — accept anything.

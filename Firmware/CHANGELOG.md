@@ -9,8 +9,9 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 - Improve LiDAR accuracy at 2m and below:
   - Add gentle temporal blend (12% previous / 88% current) when high-confidence readings are at or below 2m, reducing single-frame noise without introducing lag.
   - Defensively re-apply LiDAR frame rate after sensor recovery (previously only set at boot).
-  - Raise the library's minimum-intensity threshold from 20 to 40 so its quality enum aligns with the firmware's own intensity floor; one source of truth for what counts as a usable return.
   - Remove unused residual-correction lookup table and the unreachable double-correction wrapper around it. The power-law correction below 1.5m remains.
+  - Relax near-range SNR target from 300 to 180 permille so close subjects shot horizontally in full sun (open sky in the background floods the photodetector with ambient IR) are no longer dropped. The temporal blend handles the stability that the strict SNR target was protecting.
+  - Keep the library's minimum-intensity threshold at 20 (not 40 as briefly attempted): the library's quality classifier and our pipeline's intensity floor serve different purposes; tightening both at once over-rejected weak-but-valid returns in bright ambient light.
 - Fix distance display test: update assertion to reflect v10.4.5 near-range 2dp precision (150cm now shows as `1.50m` not `1.5m`).
 - Add **LiDAR offset** to Setup > UI Settings (`0`–`800mm` in `10mm` steps, default `400mm`). Tunes the LiDAR reading to compensate for the sensor-to-lens-plane physical offset. Persisted to NVS; takes effect immediately on adjustment so the live distance readout reflects the change.
 - Improve **Focus reticle adjustment** screen: now shows the current X/Y offsets numerically with a `>` marker on the active axis, plus a fixed reference crosshair at the optical centre so the reticle dot's offset is visually unambiguous.
