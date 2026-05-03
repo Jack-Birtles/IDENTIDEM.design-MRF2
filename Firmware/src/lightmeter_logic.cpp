@@ -110,7 +110,7 @@ float calculateEV100(float lux)
     return NAN;
   }
 
-  return log2f((lux * 100.0f) / static_cast<float>(K));
+  return log2f((lux * 100.0f) / K);
 }
 
 void formatShutterSpeed(float lux, float aperture, int iso, char *buffer, size_t bufferSize)
