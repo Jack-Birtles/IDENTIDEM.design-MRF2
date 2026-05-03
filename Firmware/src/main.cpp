@@ -191,9 +191,7 @@ void initializeLidarSensor()
       }
     }
 
-    lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
-    lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-    lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
+    applyLidarCalibrationProfile();
   }
 
   delay(LIDAR_SERIAL_STARTUP_DELAY_MS);

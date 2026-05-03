@@ -45,16 +45,6 @@ LensSnapState lensSnap;
 LightMeterSmoothingState lightMeterSmoothing;
 LidarRecoveryState lidarRecoveryState = {};
 
-void applyLidarCalibrationProfile()
-{
-  // Re-apply all sensor settings after any state change (begin, enable, recovery).
-  // Frame rate is included defensively in case begin() resets it — sending the
-  // same value twice on a no-op transition is harmless.
-  lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
-  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-  lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
-}
-
 bool getLensPriorCm(int &lens_prior_cm)
 {
   if (!lenses[selected_lens].calibrated)
@@ -78,6 +68,16 @@ void setLensDistanceFromCm(int distance_cm)
 }
 
 } // namespace
+
+void applyLidarCalibrationProfile()
+{
+  // Re-apply all sensor settings after any state change (begin, enable, recovery).
+  // Frame rate is included defensively in case begin() resets it — sending the
+  // same value twice on a no-op transition is harmless.
+  lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
+  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
+  lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
+}
 
 void clearLidarDisplay(const char *placeholder)
 {

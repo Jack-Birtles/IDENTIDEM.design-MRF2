@@ -19,6 +19,8 @@ void toggleLidar(bool lidarStatus);
 
 void retryLidarInit();
 
+void applyLidarCalibrationProfile();
+
 void clearLidarDisplay(const char *placeholder);
 // ---------------------
 

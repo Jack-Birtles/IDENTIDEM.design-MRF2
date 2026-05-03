@@ -269,6 +269,9 @@ void test_lidar_candidate_selection_and_blend()
   TEST_ASSERT_GREATER_THAN_INT(0, candidate.confidence);
 
   TEST_ASSERT_EQUAL_INT(188, blendLidarDistance(100, 200, 80)); // near-range high-conf blend: 100*0.12 + 200*0.88 = 188
+  TEST_ASSERT_EQUAL_INT(115, blendLidarDistance(80, 120, 80));  // typical near-range high-conf: 80*0.12 + 120*0.88 = 115
+  TEST_ASSERT_EQUAL_INT(210, blendLidarDistance(180, 210, 80)); // just-above-boundary at high conf: pass-through, no blend
+  TEST_ASSERT_EQUAL_INT(150, blendLidarDistance(0, 150, 80));   // first reading (previous=0): pass-through regardless of distance
   TEST_ASSERT_EQUAL_INT(135, blendLidarDistance(100, 200, 60));
   TEST_ASSERT_EQUAL_INT(131, blendLidarDistance(100, 200, 40));
 }
