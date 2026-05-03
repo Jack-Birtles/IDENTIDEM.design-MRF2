@@ -7,9 +7,10 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 - Fix 6x9 and 9x3 frame spacing: reduce interframe advance by 1-2 encoder ticks per gap (cumulative 9 ticks at frame 8, recovering ~21mm = approximately 1/4 frame). Both formats shared the same out-of-tolerance sensor values.
 - Fix light meter overexposure of approximately 1.5 stops: split the meter calibration constant `K` (now ISO-standard 12.5) from a new BH1750 mounting compensation `LIGHTMETER_LUX_CAL_SCALE` (1.77) that scales raw sensor lux up to actual scene illuminance.
 - Improve LiDAR accuracy at 2m and below:
-  - Reduce sensor frame rate from 50fps to 20fps for 2.5x more integration time per measurement, improving SNR in bright ambient conditions.
   - Add gentle temporal blend (12% previous / 88% current) when high-confidence readings are at or below 2m, reducing single-frame noise without introducing lag.
   - Defensively re-apply LiDAR frame rate after sensor recovery (previously only set at boot).
+  - Raise the library's minimum-intensity threshold from 20 to 40 so its quality enum aligns with the firmware's own intensity floor; one source of truth for what counts as a usable return.
+  - Remove unused residual-correction lookup table and the unreachable double-correction wrapper around it. The power-law correction below 1.5m remains.
 - Fix distance display test: update assertion to reflect v10.4.5 near-range 2dp precision (150cm now shows as `1.50m` not `1.5m`).
 
 ## 10.4.5 - 2026-04-16

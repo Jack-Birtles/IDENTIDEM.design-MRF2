@@ -130,7 +130,7 @@ const int DEFAULT_RETICLE_OFFSET_Y = 0;  // Default reticle Y offset for optical
 const int RETICLE_OFFSET_MIN = -20;      // Minimum reticle offset in pixels.
 const int RETICLE_OFFSET_MAX = 20;       // Maximum reticle offset in pixels.
 const int LIDAR_DISTANCE_DIVISOR = 10;           // Raw LiDAR millimetre-to-centimetre divisor.
-const uint16_t LIDAR_FRAME_RATE_FPS = 20;        // Sensor frame rate — lower = more integration time per frame.
+const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate. 50 is the library's documented standard-mode floor; the temporal blend filter handles noise rejection at higher rates better than longer integration would.
 const unsigned long LIDAR_NO_DATA_TIMEOUT_MS = 1000; // Hold last reading before showing placeholder.
 const int LIDAR_FAR_SIGNAL_LOSS_CM = 300;         // Show "Inf." instead of "..." when signal lost above this distance.
 const int LIDAR_RECOVERY_ERROR_THRESHOLD = 3;    // Errors before recovery path escalates.
@@ -139,7 +139,7 @@ const unsigned long LIDAR_RECOVERY_RETRY_BASE_MS = 250; // Initial retry backoff
 const unsigned long LIDAR_RECOVERY_RETRY_MAX_MS = 2000; // Max retry backoff.
 const float LIDAR_LIBRARY_DISTANCE_SCALE = 1.0f; // Library-side linear distance scale.
 const int LIDAR_LIBRARY_DISTANCE_OFFSET_MM = 400; // Library-side linear distance offset.
-const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 20; // Library quality tier base; tiers are distance-scaled in v2.1.2+.
+const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 40; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Aligned with our pipeline floor (LIDAR_FUSION_MIN_INTENSITY) so the library's quality enum reflects the same intensity bar we apply downstream.
 const int LIDAR_RANGE_NEAR_CM = 200;             // Single source of truth for the "near range" boundary (≤2m). Aliased by the constants below.
 const int LIDAR_FUSION_MIN_INTENSITY = 40;       // Near-range (≤2m) minimum intensity — strict for accuracy.
 const int LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM = LIDAR_RANGE_NEAR_CM; // Near-range boundary for intensity gating.
@@ -186,10 +186,6 @@ const float LIDAR_PRIOR_RANGE_SCALE_FAR = 0.35f; // Prior penalty scale at far r
 const float LIDAR_PRIOR_RANGE_SCALE_VERY_FAR = 0.2f; // Prior penalty scale at max range (8m+) — minimal influence.
 const float LIDAR_LENS_PRIOR_WEIGHT_GOOD = 0.025f;    // Lens-prior pull when confidence is good.
 const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when confidence is excellent.
-
-const int LIDAR_RESIDUAL_POINT_COUNT = 6; // Number of residual correction table points.
-const int LIDAR_RESIDUAL_DIST_CM[LIDAR_RESIDUAL_POINT_COUNT] = {50, 100, 150, 200, 500, 1000}; // Residual table X-axis.
-const int LIDAR_RESIDUAL_DELTA_CM[LIDAR_RESIDUAL_POINT_COUNT] = {0, 0, 0, 0, 0, 0};             // Residual table Y-axis.
 
 // ---------------------------------------------------------------------------
 // Film counter/encoder filtering

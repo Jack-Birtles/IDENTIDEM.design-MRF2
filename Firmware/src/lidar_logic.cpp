@@ -39,41 +39,6 @@ int applyLidarCalibrationCm(int raw_cm)
   return static_cast<int>(roundf(scaled));
 }
 
-int applyLidarResidualCorrectionCm(int corrected_cm)
-{
-  if (corrected_cm <= 0 || LIDAR_RESIDUAL_POINT_COUNT <= 0)
-  {
-    return corrected_cm;
-  }
-
-  if (corrected_cm <= LIDAR_RESIDUAL_DIST_CM[0])
-  {
-    return corrected_cm + LIDAR_RESIDUAL_DELTA_CM[0];
-  }
-
-  for (int i = 1; i < LIDAR_RESIDUAL_POINT_COUNT; i++)
-  {
-    if (corrected_cm <= LIDAR_RESIDUAL_DIST_CM[i])
-    {
-      int x0 = LIDAR_RESIDUAL_DIST_CM[i - 1];
-      int x1 = LIDAR_RESIDUAL_DIST_CM[i];
-      int y0 = LIDAR_RESIDUAL_DELTA_CM[i - 1];
-      int y1 = LIDAR_RESIDUAL_DELTA_CM[i];
-      float t = static_cast<float>(corrected_cm - x0) / static_cast<float>(x1 - x0);
-      int residual_delta = static_cast<int>(roundf(static_cast<float>(y0) + (static_cast<float>(y1 - y0) * t)));
-      return corrected_cm + residual_delta;
-    }
-  }
-
-  return corrected_cm + LIDAR_RESIDUAL_DELTA_CM[LIDAR_RESIDUAL_POINT_COUNT - 1];
-}
-
-int applyLidarDoubleCorrectionCm(int raw_cm)
-{
-  int curve_corrected_cm = applyLidarCalibrationCm(raw_cm);
-  return applyLidarResidualCorrectionCm(curve_corrected_cm);
-}
-
 int qualityBaseScore(DataQuality quality)
 {
   switch (quality)
@@ -263,7 +228,7 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int corrected_cm = applyLidarDoubleCorrectionCm(raw_cm);
+  int corrected_cm = applyLidarCalibrationCm(raw_cm);
   if (corrected_cm <= 0)
   {
     return candidate;
@@ -322,7 +287,7 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int corrected_cm = applyLidarDoubleCorrectionCm(raw_cm);
+  int corrected_cm = applyLidarCalibrationCm(raw_cm);
   if (corrected_cm <= 0)
   {
     return candidate;
