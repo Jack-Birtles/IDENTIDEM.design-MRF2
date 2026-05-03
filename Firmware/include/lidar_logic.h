@@ -25,6 +25,12 @@ int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confi
 // the lens is focused beyond the near-range gate threshold.
 bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm);
 
+// Add a confidence boost once the LiDAR has locked onto a stable subject
+// (consecutive frames within LIDAR_STABLE_DELTA_CM of each other). Caller
+// tracks the streak count; this function applies the boost and clamps the
+// result so a marginal reading cannot be promoted to excellent.
+int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames);
+
 void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize);
 
 #endif // LIDAR_LOGIC_H

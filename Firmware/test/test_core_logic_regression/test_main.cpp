@@ -307,6 +307,31 @@ void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
   TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
 }
 
+void test_lidar_stable_boost_under_min_frames_does_nothing()
+{
+  // Below the min-frames threshold: confidence unchanged regardless of base.
+  TEST_ASSERT_EQUAL_INT(60, applyStableConfidenceBoost(60, 0));
+  TEST_ASSERT_EQUAL_INT(60, applyStableConfidenceBoost(60, LIDAR_STABLE_MIN_FRAMES - 1));
+}
+
+void test_lidar_stable_boost_kicks_in_at_min_frames()
+{
+  // At and above the min-frames threshold: confidence rises by LIDAR_STABLE_CONFIDENCE_BOOST.
+  TEST_ASSERT_EQUAL_INT(60 + LIDAR_STABLE_CONFIDENCE_BOOST,
+                        applyStableConfidenceBoost(60, LIDAR_STABLE_MIN_FRAMES));
+  TEST_ASSERT_EQUAL_INT(70 + LIDAR_STABLE_CONFIDENCE_BOOST,
+                        applyStableConfidenceBoost(70, LIDAR_STABLE_MIN_FRAMES + 5));
+}
+
+void test_lidar_stable_boost_clamps_at_max()
+{
+  // Boost cannot push past the cap, so a high-base confidence does not become 'excellent' purely from stability.
+  TEST_ASSERT_EQUAL_INT(LIDAR_STABLE_MAX_CONFIDENCE,
+                        applyStableConfidenceBoost(90, LIDAR_STABLE_MIN_FRAMES));
+  TEST_ASSERT_EQUAL_INT(LIDAR_STABLE_MAX_CONFIDENCE,
+                        applyStableConfidenceBoost(99, LIDAR_STABLE_MIN_FRAMES));
+}
+
 void test_lidar_invalid_and_display_formatting()
 {
   DTSMeasurement measurement = {};
@@ -646,6 +671,9 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
   RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
   RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
+  RUN_TEST(test_lidar_stable_boost_under_min_frames_does_nothing);
+  RUN_TEST(test_lidar_stable_boost_kicks_in_at_min_frames);
+  RUN_TEST(test_lidar_stable_boost_clamps_at_max);
   RUN_TEST(test_lidar_invalid_and_display_formatting);
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);

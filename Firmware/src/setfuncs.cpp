@@ -45,6 +45,7 @@ LensSnapState lensSnap;
 LightMeterSmoothingState lightMeterSmoothing;
 LidarRecoveryState lidarRecoveryState = {};
 int consecutive_implausible_lidar_frames = 0;
+int lidar_stable_streak_frames = 0;
 
 bool getLensPriorCm(int &lens_prior_cm)
 {
@@ -118,6 +119,8 @@ void setDistance()
     LidarCandidate chosen = chooseBestLidarCandidate(measurement, prev_distance, has_lens_prior, lens_prior_cm);
     if (!chosen.valid)
     {
+      // Sensor frame unusable — break any subject-stable streak.
+      lidar_stable_streak_frames = 0;
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
       if ((now - lidarRecoveryState.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
       {
@@ -134,6 +137,7 @@ void setDistance()
     if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
     {
       consecutive_implausible_lidar_frames++;
+      lidar_stable_streak_frames = 0; // Rejection means we are not tracking a stable subject.
       if (consecutive_implausible_lidar_frames < LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES)
       {
         return;
@@ -144,6 +148,19 @@ void setDistance()
     {
       consecutive_implausible_lidar_frames = 0;
     }
+
+    // Subject-stable confidence boost: count consecutive readings within the
+    // stability delta and add a confidence boost once the streak passes the
+    // minimum-frames threshold.
+    if (prev_distance > 0 && abs(chosen.distance_cm - prev_distance) <= LIDAR_STABLE_DELTA_CM)
+    {
+      lidar_stable_streak_frames = min(lidar_stable_streak_frames + 1, LIDAR_STABLE_MIN_FRAMES + 1);
+    }
+    else
+    {
+      lidar_stable_streak_frames = 1; // start a new streak from this reading
+    }
+    chosen.confidence = applyStableConfidenceBoost(chosen.confidence, lidar_stable_streak_frames);
 
     updateLidarRecoveryState(lidarRecoveryState, LidarRecoveryEvent::VALID_MEASUREMENT, now);
     lidar_quality_level = chosen.quality_level;

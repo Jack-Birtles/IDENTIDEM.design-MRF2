@@ -189,6 +189,10 @@ const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when 
 const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 200;      // Apply plausibility gate only when lens is focused at or below 2m (parallax matters most close).
 const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Reject LiDAR readings more than this far beyond the lens prior — almost certainly a beam-miss past the subject.
 const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 8;  // Accept LiDAR after this many consecutive plausibility rejections (lets the user re-focus past the previous target without being permanently stuck).
+const int LIDAR_STABLE_DELTA_CM = 5;                  // Max frame-to-frame distance change to count as "subject locked".
+const int LIDAR_STABLE_MIN_FRAMES = 5;                // Consecutive stable frames required before the confidence boost kicks in.
+const int LIDAR_STABLE_CONFIDENCE_BOOST = 10;         // Confidence delta added once subject lock is established.
+const int LIDAR_STABLE_MAX_CONFIDENCE = 95;           // Clamp so the boost cannot push a marginal reading to "excellent".
 
 // ---------------------------------------------------------------------------
 // Film counter/encoder filtering

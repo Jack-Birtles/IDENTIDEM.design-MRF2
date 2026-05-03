@@ -446,6 +446,16 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
   return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
 }
 
+int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames)
+{
+  if (stable_streak_frames < LIDAR_STABLE_MIN_FRAMES)
+  {
+    return base_confidence;
+  }
+  int boosted = base_confidence + LIDAR_STABLE_CONFIDENCE_BOOST;
+  return min(boosted, LIDAR_STABLE_MAX_CONFIDENCE);
+}
+
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence)
 {
   if (previous_distance_cm <= 0)
