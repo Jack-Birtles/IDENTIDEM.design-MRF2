@@ -332,6 +332,23 @@ void test_lidar_stable_boost_clamps_at_max()
                         applyStableConfidenceBoost(99, LIDAR_STABLE_MIN_FRAMES));
 }
 
+void test_lidar_sunlight_warn_hysteresis()
+{
+  // Off and below enter: stays off.
+  TEST_ASSERT_FALSE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_ENTER - 1));
+  // Off and at/above enter: switches on.
+  TEST_ASSERT_TRUE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_ENTER));
+  TEST_ASSERT_TRUE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_ENTER + 500));
+  // On and between exit/enter: holds (the hysteresis band).
+  TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_ENTER - 1));
+  TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT));
+  // On and below exit: switches off.
+  TEST_ASSERT_FALSE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT - 1));
+  // Boundary: exactly enter triggers; exactly exit holds.
+  TEST_ASSERT_FALSE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_EXIT)); // off, below enter
+  TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT));   // on, at exit
+}
+
 void test_lidar_invalid_and_display_formatting()
 {
   DTSMeasurement measurement = {};
@@ -674,6 +691,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_stable_boost_under_min_frames_does_nothing);
   RUN_TEST(test_lidar_stable_boost_kicks_in_at_min_frames);
   RUN_TEST(test_lidar_stable_boost_clamps_at_max);
+  RUN_TEST(test_lidar_sunlight_warn_hysteresis);
   RUN_TEST(test_lidar_invalid_and_display_formatting);
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);

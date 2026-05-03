@@ -31,6 +31,12 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm);
 // result so a marginal reading cannot be promoted to excellent.
 int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames);
 
+// Hysteresis-based update for the "ambient IR is high enough to degrade the
+// LiDAR" warning state. Caller passes the current state and the sensor's
+// sunlight base; returns the next state. Stays on between EXIT and ENTER
+// thresholds so the indicator does not flicker.
+bool updateSunlightWarnState(bool currently_warning, uint16_t sunlight_base);
+
 void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize);
 
 #endif // LIDAR_LOGIC_H

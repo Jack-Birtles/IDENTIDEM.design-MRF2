@@ -193,6 +193,8 @@ const int LIDAR_STABLE_DELTA_CM = 5;                  // Max frame-to-frame dist
 const int LIDAR_STABLE_MIN_FRAMES = 5;                // Consecutive stable frames required before the confidence boost kicks in.
 const int LIDAR_STABLE_CONFIDENCE_BOOST = 10;         // Confidence delta added once subject lock is established.
 const int LIDAR_STABLE_MAX_CONFIDENCE = 95;           // Clamp so the boost cannot push a marginal reading to "excellent".
+const uint16_t LIDAR_SUNLIGHT_WARN_ENTER = 2500;      // Show the high-sunlight indicator once sunlightBase exceeds this. Initial guess; needs field tuning from real readings.
+const uint16_t LIDAR_SUNLIGHT_WARN_EXIT = 1500;       // Hide the indicator once sunlightBase drops below this. Hysteresis prevents flicker near the boundary.
 
 // ---------------------------------------------------------------------------
 // Film counter/encoder filtering
@@ -442,6 +444,8 @@ const int MAIN_LIDAR_QUALITY_X = 123;      // LiDAR quality indicator origin X.
 const int MAIN_LIDAR_QUALITY_Y = 2;        // LiDAR quality indicator origin Y.
 const int MAIN_LIDAR_QUALITY_SIZE = 2;     // LiDAR quality block size.
 const int MAIN_LIDAR_QUALITY_GAP = 1;      // Gap between LiDAR quality blocks.
+const int MAIN_SUNLIGHT_ICON_CX = 116;     // Centre X of the high-sunlight indicator (sits in the gap before the quality blocks).
+const int MAIN_SUNLIGHT_ICON_CY = 4;       // Centre Y of the high-sunlight indicator.
 
 // ---------------------------------------------------------------------------
 // Setup/calibration/health UI layout coordinates

@@ -456,6 +456,15 @@ int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames)
   return min(boosted, LIDAR_STABLE_MAX_CONFIDENCE);
 }
 
+bool updateSunlightWarnState(bool currently_warning, uint16_t sunlight_base)
+{
+  if (currently_warning)
+  {
+    return sunlight_base >= LIDAR_SUNLIGHT_WARN_EXIT;
+  }
+  return sunlight_base >= LIDAR_SUNLIGHT_WARN_ENTER;
+}
+
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence)
 {
   if (previous_distance_cm <= 0)

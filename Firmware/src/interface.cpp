@@ -265,6 +265,24 @@ void drawLidarQualityIndicator()
   }
 }
 
+void drawHighSunlightIndicator()
+{
+  if (!lidar_high_sunlight)
+  {
+    return;
+  }
+  // Header background is WHITE; draw the icon in BLACK so it stays visible.
+  const int cx = MAIN_SUNLIGHT_ICON_CX;
+  const int cy = MAIN_SUNLIGHT_ICON_CY;
+  // Sun body: 3x3 filled square centred on (cx, cy).
+  display.fillRect(cx - 1, cy - 1, 3, 3, BLACK);
+  // Four rays one pixel off the body.
+  display.drawPixel(cx, cy - 3, BLACK); // top
+  display.drawPixel(cx, cy + 3, BLACK); // bottom
+  display.drawPixel(cx - 3, cy, BLACK); // left
+  display.drawPixel(cx + 3, cy, BLACK); // right
+}
+
 void drawMainHeader()
 {
   u8g2.setFontMode(1);
@@ -315,6 +333,7 @@ void drawMainHeader()
   u8g2.setCursor(MAIN_DISTANCE_X, MAIN_DISTANCE_Y);
   u8g2.print(F("Dist:"));
   u8g2.print(distance_cm);
+  drawHighSunlightIndicator();
   drawLidarQualityIndicator();
 
   u8g2.setCursor(MAIN_LENS_X, MAIN_LENS_Y);

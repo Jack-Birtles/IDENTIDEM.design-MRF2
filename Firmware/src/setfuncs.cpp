@@ -95,6 +95,7 @@ void setDistance()
   if (!lidarSensorReady || !lidarEnabled)
   {
     lidarRecoveryState = {};
+    lidar_high_sunlight = false;
     return;
   }
 
@@ -105,6 +106,7 @@ void setDistance()
   if (lidar.newDataAvailable())
   {
     DTSMeasurement measurement = lidar.getMeasurement();
+    lidar_high_sunlight = updateSunlightWarnState(lidar_high_sunlight, measurement.sunlightBase);
 
     // Use the library's median-filtered distance to reduce jitter at near/mid range.
     uint16_t filtered_mm = lidar.getFilteredDistance();

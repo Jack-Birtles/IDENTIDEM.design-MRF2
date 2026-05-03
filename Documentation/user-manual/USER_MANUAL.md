@@ -88,7 +88,7 @@ The main screen displays:
 - **ISO** (upper left)
 - **Aperture** (upper center-left)
 - **Shutter speed** (lower left)
-- **LiDAR distance** (upper right, labeled "Dist")
+- **LiDAR distance** (upper right, labeled "Dist") — a small sun glyph appears just before the quality blocks when ambient infrared is high enough to degrade the LiDAR (e.g. shooting horizontally toward bright sky in full sun). The reading may be less reliable while the glyph is visible; expect occasional drop-outs or slightly wider noise.
 - **LiDAR quality indicator** (4 small squares in a vertical stack at the right edge of the status bar)
 - **Lens distance** (lower right, labeled "Lens")
 - **Framelines** scaled to the selected film format

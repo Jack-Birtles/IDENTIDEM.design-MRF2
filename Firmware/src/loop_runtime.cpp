@@ -126,6 +126,7 @@ uint32_t buildMainUiSignature()
   hash = hashInt(hash, distance);
   hash = hashInt(hash, lens_distance_raw);
   hash = hashInt(hash, lidar_quality_level);
+  hash = hashBool(hash, lidar_high_sunlight);
   hash = hashBool(hash, parallaxEnabled);
   hash = hashInt(hash, reticle_offset_x);
   hash = hashInt(hash, reticle_offset_y);

@@ -29,6 +29,7 @@ int level_trim_portrait_neg_deci_deg = DEFAULT_LEVEL_TRIM_PORTRAIT_NEG_DECI_DEG;
 int reticle_offset_x = DEFAULT_RETICLE_OFFSET_X;
 int reticle_offset_y = DEFAULT_RETICLE_OFFSET_Y;
 int lidar_distance_offset_mm = DEFAULT_LIDAR_DISTANCE_OFFSET_MM;
+bool lidar_high_sunlight = false;
 bool brightness_auto = DEFAULT_BRIGHTNESS_AUTO;
 int brightness_manual_pct = DEFAULT_BRIGHTNESS_MANUAL_PCT;
 int brightness_auto_top_pct = DEFAULT_BRIGHTNESS_AUTO_TOP_PCT;
