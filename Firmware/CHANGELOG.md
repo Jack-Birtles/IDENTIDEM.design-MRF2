@@ -13,6 +13,7 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
   - Remove unused residual-correction lookup table and the unreachable double-correction wrapper around it. The power-law correction below 1.5m remains.
 - Fix distance display test: update assertion to reflect v10.4.5 near-range 2dp precision (150cm now shows as `1.50m` not `1.5m`).
 - Add **LiDAR offset** to Setup > UI Settings (`0`–`800mm` in `10mm` steps, default `400mm`). Tunes the LiDAR reading to compensate for the sensor-to-lens-plane physical offset. Persisted to NVS; takes effect immediately on adjustment so the live distance readout reflects the change.
+- Improve **Focus reticle adjustment** screen: now shows the current X/Y offsets numerically with a `>` marker on the active axis, plus a fixed reference crosshair at the optical centre so the reticle dot's offset is visually unambiguous.
 
 ## 10.4.5 - 2026-04-16
 

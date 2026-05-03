@@ -927,22 +927,39 @@ void drawReticleAdjustUI()
 {
   preparePrimaryDisplayTextMode();
 
-  // Draw only the reticle dot at its current offset position.
-  int cx = (SCREEN_WIDTH / 2) + reticle_offset_x;
-  int cy = (SCREEN_HEIGHT / 2) - MAIN_RETICLE_CENTER_Y_OFFSET + reticle_offset_y;
+  const int refX = SCREEN_WIDTH / 2;
+  const int refY = (SCREEN_HEIGHT / 2) - MAIN_RETICLE_CENTER_Y_OFFSET;
+
+  // Top header: current offsets, with a marker pointing to the active axis.
+  u8g2.setFont(u8g2_font_6x10_mf);
+  u8g2.setCursor(2, 12);
+  u8g2.print(reticle_adjust_step == 0 ? F(">X:") : F(" X:"));
+  u8g2.print(reticle_offset_x);
+  u8g2.setCursor(64, 12);
+  u8g2.print(reticle_adjust_step == 1 ? F(">Y:") : F(" Y:"));
+  u8g2.print(reticle_offset_y);
+
+  // Reference crosshair at the unmodified screen centre — gives the user a
+  // fixed anchor to gauge how far the reticle dot has moved.
+  display.drawLine(refX - 5, refY, refX + 5, refY, WHITE);
+  display.drawLine(refX, refY - 5, refX, refY + 5, WHITE);
+
+  // Reticle dot drawn over the crosshair so it visually "snaps" to centre when
+  // both offsets are zero.
+  const int cx = refX + reticle_offset_x;
+  const int cy = refY + reticle_offset_y;
   display.fillCircle(cx, cy, MAIN_RETICLE_CENTER_RADIUS, WHITE);
 
-  // Draw button labels at the bottom.
+  // Bottom: button hints — directional cue matches the current step.
   u8g2.setFont(u8g2_font_4x6_mf);
+  u8g2.setCursor(2, 122);
   if (reticle_adjust_step == 0)
   {
-    u8g2.setCursor(2, 122);
-    u8g2.print(F("(L)<  >(R)  hold:next"));
+    u8g2.print(F("(L)< X >(R)  hold:next"));
   }
   else
   {
-    u8g2.setCursor(2, 122);
-    u8g2.print(F("(L)^  v(R)  hold:save"));
+    u8g2.print(F("(L)^ Y v(R)  hold:save"));
   }
 
   display.display();
