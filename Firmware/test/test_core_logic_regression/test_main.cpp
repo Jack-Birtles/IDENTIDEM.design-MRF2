@@ -574,21 +574,21 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("Dark!", formattedShutter);
   formatShutterSpeed(50000.0f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
-  // K=7: speed = 64*7/(320*400) = 0.0035 → rounds to 0.004 → 1/250
+  // K=12.5: speed = 64*12.5/(320*400) = 0.00625 → rounds to 0.006 → 1/250
   formatShutterSpeed(320.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("1/250 sec.", formattedShutter);
-  // K=7: speed = 4*7/(0.5*50) = 1.12s → rounds to 1s
+  // K=12.5: speed = 4*12.5/(0.5*50) = 2.0s → 2 sec
   formatShutterSpeed(0.5f, 2.0f, 50, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("1 sec.", formattedShutter);
-  // K=7: speed = 4*7/(0.4*100) = 0.7s → 1/2 range
+  TEST_ASSERT_EQUAL_STRING("2 sec.", formattedShutter);
+  // K=12.5: speed = 4*12.5/(0.4*100) = 1.25s → rounds to 1.5 sec
   formatShutterSpeed(0.4f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("1/2 sec.", formattedShutter);
-  // K=7: speed = 4*7/(0.5*100) = 0.56s → 1/2 range
+  TEST_ASSERT_EQUAL_STRING("1.5 sec.", formattedShutter);
+  // K=12.5: speed = 4*12.5/(0.5*100) = 1.0s → 1 sec
   formatShutterSpeed(0.5f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("1/2 sec.", formattedShutter);
-  // K=7: speed = 4*7/(0.001*100) = 280s → 4m40s
+  TEST_ASSERT_EQUAL_STRING("1 sec.", formattedShutter);
+  // K=12.5: speed = 4*12.5/(0.001*100) = 500s → 8m20s
   formatShutterSpeed(0.001f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("4m40s", formattedShutter);
+  TEST_ASSERT_EQUAL_STRING("8m20s", formattedShutter);
   // absurdly dark → capped at 25m0s
   formatShutterSpeed(0.00001f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);

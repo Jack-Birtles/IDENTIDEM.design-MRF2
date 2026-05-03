@@ -515,6 +515,7 @@ const int CALIB_STATUS_Y2 = 106;             // Calibration status line 2 Y.
 // ---------------------------------------------------------------------------
 // Light meter exposure constant
 // ---------------------------------------------------------------------------
-const int K = 7; // Calibration constant used in EV/shutter equations. Tuned for BH1750 sensor geometry; corrects ~1.5-stop overexposure vs K=12.5 standard.
+const float K = 12.5f; // ISO-standard reflected-light meter constant.
+const float LIGHTMETER_LUX_CAL_SCALE = 1.77f; // BH1750 mounting compensation: scales raw sensor lux to actual scene illuminance. Sensor reads ~1.77x low due to in-camera placement; combined with K=12.5 this neutralises the ~1.5 stops of metering bias previously absorbed by K=20.
 
 #endif // MRFCONSTANTS_H

@@ -47,8 +47,10 @@ LidarRecoveryState lidarRecoveryState = {};
 
 void applyLidarCalibrationProfile()
 {
-  // Re-apply library-side distance correction after sensor state changes.
-  // Frame rate is set once at boot; the sensor retains it across enable/disable cycles.
+  // Re-apply all sensor settings after any state change (begin, enable, recovery).
+  // Frame rate is included defensively in case begin() resets it — sending the
+  // same value twice on a no-op transition is harmless.
+  lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
   lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
   lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
 }
@@ -377,7 +379,7 @@ void setLightMeter()
     return;
   }
 
-  float rawLux = lightMeter.readLightLevel();
+  float rawLux = lightMeter.readLightLevel() * LIGHTMETER_LUX_CAL_SCALE;
   if (rawLux < 0.0f)
   {
     rawLux = 0.0f;
@@ -427,8 +429,7 @@ void retryLidarInit()
 
   lidarSensorReady = true;
   lidarEnabled = true;
-  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-  lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
+  applyLidarCalibrationProfile();
   last_lidar_error_code = 0;
 }
 
