@@ -67,3 +67,7 @@ plot/
 *.tar
 *.tar.gz
 
+
+# AI assistant guidance files (kept locally, not shared via the repo)
+CLAUDE.md
+**/CLAUDE.md
