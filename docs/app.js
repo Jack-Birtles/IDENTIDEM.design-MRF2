@@ -812,8 +812,10 @@
   function appendInlineCodeSpans(containerEl, text) {
     if (!containerEl || typeof text !== "string" || !text.length) return;
 
-    const parts = text.split(/(`[^`]+`)/g);
-    parts.forEach((part) => {
+    // Split on code spans first — their content is verbatim, so any `**` inside
+    // them must not be reinterpreted as bold markers.
+    const codeParts = text.split(/(`[^`]+`)/g);
+    codeParts.forEach((part) => {
       if (!part) return;
 
       const isCodeSpan = part.length >= 3 && part.startsWith("`") && part.endsWith("`");
@@ -824,7 +826,22 @@
         return;
       }
 
-      containerEl.appendChild(document.createTextNode(part));
+      // Within non-code text, render `**bold**` as <strong>.
+      const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+      boldParts.forEach((segment) => {
+        if (!segment) return;
+
+        const isBold =
+          segment.length >= 5 && segment.startsWith("**") && segment.endsWith("**");
+        if (isBold) {
+          const strong = document.createElement("strong");
+          strong.textContent = segment.slice(2, -2);
+          containerEl.appendChild(strong);
+          return;
+        }
+
+        containerEl.appendChild(document.createTextNode(segment));
+      });
     });
   }
 
