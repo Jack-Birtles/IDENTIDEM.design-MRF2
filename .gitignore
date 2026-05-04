@@ -68,6 +68,11 @@ plot/
 *.tar.gz
 
 
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
 # AI assistant guidance files (kept locally, not shared via the repo)
 CLAUDE.md
 **/CLAUDE.md
