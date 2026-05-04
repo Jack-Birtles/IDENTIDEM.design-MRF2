@@ -46,6 +46,8 @@ extern int level_trim_portrait_pos_deci_deg;
 extern int level_trim_portrait_neg_deci_deg;
 extern int reticle_offset_x;
 extern int reticle_offset_y;
+extern int lidar_distance_offset_mm;
+extern bool lidar_high_sunlight;
 extern bool brightness_auto;
 extern int brightness_manual_pct;
 extern int brightness_auto_top_pct;

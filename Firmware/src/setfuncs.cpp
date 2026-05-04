@@ -44,14 +44,8 @@ LensSpikeFilterState lensSpikeFilter;
 LensSnapState lensSnap;
 LightMeterSmoothingState lightMeterSmoothing;
 LidarRecoveryState lidarRecoveryState = {};
-
-void applyLidarCalibrationProfile()
-{
-  // Re-apply library-side distance correction after sensor state changes.
-  // Frame rate is set once at boot; the sensor retains it across enable/disable cycles.
-  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-  lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
-}
+int consecutive_implausible_lidar_frames = 0;
+int lidar_stable_streak_frames = 0;
 
 bool getLensPriorCm(int &lens_prior_cm)
 {
@@ -77,6 +71,16 @@ void setLensDistanceFromCm(int distance_cm)
 
 } // namespace
 
+void applyLidarCalibrationProfile()
+{
+  // Re-apply all sensor settings after any state change (begin, enable, recovery).
+  // Frame rate is included defensively in case begin() resets it — sending the
+  // same value twice on a no-op transition is harmless.
+  lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
+  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
+  lidar.setDistanceOffset(static_cast<int16_t>(lidar_distance_offset_mm));
+}
+
 void clearLidarDisplay(const char *placeholder)
 {
   snprintf(distance_cm, sizeof(distance_cm), "%s", placeholder);
@@ -91,6 +95,7 @@ void setDistance()
   if (!lidarSensorReady || !lidarEnabled)
   {
     lidarRecoveryState = {};
+    lidar_high_sunlight = false;
     return;
   }
 
@@ -101,6 +106,7 @@ void setDistance()
   if (lidar.newDataAvailable())
   {
     DTSMeasurement measurement = lidar.getMeasurement();
+    lidar_high_sunlight = updateSunlightWarnState(lidar_high_sunlight, measurement.sunlightBase);
 
     // Use the library's median-filtered distance to reduce jitter at near/mid range.
     uint16_t filtered_mm = lidar.getFilteredDistance();
@@ -115,6 +121,8 @@ void setDistance()
     LidarCandidate chosen = chooseBestLidarCandidate(measurement, prev_distance, has_lens_prior, lens_prior_cm);
     if (!chosen.valid)
     {
+      // Sensor frame unusable — break any subject-stable streak.
+      lidar_stable_streak_frames = 0;
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
       if ((now - lidarRecoveryState.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
       {
@@ -122,6 +130,39 @@ void setDistance()
       }
       return;
     }
+
+    // Plausibility gate: when the lens is focused close, reject LiDAR readings
+    // that significantly overshoot the lens prior — almost certainly a beam-miss
+    // past the framed subject. Hold the previous valid value instead. After a
+    // streak of rejections, fall through so the user can deliberately re-focus
+    // past the previous LiDAR target without being stuck.
+    if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
+    {
+      consecutive_implausible_lidar_frames++;
+      lidar_stable_streak_frames = 0; // Rejection means we are not tracking a stable subject.
+      if (consecutive_implausible_lidar_frames < LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES)
+      {
+        return;
+      }
+      // Fall through: streak exceeded, accept the reading.
+    }
+    else
+    {
+      consecutive_implausible_lidar_frames = 0;
+    }
+
+    // Subject-stable confidence boost: count consecutive readings within the
+    // stability delta and add a confidence boost once the streak passes the
+    // minimum-frames threshold.
+    if (prev_distance > 0 && abs(chosen.distance_cm - prev_distance) <= LIDAR_STABLE_DELTA_CM)
+    {
+      lidar_stable_streak_frames = min(lidar_stable_streak_frames + 1, LIDAR_STABLE_MIN_FRAMES + 1);
+    }
+    else
+    {
+      lidar_stable_streak_frames = 1; // start a new streak from this reading
+    }
+    chosen.confidence = applyStableConfidenceBoost(chosen.confidence, lidar_stable_streak_frames);
 
     updateLidarRecoveryState(lidarRecoveryState, LidarRecoveryEvent::VALID_MEASUREMENT, now);
     lidar_quality_level = chosen.quality_level;
@@ -377,7 +418,7 @@ void setLightMeter()
     return;
   }
 
-  float rawLux = lightMeter.readLightLevel();
+  float rawLux = lightMeter.readLightLevel() * LIGHTMETER_LUX_CAL_SCALE;
   if (rawLux < 0.0f)
   {
     rawLux = 0.0f;
@@ -427,8 +468,7 @@ void retryLidarInit()
 
   lidarSensorReady = true;
   lidarEnabled = true;
-  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-  lidar.setDistanceOffset(LIDAR_LIBRARY_DISTANCE_OFFSET_MM);
+  applyLidarCalibrationProfile();
   last_lidar_error_code = 0;
 }
 

@@ -22,6 +22,7 @@ void cycleMeterSmoothing();
 void toggleEvReadout();
 void cycleSleepTimeoutMode();
 void cycleLidarIdleTimeoutMode();
+void cycleLidarDistanceOffset();
 void cycleLevelTrimLandscape();
 void cycleLevelTrimPortraitPos();
 void cycleLevelTrimPortraitNeg();

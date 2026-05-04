@@ -39,41 +39,6 @@ int applyLidarCalibrationCm(int raw_cm)
   return static_cast<int>(roundf(scaled));
 }
 
-int applyLidarResidualCorrectionCm(int corrected_cm)
-{
-  if (corrected_cm <= 0 || LIDAR_RESIDUAL_POINT_COUNT <= 0)
-  {
-    return corrected_cm;
-  }
-
-  if (corrected_cm <= LIDAR_RESIDUAL_DIST_CM[0])
-  {
-    return corrected_cm + LIDAR_RESIDUAL_DELTA_CM[0];
-  }
-
-  for (int i = 1; i < LIDAR_RESIDUAL_POINT_COUNT; i++)
-  {
-    if (corrected_cm <= LIDAR_RESIDUAL_DIST_CM[i])
-    {
-      int x0 = LIDAR_RESIDUAL_DIST_CM[i - 1];
-      int x1 = LIDAR_RESIDUAL_DIST_CM[i];
-      int y0 = LIDAR_RESIDUAL_DELTA_CM[i - 1];
-      int y1 = LIDAR_RESIDUAL_DELTA_CM[i];
-      float t = static_cast<float>(corrected_cm - x0) / static_cast<float>(x1 - x0);
-      int residual_delta = static_cast<int>(roundf(static_cast<float>(y0) + (static_cast<float>(y1 - y0) * t)));
-      return corrected_cm + residual_delta;
-    }
-  }
-
-  return corrected_cm + LIDAR_RESIDUAL_DELTA_CM[LIDAR_RESIDUAL_POINT_COUNT - 1];
-}
-
-int applyLidarDoubleCorrectionCm(int raw_cm)
-{
-  int curve_corrected_cm = applyLidarCalibrationCm(raw_cm);
-  return applyLidarResidualCorrectionCm(curve_corrected_cm);
-}
-
 int qualityBaseScore(DataQuality quality)
 {
   switch (quality)
@@ -263,7 +228,7 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int corrected_cm = applyLidarDoubleCorrectionCm(raw_cm);
+  int corrected_cm = applyLidarCalibrationCm(raw_cm);
   if (corrected_cm <= 0)
   {
     return candidate;
@@ -322,7 +287,7 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int corrected_cm = applyLidarDoubleCorrectionCm(raw_cm);
+  int corrected_cm = applyLidarCalibrationCm(raw_cm);
   if (corrected_cm <= 0)
   {
     return candidate;
@@ -468,6 +433,38 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
   return fallbackPrimary;
 }
 
+bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
+{
+  if (lens_prior_cm <= 0 || lens_prior_cm > LIDAR_PLAUSIBILITY_LENS_NEAR_CM)
+  {
+    return false;
+  }
+  if (lidar_distance_cm <= 0)
+  {
+    return false;
+  }
+  return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
+}
+
+int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames)
+{
+  if (stable_streak_frames < LIDAR_STABLE_MIN_FRAMES)
+  {
+    return base_confidence;
+  }
+  int boosted = base_confidence + LIDAR_STABLE_CONFIDENCE_BOOST;
+  return min(boosted, LIDAR_STABLE_MAX_CONFIDENCE);
+}
+
+bool updateSunlightWarnState(bool currently_warning, uint16_t sunlight_base)
+{
+  if (currently_warning)
+  {
+    return sunlight_base >= LIDAR_SUNLIGHT_WARN_EXIT;
+  }
+  return sunlight_base >= LIDAR_SUNLIGHT_WARN_ENTER;
+}
+
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence)
 {
   if (previous_distance_cm <= 0)
@@ -477,6 +474,12 @@ int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confi
 
   if (confidence >= LIDAR_CONFIDENCE_HIGH)
   {
+    if (next_distance_cm <= LIDAR_NEAR_HIGH_CONF_BLEND_MAX_CM)
+    {
+      float blended = static_cast<float>(previous_distance_cm) * LIDAR_NEAR_HIGH_CONF_BLEND +
+                      static_cast<float>(next_distance_cm) * (1.0f - LIDAR_NEAR_HIGH_CONF_BLEND);
+      return static_cast<int>(roundf(blended));
+    }
     return next_distance_cm;
   }
 

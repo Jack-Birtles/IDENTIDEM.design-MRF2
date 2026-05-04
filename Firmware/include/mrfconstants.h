@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 // Firmware identity and boot behavior
 // ---------------------------------------------------------------------------
-#define FWVERSION "10.4.5"                  // Version shown in UI and release metadata.
+#define FWVERSION "10.4.6"                  // Version shown in UI and release metadata.
 const unsigned long SLEEP_BOOT_GRACE_MS = 15000; // Ignore sleep timer immediately after boot.
 
 // ---------------------------------------------------------------------------
@@ -130,7 +130,7 @@ const int DEFAULT_RETICLE_OFFSET_Y = 0;  // Default reticle Y offset for optical
 const int RETICLE_OFFSET_MIN = -20;      // Minimum reticle offset in pixels.
 const int RETICLE_OFFSET_MAX = 20;       // Maximum reticle offset in pixels.
 const int LIDAR_DISTANCE_DIVISOR = 10;           // Raw LiDAR millimetre-to-centimetre divisor.
-const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate — lower = more integration time per frame.
+const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate. 50 is the library's documented standard-mode floor; the temporal blend filter handles noise rejection at higher rates better than longer integration would.
 const unsigned long LIDAR_NO_DATA_TIMEOUT_MS = 1000; // Hold last reading before showing placeholder.
 const int LIDAR_FAR_SIGNAL_LOSS_CM = 300;         // Show "Inf." instead of "..." when signal lost above this distance.
 const int LIDAR_RECOVERY_ERROR_THRESHOLD = 3;    // Errors before recovery path escalates.
@@ -138,16 +138,17 @@ const unsigned long LIDAR_RECOVERY_TIMEOUT_MS = 1500; // Timeout window triggeri
 const unsigned long LIDAR_RECOVERY_RETRY_BASE_MS = 250; // Initial retry backoff.
 const unsigned long LIDAR_RECOVERY_RETRY_MAX_MS = 2000; // Max retry backoff.
 const float LIDAR_LIBRARY_DISTANCE_SCALE = 1.0f; // Library-side linear distance scale.
-const int LIDAR_LIBRARY_DISTANCE_OFFSET_MM = 400; // Library-side linear distance offset.
-const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 20; // Library quality tier base; tiers are distance-scaled in v2.1.2+.
+// LiDAR distance offset is now a runtime preference (lidar_distance_offset_mm) — see DEFAULT_LIDAR_DISTANCE_OFFSET_MM below.
+const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 20; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Kept lower than our pipeline's LIDAR_FUSION_MIN_INTENSITY=40 floor so weak-but-valid returns reach our scoring pipeline (which applies the harder gate). Aligning the two values caused near-range drop-outs in bright ambient light.
+const int LIDAR_RANGE_NEAR_CM = 200;             // Single source of truth for the "near range" boundary (≤2m). Aliased by the constants below.
 const int LIDAR_FUSION_MIN_INTENSITY = 40;       // Near-range (≤2m) minimum intensity — strict for accuracy.
-const int LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM = 200; // Near-range boundary (≤2m): super accurate.
+const int LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM = LIDAR_RANGE_NEAR_CM; // Near-range boundary for intensity gating.
 const int LIDAR_FUSION_INTENSITY_MID_RANGE_CM = 500;  // Mid-range boundary (≤5m): less accurate.
 const int LIDAR_FUSION_INTENSITY_FAR_RANGE_CM = 700;  // Far-range boundary (≤7m): even less accurate.
 const int LIDAR_FUSION_MIN_INTENSITY_MID = 10;   // Mid-range minimum intensity (2–5m).
 const int LIDAR_FUSION_MIN_INTENSITY_FAR = 3;    // Far-range minimum intensity (5–7m).
 const int LIDAR_FUSION_MIN_INTENSITY_MAX_RANGE = 1; // Beyond-far minimum intensity (8m+): just get a value.
-const int LIDAR_SNR_PERMILLE_TARGET_NEAR = 300;  // Target SNR (permille) for near returns (≤2m) — strict.
+const int LIDAR_SNR_PERMILLE_TARGET_NEAR = 180;  // Target SNR (permille) for near returns (≤2m). Was 300; relaxed after field reports of near-range drop-outs in full sun against open sky/distant background. The temporal blend now provides the stability that the strict SNR target was protecting.
 const int LIDAR_SNR_PERMILLE_TARGET_MID = 150;   // Target SNR (permille) for mid returns (2–5m) — moderate.
 const int LIDAR_SNR_PERMILLE_TARGET_FAR = 40;    // Target SNR (permille) for far returns (5–7m) — relaxed.
 const int LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE = 10; // Target SNR (permille) at max range (8m+) — accept anything.
@@ -164,6 +165,8 @@ const int LIDAR_CONFIDENCE_MEDIUM = 55;          // Medium-confidence threshold.
 const float LIDAR_MEDIUM_CONF_BLEND = 0.35f;     // Blend factor when confidence is medium.
 const float LIDAR_LOW_CONF_BLEND_MIN = 0.20f;    // Minimum blend at low confidence.
 const float LIDAR_LOW_CONF_BLEND_MAX = 0.35f;    // Maximum blend at low confidence.
+const float LIDAR_NEAR_HIGH_CONF_BLEND = 0.12f;  // Prior weight in near-range high-confidence blend (12% previous).
+const int LIDAR_NEAR_HIGH_CONF_BLEND_MAX_CM = LIDAR_RANGE_NEAR_CM; // Near-range blend ceiling — applies at or below 2m.
 const int LIDAR_LOW_CONF_MAX_STEP_CM = 300;      // Max accepted per-frame distance step at low confidence.
 const int LIDAR_FUSION_AGREE_DELTA_CM = 30;      // Agreement delta between primary/secondary returns.
 const int LIDAR_FUSION_CONF_BONUS = 6;           // Confidence bonus when candidates agree.
@@ -174,7 +177,7 @@ const int LIDAR_PRIOR_PENALTY_MAX_FAIR = 4;      // Prior penalty cap for fair c
 const int LIDAR_PRIOR_PENALTY_MAX_GOOD = 5;      // Prior penalty cap for good candidate quality.
 const int LIDAR_PRIOR_PENALTY_MAX_EXCELLENT = 4; // Prior penalty cap for excellent candidate quality.
 const int LIDAR_PRIOR_DEADBAND_CM = 25;          // No prior penalty inside this distance error band.
-const int LIDAR_PRIOR_RANGE_NEAR_CM = 200;       // Near band for prior scaling (≤2m).
+const int LIDAR_PRIOR_RANGE_NEAR_CM = LIDAR_RANGE_NEAR_CM;       // Near band for prior scaling (≤2m).
 const int LIDAR_PRIOR_RANGE_MID_CM = 500;        // Mid band for prior scaling (≤5m).
 const int LIDAR_PRIOR_RANGE_FAR_CM = 700;        // Far band for prior scaling (≤7m).
 const float LIDAR_PRIOR_RANGE_SCALE_NEAR = 1.0f; // Prior penalty scale at near range (≤2m) — full influence.
@@ -183,10 +186,15 @@ const float LIDAR_PRIOR_RANGE_SCALE_FAR = 0.35f; // Prior penalty scale at far r
 const float LIDAR_PRIOR_RANGE_SCALE_VERY_FAR = 0.2f; // Prior penalty scale at max range (8m+) — minimal influence.
 const float LIDAR_LENS_PRIOR_WEIGHT_GOOD = 0.025f;    // Lens-prior pull when confidence is good.
 const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when confidence is excellent.
-
-const int LIDAR_RESIDUAL_POINT_COUNT = 6; // Number of residual correction table points.
-const int LIDAR_RESIDUAL_DIST_CM[LIDAR_RESIDUAL_POINT_COUNT] = {50, 100, 150, 200, 500, 1000}; // Residual table X-axis.
-const int LIDAR_RESIDUAL_DELTA_CM[LIDAR_RESIDUAL_POINT_COUNT] = {0, 0, 0, 0, 0, 0};             // Residual table Y-axis.
+const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 200;      // Apply plausibility gate only when lens is focused at or below 2m (parallax matters most close).
+const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Reject LiDAR readings more than this far beyond the lens prior — almost certainly a beam-miss past the subject.
+const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 8;  // Accept LiDAR after this many consecutive plausibility rejections (lets the user re-focus past the previous target without being permanently stuck).
+const int LIDAR_STABLE_DELTA_CM = 5;                  // Max frame-to-frame distance change to count as "subject locked".
+const int LIDAR_STABLE_MIN_FRAMES = 5;                // Consecutive stable frames required before the confidence boost kicks in.
+const int LIDAR_STABLE_CONFIDENCE_BOOST = 10;         // Confidence delta added once subject lock is established.
+const int LIDAR_STABLE_MAX_CONFIDENCE = 95;           // Clamp so the boost cannot push a marginal reading to "excellent".
+const uint16_t LIDAR_SUNLIGHT_WARN_ENTER = 2500;      // Show the high-sunlight indicator once sunlightBase exceeds this. Initial guess; needs field tuning from real readings.
+const uint16_t LIDAR_SUNLIGHT_WARN_EXIT = 1500;       // Hide the indicator once sunlightBase drops below this. Hysteresis prevents flicker near the boundary.
 
 // ---------------------------------------------------------------------------
 // Film counter/encoder filtering
@@ -275,6 +283,10 @@ const int DEFAULT_FRAME_SPACING_OFFSET = 0;         // Default film frame-spacin
 const int DEFAULT_LEVEL_TRIM_LANDSCAPE_DECI_DEG = 0;    // Default landscape level trim in 0.1-degree units.
 const int DEFAULT_LEVEL_TRIM_PORTRAIT_POS_DECI_DEG = 0; // Default portrait (+) level trim in 0.1-degree units.
 const int DEFAULT_LEVEL_TRIM_PORTRAIT_NEG_DECI_DEG = 0; // Default portrait (-) level trim in 0.1-degree units.
+const int DEFAULT_LIDAR_DISTANCE_OFFSET_MM = 400;    // Default LiDAR distance offset in mm (sensor-to-lens-plane geometry).
+const int LIDAR_DISTANCE_OFFSET_MIN_MM = 0;          // Minimum user-adjustable LiDAR distance offset.
+const int LIDAR_DISTANCE_OFFSET_MAX_MM = 800;        // Maximum user-adjustable LiDAR distance offset.
+const int LIDAR_DISTANCE_OFFSET_STEP_MM = 10;        // Step size for LiDAR distance offset adjustment.
 const uint16_t PREFS_SCHEMA_VERSION = 2;            // Preferences schema version for migration.
 
 // ---------------------------------------------------------------------------
@@ -384,6 +396,7 @@ enum ConfigUiStep
   CONFIG_UI_STEP_BRIGHTNESS_VALUE,       // Display brightness level.
   CONFIG_UI_STEP_SLEEP_TIMEOUT,          // Sleep timeout selector.
   CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT,     // LiDAR idle-timeout selector.
+  CONFIG_UI_STEP_LIDAR_OFFSET,           // LiDAR distance offset (calibration).
   CONFIG_UI_STEP_RETICLE_ADJUST,         // Enter reticle offset adjustment.
   CONFIG_UI_STEP_BACK,                   // Back to setup root.
   CONFIG_UI_STEP_COUNT
@@ -431,6 +444,8 @@ const int MAIN_LIDAR_QUALITY_X = 123;      // LiDAR quality indicator origin X.
 const int MAIN_LIDAR_QUALITY_Y = 2;        // LiDAR quality indicator origin Y.
 const int MAIN_LIDAR_QUALITY_SIZE = 2;     // LiDAR quality block size.
 const int MAIN_LIDAR_QUALITY_GAP = 1;      // Gap between LiDAR quality blocks.
+const int MAIN_SUNLIGHT_ICON_CX = 116;     // Centre X of the high-sunlight indicator (sits in the gap before the quality blocks).
+const int MAIN_SUNLIGHT_ICON_CY = 4;       // Centre Y of the high-sunlight indicator.
 
 // ---------------------------------------------------------------------------
 // Setup/calibration/health UI layout coordinates
@@ -513,6 +528,7 @@ const int CALIB_STATUS_Y2 = 106;             // Calibration status line 2 Y.
 // ---------------------------------------------------------------------------
 // Light meter exposure constant
 // ---------------------------------------------------------------------------
-const int K = 20; // Calibration constant used in EV/shutter equations.
+const float K = 12.5f; // ISO-standard reflected-light meter constant.
+const float LIGHTMETER_LUX_CAL_SCALE = 1.77f; // BH1750 mounting compensation: scales raw sensor lux to actual scene illuminance. Sensor reads ~1.77x low due to in-camera placement; combined with K=12.5 this neutralises the ~1.5 stops of metering bias previously absorbed by K=20.
 
 #endif // MRFCONSTANTS_H

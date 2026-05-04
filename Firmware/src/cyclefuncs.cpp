@@ -312,6 +312,20 @@ void cycleLidarIdleTimeoutMode()
   savePrefs(false, PREFS_DIRTY_SETTINGS);
 }
 
+void cycleLidarDistanceOffset()
+{
+  lidar_distance_offset_mm = cycleValueWrapping(lidar_distance_offset_mm,
+                                                LIDAR_DISTANCE_OFFSET_STEP_MM,
+                                                LIDAR_DISTANCE_OFFSET_MIN_MM,
+                                                LIDAR_DISTANCE_OFFSET_MAX_MM);
+  // Push immediately so the live LiDAR readout reflects the change without waiting for reboot.
+  if (lidarSensorReady)
+  {
+    lidar.setDistanceOffset(static_cast<int16_t>(lidar_distance_offset_mm));
+  }
+  savePrefs(false, PREFS_DIRTY_SETTINGS);
+}
+
 const char *getSleepTimeoutModeLabel(int timeout_mode)
 {
   int clampedMode = clampSleepTimeoutMode(timeout_mode);

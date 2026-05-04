@@ -265,6 +265,24 @@ void drawLidarQualityIndicator()
   }
 }
 
+void drawHighSunlightIndicator()
+{
+  if (!lidar_high_sunlight)
+  {
+    return;
+  }
+  // Header background is WHITE; draw the icon in BLACK so it stays visible.
+  const int cx = MAIN_SUNLIGHT_ICON_CX;
+  const int cy = MAIN_SUNLIGHT_ICON_CY;
+  // Sun body: 3x3 filled square centred on (cx, cy).
+  display.fillRect(cx - 1, cy - 1, 3, 3, BLACK);
+  // Four rays one pixel off the body.
+  display.drawPixel(cx, cy - 3, BLACK); // top
+  display.drawPixel(cx, cy + 3, BLACK); // bottom
+  display.drawPixel(cx - 3, cy, BLACK); // left
+  display.drawPixel(cx + 3, cy, BLACK); // right
+}
+
 void drawMainHeader()
 {
   u8g2.setFontMode(1);
@@ -315,6 +333,7 @@ void drawMainHeader()
   u8g2.setCursor(MAIN_DISTANCE_X, MAIN_DISTANCE_Y);
   u8g2.print(F("Dist:"));
   u8g2.print(distance_cm);
+  drawHighSunlightIndicator();
   drawLidarQualityIndicator();
 
   u8g2.setCursor(MAIN_LENS_X, MAIN_LENS_Y);
@@ -909,6 +928,11 @@ void drawUiConfigUI()
   u8g2.print(getSleepTimeoutModeLabel(lidar_idle_timeout_mode));
   u8g2.print(F(" "));
 
+  selectConfigMenuRow(CONFIG_UI_STEP_LIDAR_OFFSET, config_step == CONFIG_UI_STEP_LIDAR_OFFSET);
+  u8g2.print(F(" LiDAR offset: "));
+  u8g2.print(lidar_distance_offset_mm);
+  u8g2.print(F("mm "));
+
   selectConfigMenuRow(CONFIG_UI_STEP_RETICLE_ADJUST, config_step == CONFIG_UI_STEP_RETICLE_ADJUST);
   u8g2.print(F(" Focus reticle > "));
 
@@ -922,22 +946,39 @@ void drawReticleAdjustUI()
 {
   preparePrimaryDisplayTextMode();
 
-  // Draw only the reticle dot at its current offset position.
-  int cx = (SCREEN_WIDTH / 2) + reticle_offset_x;
-  int cy = (SCREEN_HEIGHT / 2) - MAIN_RETICLE_CENTER_Y_OFFSET + reticle_offset_y;
+  const int refX = SCREEN_WIDTH / 2;
+  const int refY = (SCREEN_HEIGHT / 2) - MAIN_RETICLE_CENTER_Y_OFFSET;
+
+  // Top header: current offsets, with a marker pointing to the active axis.
+  u8g2.setFont(u8g2_font_6x10_mf);
+  u8g2.setCursor(2, 12);
+  u8g2.print(reticle_adjust_step == 0 ? F(">X:") : F(" X:"));
+  u8g2.print(reticle_offset_x);
+  u8g2.setCursor(64, 12);
+  u8g2.print(reticle_adjust_step == 1 ? F(">Y:") : F(" Y:"));
+  u8g2.print(reticle_offset_y);
+
+  // Reference crosshair at the unmodified screen centre — gives the user a
+  // fixed anchor to gauge how far the reticle dot has moved.
+  display.drawLine(refX - 5, refY, refX + 5, refY, WHITE);
+  display.drawLine(refX, refY - 5, refX, refY + 5, WHITE);
+
+  // Reticle dot drawn over the crosshair so it visually "snaps" to centre when
+  // both offsets are zero.
+  const int cx = refX + reticle_offset_x;
+  const int cy = refY + reticle_offset_y;
   display.fillCircle(cx, cy, MAIN_RETICLE_CENTER_RADIUS, WHITE);
 
-  // Draw button labels at the bottom.
+  // Bottom: button hints — directional cue matches the current step.
   u8g2.setFont(u8g2_font_4x6_mf);
+  u8g2.setCursor(2, 122);
   if (reticle_adjust_step == 0)
   {
-    u8g2.setCursor(2, 122);
-    u8g2.print(F("(L)<  >(R)  hold:next"));
+    u8g2.print(F("(L)< X >(R)  hold:next"));
   }
   else
   {
-    u8g2.setCursor(2, 122);
-    u8g2.print(F("(L)^  v(R)  hold:save"));
+    u8g2.print(F("(L)^ Y v(R)  hold:save"));
   }
 
   display.display();

@@ -268,9 +268,85 @@ void test_lidar_candidate_selection_and_blend()
   TEST_ASSERT_EQUAL_INT(4, candidate.quality_level);
   TEST_ASSERT_GREATER_THAN_INT(0, candidate.confidence);
 
-  TEST_ASSERT_EQUAL_INT(200, blendLidarDistance(100, 200, 80));
+  TEST_ASSERT_EQUAL_INT(188, blendLidarDistance(100, 200, 80)); // near-range high-conf blend: 100*0.12 + 200*0.88 = 188
+  TEST_ASSERT_EQUAL_INT(115, blendLidarDistance(80, 120, 80));  // typical near-range high-conf: 80*0.12 + 120*0.88 = 115
+  TEST_ASSERT_EQUAL_INT(210, blendLidarDistance(180, 210, 80)); // just-above-boundary at high conf: pass-through, no blend
+  TEST_ASSERT_EQUAL_INT(150, blendLidarDistance(0, 150, 80));   // first reading (previous=0): pass-through regardless of distance
   TEST_ASSERT_EQUAL_INT(135, blendLidarDistance(100, 200, 60));
   TEST_ASSERT_EQUAL_INT(131, blendLidarDistance(100, 200, 40));
+}
+
+void test_lidar_plausibility_gate_rejects_overshoot()
+{
+  // Lens at 1.0m, LiDAR returns something far past +overshoot threshold: implausible.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 100));
+  // Lens at 1.5m, LiDAR returns 4.0m: implausible (well past +200cm overshoot).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(400, 150));
+}
+
+void test_lidar_plausibility_gate_allows_undershoot_and_far_focus()
+{
+  // Lens at 1.0m, LiDAR returns 1.2m: well within overshoot delta — allowed.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(120, 100));
+  // Lens at 1.0m, LiDAR returns 0.6m: undershoot is allowed (e.g. something passed in front).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(60, 100));
+  // Lens focused beyond near-range gate boundary: gate disabled regardless of overshoot.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500));
+  // No lens prior available: gate disabled.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0));
+  // Lens at boundary itself (200cm) still gated; lens just past it (201cm) not gated.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 200));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 201));
+}
+
+void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
+{
+  // Lens at 100cm: 100+200=300 is the boundary. Reading 300cm is NOT implausible (strict greater-than).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100));
+  // 301cm IS implausible.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
+}
+
+void test_lidar_stable_boost_under_min_frames_does_nothing()
+{
+  // Below the min-frames threshold: confidence unchanged regardless of base.
+  TEST_ASSERT_EQUAL_INT(60, applyStableConfidenceBoost(60, 0));
+  TEST_ASSERT_EQUAL_INT(60, applyStableConfidenceBoost(60, LIDAR_STABLE_MIN_FRAMES - 1));
+}
+
+void test_lidar_stable_boost_kicks_in_at_min_frames()
+{
+  // At and above the min-frames threshold: confidence rises by LIDAR_STABLE_CONFIDENCE_BOOST.
+  TEST_ASSERT_EQUAL_INT(60 + LIDAR_STABLE_CONFIDENCE_BOOST,
+                        applyStableConfidenceBoost(60, LIDAR_STABLE_MIN_FRAMES));
+  TEST_ASSERT_EQUAL_INT(70 + LIDAR_STABLE_CONFIDENCE_BOOST,
+                        applyStableConfidenceBoost(70, LIDAR_STABLE_MIN_FRAMES + 5));
+}
+
+void test_lidar_stable_boost_clamps_at_max()
+{
+  // Boost cannot push past the cap, so a high-base confidence does not become 'excellent' purely from stability.
+  TEST_ASSERT_EQUAL_INT(LIDAR_STABLE_MAX_CONFIDENCE,
+                        applyStableConfidenceBoost(90, LIDAR_STABLE_MIN_FRAMES));
+  TEST_ASSERT_EQUAL_INT(LIDAR_STABLE_MAX_CONFIDENCE,
+                        applyStableConfidenceBoost(99, LIDAR_STABLE_MIN_FRAMES));
+}
+
+void test_lidar_sunlight_warn_hysteresis()
+{
+  // Off and below enter: stays off.
+  TEST_ASSERT_FALSE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_ENTER - 1));
+  // Off and at/above enter: switches on.
+  TEST_ASSERT_TRUE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_ENTER));
+  TEST_ASSERT_TRUE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_ENTER + 500));
+  // On and between exit/enter: holds (the hysteresis band).
+  TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_ENTER - 1));
+  TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT));
+  // On and below exit: switches off.
+  TEST_ASSERT_FALSE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT - 1));
+  // Boundary: exactly enter triggers; exactly exit holds.
+  TEST_ASSERT_FALSE(updateSunlightWarnState(false, LIDAR_SUNLIGHT_WARN_EXIT)); // off, below enter
+  TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT));   // on, at exit
 }
 
 void test_lidar_invalid_and_display_formatting()
@@ -299,7 +375,7 @@ void test_lidar_invalid_and_display_formatting()
   formatDistanceDisplay(1900, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("Inf.", formattedDistance);
   formatDistanceDisplay(150, formattedDistance, sizeof(formattedDistance));
-  TEST_ASSERT_EQUAL_STRING("1.5m", formattedDistance);
+  TEST_ASSERT_EQUAL_STRING("1.50m", formattedDistance); // near-range precision: 2dp below 2m
 }
 
 void test_lidar_low_confidence_tracks_beyond_previous_distance()
@@ -574,20 +650,21 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("Dark!", formattedShutter);
   formatShutterSpeed(50000.0f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
+  // K=12.5: speed = 64*12.5/(320*400) = 0.00625 → rounds to 0.006 → 1/250
   formatShutterSpeed(320.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("1/125 sec.", formattedShutter);
-  // speed = 3.2s → rounds to 3s
+  TEST_ASSERT_EQUAL_STRING("1/250 sec.", formattedShutter);
+  // K=12.5: speed = 4*12.5/(0.5*50) = 2.0s → 2 sec
   formatShutterSpeed(0.5f, 2.0f, 50, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("3 sec.", formattedShutter);
-  // speed = 2.0s → whole seconds
-  formatShutterSpeed(0.4f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("2 sec.", formattedShutter);
-  // speed = 1.6s → rounds to 1.5s
-  formatShutterSpeed(0.5f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  // K=12.5: speed = 4*12.5/(0.4*100) = 1.25s → rounds to 1.5 sec
+  formatShutterSpeed(0.4f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("1.5 sec.", formattedShutter);
-  // speed = 800s → 13m20s
+  // K=12.5: speed = 4*12.5/(0.5*100) = 1.0s → 1 sec
+  formatShutterSpeed(0.5f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1 sec.", formattedShutter);
+  // K=12.5: speed = 4*12.5/(0.001*100) = 500s → 8m20s
   formatShutterSpeed(0.001f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
-  TEST_ASSERT_EQUAL_STRING("13m20s", formattedShutter);
+  TEST_ASSERT_EQUAL_STRING("8m20s", formattedShutter);
   // absurdly dark → capped at 25m0s
   formatShutterSpeed(0.00001f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
@@ -608,6 +685,13 @@ int main(int, char **)
   RUN_TEST(test_calibration_rejects_truly_unstable_readings);
   RUN_TEST(test_prefs_migration_mode_and_blob_apply);
   RUN_TEST(test_lidar_candidate_selection_and_blend);
+  RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
+  RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
+  RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
+  RUN_TEST(test_lidar_stable_boost_under_min_frames_does_nothing);
+  RUN_TEST(test_lidar_stable_boost_kicks_in_at_min_frames);
+  RUN_TEST(test_lidar_stable_boost_clamps_at_max);
+  RUN_TEST(test_lidar_sunlight_warn_hysteresis);
   RUN_TEST(test_lidar_invalid_and_display_formatting);
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);

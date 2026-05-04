@@ -406,6 +406,9 @@ void handleRightButtonShortPress()
     else if (config_step == CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT) {
       cycleLidarIdleTimeoutMode();
     }
+    else if (config_step == CONFIG_UI_STEP_LIDAR_OFFSET) {
+      cycleLidarDistanceOffset();
+    }
     else if (config_step == CONFIG_UI_STEP_RETICLE_ADJUST) {
       reticle_adjust_step = 0;
       ui_mode = UiMode::ReticleAdjust;

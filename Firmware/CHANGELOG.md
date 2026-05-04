@@ -2,6 +2,36 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.4.6 - 2026-05-02
+
+### New menu items
+
+- Add **LiDAR offset** to Setup > UI Settings (`0`–`800mm` in `10mm` steps, default `400mm`). Tunes the LiDAR reading to compensate for the sensor-to-lens-plane physical offset. Persisted to NVS; takes effect immediately so the live distance readout reflects the change without a reboot.
+
+### UI improvements
+
+- **Focus reticle adjustment** screen now shows the current X/Y offsets numerically with a `>` marker on the active axis, plus a fixed reference crosshair at the optical centre so the reticle dot's offset is visually unambiguous.
+- **High-sunlight indicator** on the main UI: a small sun glyph appears next to the Dist readout when ambient IR (sensor `sunlightBase`) crosses a hysteresis threshold. Distinguishes "LiDAR struggling because bright" from "firmware broken." Initial thresholds need field tuning from real readings.
+
+### Bug fixes
+
+- **6x9 and 9x3 frame spacing**: reduce interframe advance by 1–2 encoder ticks per gap (cumulative 9 ticks at frame 8, recovering ~21mm = approximately 1/4 frame). Both formats shared the same out-of-tolerance sensor values.
+- **Light meter overexposure of approximately 1.5 stops**: split the meter calibration constant `K` (now ISO-standard 12.5) from a new BH1750 mounting compensation `LIGHTMETER_LUX_CAL_SCALE` (1.77) that scales raw sensor lux up to actual scene illuminance.
+
+### LiDAR pipeline robustness
+
+- **Lens-prior plausibility gate**: when the lens is focused at or below 2m, reject LiDAR readings that overshoot the lens prior by more than 200cm. Catches the parallax beam-miss failure mode (LiDAR beam goes past the framed subject and finds distant background). Holds the previous valid reading instead. Falls through after 8 consecutive rejections so the user can deliberately re-focus past the previous target without being permanently stuck.
+- **Subject-stable confidence boost**: when 5+ consecutive LiDAR readings stay within 5cm of each other, add +10 to the candidate's confidence (clamped at 95). Helps the temporal blend trust the locked-on value over occasional noise. Streak resets on dropout, on a jump beyond delta, or on plausibility-gate rejection.
+- **Near-range temporal blend**: gentle 12% previous / 88% current blend when high-confidence readings are at or below 2m, reducing single-frame noise without introducing lag.
+- Relax near-range SNR target from 300 to 180 permille so close subjects shot horizontally in full sun (open sky floods the photodetector with ambient IR) are no longer dropped.
+- Defensively re-apply LiDAR frame rate after sensor recovery (previously only set at boot).
+- Remove unused residual-correction lookup table and the unreachable double-correction wrapper around it. The power-law correction below 1.5m remains.
+
+### Tests
+
+- Test count: 31 → 38. Added pure-helper coverage for `isLidarReadingImplausible`, `applyStableConfidenceBoost`, `updateSunlightWarnState`.
+- Update a stale assertion left over from the v10.4.5 near-distance precision feature (`150cm` now correctly asserts as `"1.50m"`).
+
 ## 10.4.5 - 2026-04-16
 
 - Distance display below 2m now shows two decimal places (e.g. `1.85m`) instead of one.
