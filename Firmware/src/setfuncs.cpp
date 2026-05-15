@@ -73,10 +73,11 @@ void setLensDistanceFromCm(int distance_cm)
 
 void applyLidarCalibrationProfile()
 {
-  // Re-apply all sensor settings after any state change (begin, enable, recovery).
-  // Frame rate is included defensively in case begin() resets it — sending the
-  // same value twice on a no-op transition is harmless.
-  lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
+  // Re-apply library-side distance correction after sensor state changes.
+  // Frame rate is set once at boot in initializeLidarSensor(); the sensor retains
+  // it across enable/disable cycles. Re-sending setFrameRate immediately after
+  // enableSensor() in the recovery path destabilises some DTS6012M units and
+  // causes a self-perpetuating recovery loop (see v10.4.7 changelog).
   lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
   lidar.setDistanceOffset(static_cast<int16_t>(lidar_distance_offset_mm));
 }

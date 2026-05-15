@@ -2,6 +2,12 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.4.7 - 2026-05-15
+
+### Bug fixes
+
+- **LiDAR recovery loop on sensitive DTS6012M units**: revert the v10.4.6 change that re-sent `setFrameRate(50)` from the recovery path. On some sensors, issuing `setFrameRate` immediately after `enableSensor()` (with no settle delay) leaves the unit in a state where the next `update()` times out, which retriggers recovery — a self-perpetuating loop that pinned the Health screen at `err:6` (UART timeout) with `Recoveries:` climbing indefinitely. Frame rate is once again set inline at boot only; the sensor retains it across enable/disable cycles. The distance scale/offset re-application in `applyLidarCalibrationProfile()` is preserved.
+
 ## 10.4.6 - 2026-05-02
 
 ### New menu items

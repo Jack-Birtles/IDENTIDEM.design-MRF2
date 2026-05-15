@@ -191,6 +191,7 @@ void initializeLidarSensor()
       }
     }
 
+    lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
     applyLidarCalibrationProfile();
   }
 
