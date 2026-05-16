@@ -246,6 +246,44 @@ void test_lidar_timeout_recovery_and_backoff()
   TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
 }
 
+void test_lidar_recovery_state_machine_survives_many_consecutive_failures()
+{
+  // Regression guard for the SHAPE of the v10.4.7 incident. The original bug
+  // was in applyLidarCalibrationProfile() re-issuing setFrameRate from the
+  // recovery path, leaving some DTS6012M units unable to recover; from the
+  // state machine's perspective that manifested as the Recoveries counter
+  // climbing indefinitely. The hardware-side fix isn't unit-testable (no
+  // mock for the DTS library) — what we can pin is that the state machine
+  // layer stays well-behaved under that scenario: consecutive_errors must
+  // saturate, the schedule must keep advancing, and a single late success
+  // must still drop the machine cleanly back to idle.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  // Cross the error threshold so recovery engages.
+  for (int i = 0; i < LIDAR_RECOVERY_ERROR_THRESHOLD; i++)
+  {
+    updateLidarRecoveryState(state, LidarRecoveryEvent::ERROR, 100 + i);
+  }
+  TEST_ASSERT_TRUE(state.recovering);
+
+  // 20 failed recovery attempts. consecutive_errors must stay bounded; each
+  // attempt time must be >= the previous one (no schedule going backwards,
+  // which would mean an unbounded retry spin).
+  for (int i = 0; i < 20; i++)
+  {
+    unsigned long previousAttemptTime = state.next_recovery_attempt_ms;
+    noteLidarRecoveryAttemptResult(state, false, previousAttemptTime);
+    TEST_ASSERT_LESS_OR_EQUAL_INT(10, state.consecutive_errors);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT32(previousAttemptTime, state.next_recovery_attempt_ms);
+  }
+
+  // A single late success after 20 failures must still reset the machine.
+  noteLidarRecoveryAttemptResult(state, true, state.next_recovery_attempt_ms);
+  TEST_ASSERT_FALSE(state.recovering);
+  TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
+}
+
 void test_calibration_validation_stable_and_monotonic()
 {
   const int stableSamples[8] = {300, 301, 299, 300, 302, 298, 301, 350};
@@ -929,6 +967,7 @@ int main(int, char **)
   RUN_TEST(test_encoder_filter_forward_hysteresis_and_debounce);
   RUN_TEST(test_encoder_filter_reverse_requires_rewind_mode);
   RUN_TEST(test_lidar_timeout_recovery_and_backoff);
+  RUN_TEST(test_lidar_recovery_state_machine_survives_many_consecutive_failures);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_calibration_median_spread_tolerates_gentle_drift);
   RUN_TEST(test_calibration_rejects_truly_unstable_readings);
