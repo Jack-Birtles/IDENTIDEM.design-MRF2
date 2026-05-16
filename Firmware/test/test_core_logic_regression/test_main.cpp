@@ -785,6 +785,31 @@ void test_frameline_scaling_clamps_dimensions_to_minimum_one()
   TEST_ASSERT_GREATER_OR_EQUAL_INT(1, r.height);
 }
 
+void test_lightmeter_scale_split_preserves_effective_exposure_constant()
+{
+  // Regression guard for v10.4.6 metering fix. The original bug came from
+  // setting K to the ISO-standard 12.5 without re-introducing the 1.77x
+  // BH1750 mounting compensation that the previous K=20 had absorbed; the
+  // result was ~1.5 stops of overexposure. The fix splits the two factors:
+  // K is now the standard and LIGHTMETER_LUX_CAL_SCALE applies the mounting
+  // factor at the sensor read site. Removing either factor regresses the
+  // exposure by a stop and a half. Pin the product so a future tweak of
+  // either constant has to be deliberate.
+  const float effective = K * LIGHTMETER_LUX_CAL_SCALE;
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 22.125f, effective);
+
+  // formatShutterSpeed uses K directly. Pinning a known (lux, aperture, iso)
+  // triple to its expected shutter band catches a stealth change to K alone
+  // (e.g. reverting it to 20) that the product test above would also flag,
+  // but a downstream reader will see the effect on actual exposure here.
+  char shutter[16] = {0};
+  // (8^2 * 12.5) / (100 * 100) = 800/10000 = 0.08 s -> falls in the 1/15 band.
+  // If K reverted to the old 20, the same scene would land in the 1/8 band,
+  // failing the assert and flagging the 1.5-stop drift.
+  formatShutterSpeed(100.0f, 8.0f, 100, shutter, sizeof(shutter));
+  TEST_ASSERT_EQUAL_STRING("1/15 sec.", shutter);
+}
+
 void test_lens_spike_filter_initialises_and_accepts_small_movement()
 {
   LensSpikeFilterState state = {};
@@ -999,6 +1024,7 @@ int main(int, char **)
   RUN_TEST(test_frameline_scaling_width_constrained_for_wider_pixel_ratio);
   RUN_TEST(test_frameline_scaling_allows_overflow_when_format_is_wider_and_taller);
   RUN_TEST(test_frameline_scaling_clamps_dimensions_to_minimum_one);
+  RUN_TEST(test_lightmeter_scale_split_preserves_effective_exposure_constant);
   RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
   RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
   RUN_TEST(test_lens_spike_filter_drifting_pending_resets_count);
