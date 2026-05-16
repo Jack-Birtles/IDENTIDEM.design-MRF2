@@ -142,6 +142,15 @@ void handleLeftButtonShortPress()
     {
       // Do not allow a new capture attempt while the previous error is
       // still being held on screen for the minimum display time.
+      //
+      // Note on rapid double-press: there is no explicit debounce here. A
+      // press that arrives during the blocking sample window (or during the
+      // post-capture LED pulse delay) is processed after the handler returns.
+      // The lens hasn't moved by then, so the second capture's averaged
+      // reading equals the previous one and isMonotonicCalibSequenceWithCandidate
+      // rejects it as NON_MONOTONIC. current_calib_distance stays put.
+      // If the monotonic check is ever relaxed, add an explicit
+      // last_successful_capture_ms debounce here.
       if (calib_capture_status != CALIB_CAPTURE_STATUS_NONE &&
           (millis() - calib_capture_status_ms) < CALIB_ERROR_HOLD_MS)
       {
