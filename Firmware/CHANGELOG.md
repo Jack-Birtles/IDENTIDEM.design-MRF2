@@ -4,7 +4,16 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 
 ## Unreleased
 
-Internal refactoring branch. No user-visible behaviour change is intended; the two small functional fixes below are subtle UX improvements rather than bug fixes.
+Internal refactoring branch plus a setup-menu reorganisation. The menu reorg is user-visible; everything else is structural.
+
+### Setup menu reorganisation
+
+- The setup menu hierarchy has been restructured around user mental categories. Persistence is untouched — your settings come back where you left them, just in their new home.
+  - **Reset frame counter** is now in **Setup > Film** (it's a film action, not navigation).
+  - **Frame 1 offset** and **Frame spacing** moved to **Setup > Film > Frame counter tuning** (one-time calibration knobs, demoted from the Film top level).
+  - **LiDAR distance offset** and **LiDAR idle timeout** moved into a new **Setup > LiDAR** submenu (they were miscategorised under UI Settings).
+  - **UI Settings** is renamed **Display** and trimmed: it now holds brightness, horizon line on/off, sleep timeout, horizon-trim sub-page, and reticle adjust.
+  - The three horizon-trim rows moved to **Setup > Display > Horizon trim** so they group cleanly.
 
 ### Subtle UX
 

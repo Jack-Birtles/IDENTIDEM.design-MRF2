@@ -21,7 +21,8 @@ This manual covers how to operate the MRF2 firmware user interface, including th
   - [Film submenu](#film-submenu)
   - [Lens Settings submenu](#lens-settings-submenu)
   - [Light Meter submenu](#light-meter-submenu)
-  - [UI Settings submenu](#ui-settings-submenu)
+  - [LiDAR submenu](#lidar-submenu)
+  - [Display submenu](#display-submenu)
   - [System Health screen](#system-health-screen)
   - [ISO list](#iso-list)
   - [Film formats](#film-formats)
@@ -47,9 +48,9 @@ If this is your first time using the camera, this sequence keeps things simple a
 2. Mount the lens you plan to use.
 3. Load your film, aligning the arrow on the backing paper to the arrow on the top-left edge of the film chamber.
 4. Close and secure the film door, then switch on the camera.
-5. Long-press **Right (R)** to enter **Setup**, open **Lens Settings >**, then run **Lens Calibration** for the mounted lens.
-6. Still in **Setup**, open **Film >** to set frame size and frame tuning, open **Light Meter >** to set ISO, then open **UI Settings >** to set your preferred **sleep timeout**, **LiDAR idle timeout**, and horizon trim values.
-7. In **Setup**, select **Reset frame counter >>** so the frame counter starts at zero.
+5. Long-press **Right (R)** to enter **Setup**, open **Lens >**, then run **Lens Calibration** for the mounted lens.
+6. Still in **Setup**, open **Film >** to set frame size, open **Meter >** to set ISO, open **LiDAR >** to set the **Idle timeout**, then open **Display >** to set your preferred **Sleep timeout** and horizon trim values.
+7. From **Setup > Film**, select **Reset frame counter >>** so the frame counter starts at zero.
 8. Use the **advance lever** to wind to frame 1. This takes a little while. Power through!
 
 ## Quick start (after initial setup)
@@ -99,7 +100,7 @@ The main screen displays:
 ### Portrait leveling
 
 When the camera is rotated to portrait orientation, the level aid automatically rebases to portrait behavior.
-You can tune horizon trim offsets independently for **Horizon Landscape**, **Horizon Portrait+**, and **Horizon Portrait-** in **Setup > UI Settings >**.
+You can tune horizon trim offsets independently for **Landscape**, **Portrait+**, and **Portrait-** in **Setup > Display > Horizon trim >**.
 
 ![Main screen portrait leveling](images/main-ui-portrait.svg)
 
@@ -185,8 +186,8 @@ Enter Setup by **long-pressing Right (R)** from the main screen.
 1. **Film: _format_ >**: opens film submenu. Shows the active film format (e.g. `6x7`).
 2. **Lens: _name_ >**: opens lens submenu. Shows the active lens (e.g. `65/6.3`).
 3. **Meter: ISO_value_ >**: opens light meter submenu. Shows the active ISO (e.g. `ISO400`).
-4. **UI Settings >**: opens UI settings submenu.
-5. **Reset frame counter >>**: confirm film counter reset.
+4. **LiDAR >**: opens LiDAR submenu (distance offset + idle timeout).
+5. **Display >**: opens display submenu (brightness, horizon, sleep, reticle).
 6. **System Health >**: opens diagnostics screen.
 7. **Exit >>**: return to the main screen.
 
@@ -198,9 +199,15 @@ The header reads **Setup > Film** so you always know where you are.
 
 1. **Format**: cycles film formats.
 2. **Current frame**: manually set frame counter for the selected format.
-3. **Frame 1 offset**: shifts where frame 1 starts (`-10` to `+10`, default `0`).
-4. **Frame spacing**: adjusts spacing between frames (`-10` to `+10`, default `0`).
+3. **Reset frame counter >>**: confirm film counter reset.
+4. **Frame counter tuning >**: enter the frame-counter fine-tuning sub-page (offset and spacing — rarely needed once a format is dialled in).
 5. **Back <<**: return to setup root menu.
+
+#### Frame counter tuning sub-page
+
+1. **Frame 1 offset**: shifts where frame 1 starts (`-10` to `+10`, default `0`).
+2. **Frame spacing**: adjusts spacing between frames (`-10` to `+10`, default `0`).
+3. **Back <<**: return to the Film submenu.
 
 Current frame ranges are format-bound:
 
@@ -231,21 +238,32 @@ Current frame ranges are format-bound:
 4. **EV Readout**: toggle EV display on/off on main screen.
 5. **Back <<**: return to setup root menu.
 
-### UI Settings submenu
+### LiDAR submenu
 
-![UI settings menu](images/config-ui-settings.svg)
+![LiDAR settings menu](images/config-lidar-ui.svg)
 
-1. **Horizon Landscape**: landscape trim offset (`-30deg` to `+30deg`, `2.5deg` steps, default `0deg`).
-2. **Horizon Portrait+**: portrait trim offset for one portrait side (`-30deg` to `+30deg`, `2.5deg` steps, default `0deg`).
-3. **Horizon Portrait-**: portrait trim offset for the opposite portrait side (`-30deg` to `+30deg`, `2.5deg` steps, default `0deg`).
-4. **Horizon line**: toggle the horizon/level indicator on the main viewfinder screen (`On`/`Off`, default `On`).
-5. **Bright mode**: display brightness mode (`Auto` scales with ambient light from the light meter; `Manual` sets a fixed level; default `Auto`).
-6. **Bright top** (if Auto): maximum brightness ceiling (`50%`–`100%` in `10%` steps, default `100%`). Displayed as **Bright level** if Manual: fixed brightness (`5%`–`100%` in `5%` steps, default `100%`).
-7. **Sleep timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m30s`).
-8. **LiDAR idle timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m`).
-9. **LiDAR offset**: cycles the LiDAR distance correction in `10mm` steps from `0mm` to `800mm` (default `400mm`). Compensates for the physical offset between the LiDAR sensor and the lens plane so the displayed distance matches reality. Tune by aiming at a target a known distance away (e.g. a tape measure at 1.00m) and adjusting until the **Dist** readout on the main screen agrees. Changes take effect immediately — no reboot needed.
-10. **Focus reticle >**: enter visual reticle offset adjustment (see below).
-11. **Back <<**: return to setup root menu.
+1. **Distance offset**: cycles the LiDAR distance correction in `10mm` steps from `0mm` to `800mm` (default `400mm`). Compensates for the physical offset between the LiDAR sensor and the lens plane so the displayed distance matches reality. Tune by aiming at a target a known distance away (e.g. a tape measure at 1.00m) and adjusting until the **Dist** readout on the main screen agrees. Changes take effect immediately — no reboot needed.
+2. **Idle timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m`). Time of no measured-distance change before the LiDAR enters its low-power standby.
+3. **Back <<**: return to setup root menu.
+
+### Display submenu
+
+![Display settings menu](images/config-display-ui.svg)
+
+1. **Bright mode**: display brightness mode (`Auto` scales with ambient light from the light meter; `Manual` sets a fixed level; default `Auto`).
+2. **Bright top** (if Auto): maximum brightness ceiling (`50%`–`100%` in `10%` steps, default `100%`). Displayed as **Bright level** if Manual: fixed brightness (`5%`–`100%` in `5%` steps, default `100%`).
+3. **Horizon line**: toggle the horizon/level indicator on the main viewfinder screen (`On`/`Off`, default `On`).
+4. **Sleep timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m30s`).
+5. **Horizon trim >**: enter horizon-trim sub-page (independent landscape and portrait offsets).
+6. **Focus reticle >**: enter visual reticle offset adjustment (see below).
+7. **Back <<**: return to setup root menu.
+
+#### Horizon trim sub-page
+
+1. **Landscape**: landscape trim offset (`-30deg` to `+30deg`, `2.5deg` steps, default `0deg`).
+2. **Portrait+**: portrait trim offset for one portrait side (`-30deg` to `+30deg`, `2.5deg` steps, default `0deg`).
+3. **Portrait-**: portrait trim offset for the opposite portrait side (`-30deg` to `+30deg`, `2.5deg` steps, default `0deg`).
+4. **Back <<**: return to the Display submenu.
 
 #### Focus reticle adjustment
 
@@ -254,7 +272,7 @@ Current frame ranges are format-bound:
 This screen lets you visually align the focus reticle to the camera's optical centre. The current X/Y offsets are shown at the top with a `>` marker on the active axis. A small reference crosshair marks the unmodified centre so you can see how far the dot has moved; the dot snaps onto the crosshair when both offsets are zero.
 
 1. **Horizontal**: press **L** to move left, **R** to move right. **Long press either button** to advance to vertical adjustment.
-2. **Vertical**: press **L** to move up, **R** to move down. **Long press either button** to save the new offsets and return to UI Settings.
+2. **Vertical**: press **L** to move up, **R** to move down. **Long press either button** to save the new offsets and return to the Display submenu.
 
 Offsets are stored in non-volatile memory and survive reboots. Range: -20 to +20 pixels in each axis.
 
@@ -264,7 +282,7 @@ The LiDAR emits an infrared (IR) laser dot that you can't see with the naked eye
 
 1. Set up a focus target with a clear centre mark (e.g. a printed crosshair or "+") at a few metres' distance.
 2. Aim the camera so the LiDAR dot lands on the centre of the focus target. View the IR dot through a phone camera or any digital camera without an IR-cut filter — most front-facing phone cameras work; some rear cameras filter IR too aggressively to see it.
-3. With the IR dot held on the target centre, enter **Setup > UI Settings > Focus reticle >** and adjust the on-screen reticle until it sits over the same point on the camera's view as the IR dot.
+3. With the IR dot held on the target centre, enter **Setup > Display > Focus reticle >** and adjust the on-screen reticle until it sits over the same point on the camera's view as the IR dot.
 4. Long-press to save.
 
 Only do this if the reticle and LiDAR dot disagree noticeably; the factory default offset is usually close enough for most users.
@@ -396,7 +414,7 @@ The external display shows:
 
 In Main mode, LiDAR enters low-power standby after the configured **LiDAR idle timeout** period (default **1 minute**) and wakes automatically on user activity. While idle standby is active, the main display shows `Dist: Zzz`.
 
-After the configured **Sleep timeout** period of inactivity (default **1 minute 30 seconds**, set in **Setup > UI Settings >**), the firmware enters sleep mode:
+After the configured **Sleep timeout** period of inactivity (default **1 minute 30 seconds**, set in **Setup > Display >**), the firmware enters sleep mode:
 
 - Main display fades to black over ~200 ms, then powers off.
 - LiDAR turns off.
@@ -423,7 +441,7 @@ Wake the device by pressing any button or moving the lens/advance lever (any act
 - **LiDAR distance shows `...`**
   - At close range, verify LiDAR wiring and power. The UI updates only with valid sensor data.
 - **LiDAR distance shows `Zzz`**
-  - LiDAR is in idle standby. Turn the focus ring or press a button to wake it, or increase/disable **LiDAR idle timeout** in **Setup > UI Settings >**.
+  - LiDAR is in idle standby. Turn the focus ring or press a button to wake it, or increase/disable **Idle timeout** in **Setup > LiDAR >**.
 - **LiDAR quality stays at 1 square (Poor)**
   - Check subject reflectivity/angle and ambient interference; low-SNR returns under strong sunlight are accepted at lower confidence and may update more slowly through temporal blending.
 - **Shutter speed reads `Bright!` or `Dark!`**
