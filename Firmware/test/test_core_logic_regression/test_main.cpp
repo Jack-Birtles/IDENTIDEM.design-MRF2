@@ -785,6 +785,34 @@ void test_frameline_scaling_clamps_dimensions_to_minimum_one()
   TEST_ASSERT_GREATER_OR_EQUAL_INT(1, r.height);
 }
 
+void test_6x9_and_9x3_share_corrected_sensor_table()
+{
+  // Regression guard for v10.4.6. 9x3 shared its physical advance pattern
+  // with 6x9 on 120 film but was using a slightly out-of-tolerance sensor
+  // array (1-2 ticks more per frame). The fix aligned 9x3 onto 6x9's
+  // corrected spacing; a later refactor (commit b5f10ad) deduplicated the
+  // two via a shared macro. This test pins the corrected values directly
+  // so that a future edit can't silently restore the drift.
+  const FilmFormat *fmt_6x9 = findFormatByName("6x9");
+  const FilmFormat *fmt_9x3 = findFormatByName("9x3");
+  TEST_ASSERT_NOT_NULL(fmt_6x9);
+  TEST_ASSERT_NOT_NULL(fmt_9x3);
+
+  const int expected_sensor[] = {0, 142, 184, 223, 260, 295, 329, 360, 390, 550};
+  const int expected_count = sizeof(expected_sensor) / sizeof(expected_sensor[0]);
+
+  for (int i = 0; i < expected_count; i++)
+  {
+    TEST_ASSERT_EQUAL_INT(expected_sensor[i], fmt_6x9->sensor[i]);
+    TEST_ASSERT_EQUAL_INT(expected_sensor[i], fmt_9x3->sensor[i]);
+  }
+  // Sanity: the two formats must remain in lock-step on physical advance.
+  for (int i = 0; i < expected_count; i++)
+  {
+    TEST_ASSERT_EQUAL_INT(fmt_6x9->sensor[i], fmt_9x3->sensor[i]);
+  }
+}
+
 void test_lightmeter_scale_split_preserves_effective_exposure_constant()
 {
   // Regression guard for v10.4.6 metering fix. The original bug came from
@@ -1024,6 +1052,7 @@ int main(int, char **)
   RUN_TEST(test_frameline_scaling_width_constrained_for_wider_pixel_ratio);
   RUN_TEST(test_frameline_scaling_allows_overflow_when_format_is_wider_and_taller);
   RUN_TEST(test_frameline_scaling_clamps_dimensions_to_minimum_one);
+  RUN_TEST(test_6x9_and_9x3_share_corrected_sensor_table);
   RUN_TEST(test_lightmeter_scale_split_preserves_effective_exposure_constant);
   RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
   RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
