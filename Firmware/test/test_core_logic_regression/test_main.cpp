@@ -53,6 +53,37 @@ const FilmFormat *findFormatByName(const char *formatName)
   }
   return nullptr;
 }
+
+// A primary-only return with no secondary peak. Mirrors the most common
+// DTS6012M measurement shape in the field. sunlightBase stays 0; tests that
+// need a specific ambient level set it after the helper returns.
+DTSMeasurement makeLidarMeasurement(uint16_t primaryDistance_mm,
+                                    uint16_t primaryIntensity,
+                                    DataQuality primaryQuality)
+{
+  DTSMeasurement m = {};
+  m.primaryDistance_mm = primaryDistance_mm;
+  m.primaryIntensity = primaryIntensity;
+  m.primaryQuality = primaryQuality;
+  m.secondaryDistance_mm = DTS_INVALID_DISTANCE;
+  m.secondaryIntensity = 0;
+  m.secondaryQuality = DataQuality::INVALID;
+  return m;
+}
+
+DTSMeasurement makeLidarDualPeakMeasurement(uint16_t primaryDistance_mm,
+                                            uint16_t primaryIntensity,
+                                            DataQuality primaryQuality,
+                                            uint16_t secondaryDistance_mm,
+                                            uint16_t secondaryIntensity,
+                                            DataQuality secondaryQuality)
+{
+  DTSMeasurement m = makeLidarMeasurement(primaryDistance_mm, primaryIntensity, primaryQuality);
+  m.secondaryDistance_mm = secondaryDistance_mm;
+  m.secondaryIntensity = secondaryIntensity;
+  m.secondaryQuality = secondaryQuality;
+  return m;
+}
 } // namespace
 
 void setUp() {}
@@ -264,13 +295,9 @@ void test_prefs_migration_mode_and_blob_apply()
 
 void test_lidar_candidate_selection_and_blend()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 1200;
-  measurement.primaryIntensity = 180;
-  measurement.primaryQuality = DataQuality::FAIR;
-  measurement.secondaryDistance_mm = 1000;
-  measurement.secondaryIntensity = 1200;
-  measurement.secondaryQuality = DataQuality::EXCELLENT;
+  DTSMeasurement measurement = makeLidarDualPeakMeasurement(
+      1200, 180, DataQuality::FAIR,
+      1000, 1200, DataQuality::EXCELLENT);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -360,13 +387,8 @@ void test_lidar_sunlight_warn_hysteresis()
 
 void test_lidar_invalid_and_display_formatting()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 1000;
-  measurement.primaryIntensity = 0; // Below LIDAR_FUSION_MIN_INTENSITY and fallback floor
-  measurement.primaryQuality = DataQuality::INVALID;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // Below LIDAR_FUSION_MIN_INTENSITY and fallback floor; quality is INVALID.
+  DTSMeasurement measurement = makeLidarMeasurement(1000, 0, DataQuality::INVALID);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_FALSE(candidate.valid);
@@ -389,13 +411,8 @@ void test_lidar_invalid_and_display_formatting()
 
 void test_lidar_low_confidence_tracks_beyond_previous_distance()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 6000;   // 6.0m target
-  measurement.primaryIntensity = 100;      // low/harsh-light like return, but valid
-  measurement.primaryQuality = DataQuality::POOR;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // 6.0m target with low/harsh-light-like return, but still valid.
+  DTSMeasurement measurement = makeLidarMeasurement(6000, 100, DataQuality::POOR);
 
   int filtered_distance_cm = 250;
   const int lens_prior_cm = 250;
@@ -413,13 +430,9 @@ void test_lidar_low_confidence_tracks_beyond_previous_distance()
 
 void test_lidar_dynamic_intensity_threshold_accepts_mid_range()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 3200; // 3.2m
-  measurement.primaryIntensity = LIDAR_FUSION_MIN_INTENSITY_MID;
-  measurement.primaryQuality = DataQuality::GOOD;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // 3.2m at exactly the mid-range minimum intensity.
+  DTSMeasurement measurement = makeLidarMeasurement(
+      3200, LIDAR_FUSION_MIN_INTENSITY_MID, DataQuality::GOOD);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -427,13 +440,9 @@ void test_lidar_dynamic_intensity_threshold_accepts_mid_range()
 
 void test_lidar_far_fallback_prevents_dropouts()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 4200; // 4.2m
-  measurement.primaryIntensity = LIDAR_FALLBACK_MIN_INTENSITY + 1;
-  measurement.primaryQuality = DataQuality::INVALID;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // 4.2m, just above the fallback intensity floor, with INVALID quality.
+  DTSMeasurement measurement = makeLidarMeasurement(
+      4200, LIDAR_FALLBACK_MIN_INTENSITY + 1, DataQuality::INVALID);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 250, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -443,13 +452,10 @@ void test_lidar_far_fallback_prevents_dropouts()
 
 void test_lidar_candidate_fusion_when_returns_agree()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 3000;     // 300cm
-  measurement.primaryIntensity = 180;
-  measurement.primaryQuality = DataQuality::GOOD;
-  measurement.secondaryDistance_mm = 3120;   // 312cm (within fusion delta)
-  measurement.secondaryIntensity = 170;
-  measurement.secondaryQuality = DataQuality::FAIR;
+  // 300cm primary + 312cm secondary (within fusion-agree delta) — both valid.
+  DTSMeasurement measurement = makeLidarDualPeakMeasurement(
+      3000, 180, DataQuality::GOOD,
+      3120, 170, DataQuality::FAIR);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -460,13 +466,7 @@ void test_lidar_candidate_fusion_when_returns_agree()
 
 void test_lidar_lens_prior_is_range_weighted()
 {
-  DTSMeasurement nearMeasurement = {};
-  nearMeasurement.primaryDistance_mm = 2000; // 200cm
-  nearMeasurement.primaryIntensity = 200;
-  nearMeasurement.primaryQuality = DataQuality::GOOD;
-  nearMeasurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  nearMeasurement.secondaryIntensity = 0;
-  nearMeasurement.secondaryQuality = DataQuality::INVALID;
+  DTSMeasurement nearMeasurement = makeLidarMeasurement(2000, 200, DataQuality::GOOD);
 
   DTSMeasurement farMeasurement = nearMeasurement;
   farMeasurement.primaryDistance_mm = 8000; // 800cm
@@ -482,14 +482,9 @@ void test_lidar_lens_prior_is_range_weighted()
 
 void test_lidar_sunlight_penalizes_confidence_without_dropping_valid_measurement()
 {
-  DTSMeasurement lowAmbientMeasurement = {};
-  lowAmbientMeasurement.primaryDistance_mm = 4500; // 450cm
-  lowAmbientMeasurement.primaryIntensity = 40;
+  // 450cm subject under low ambient IR; sunlightBase is set below.
+  DTSMeasurement lowAmbientMeasurement = makeLidarMeasurement(4500, 40, DataQuality::GOOD);
   lowAmbientMeasurement.sunlightBase = 25;
-  lowAmbientMeasurement.primaryQuality = DataQuality::GOOD;
-  lowAmbientMeasurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  lowAmbientMeasurement.secondaryIntensity = 0;
-  lowAmbientMeasurement.secondaryQuality = DataQuality::INVALID;
 
   DTSMeasurement highAmbientMeasurement = lowAmbientMeasurement;
   highAmbientMeasurement.sunlightBase = 650;
@@ -504,14 +499,10 @@ void test_lidar_sunlight_penalizes_confidence_without_dropping_valid_measurement
 
 void test_lidar_sunlight_hard_rejects_very_low_snr_measurement()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 7000; // 700cm
-  measurement.primaryIntensity = LIDAR_FUSION_MIN_INTENSITY_FAR;
+  // 700cm at the far-range minimum intensity, under heavy ambient IR.
+  DTSMeasurement measurement = makeLidarMeasurement(
+      7000, LIDAR_FUSION_MIN_INTENSITY_FAR, DataQuality::GOOD);
   measurement.sunlightBase = 1500;
-  measurement.primaryQuality = DataQuality::GOOD;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_FALSE(candidate.valid);
