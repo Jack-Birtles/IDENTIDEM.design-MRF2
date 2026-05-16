@@ -8,6 +8,7 @@
 #include "activity.h"
 #include "cyclefuncs.h"
 #include "formats.h"
+#include "frameline_layout_logic.h"
 #include "globals.h"
 #include "hardware.h"
 #include "helpers.h"
@@ -348,65 +349,6 @@ void drawMainHeader()
   u8g2.print(lens_distance_cm);
 }
 
-void getScaledFramelineDimensions(int baseWidth,
-                                  int baseHeight,
-                                  int &scaledWidth,
-                                  int &scaledHeight)
-{
-  float formatWidthMm = 0.0f;
-  float formatHeightMm = 0.0f;
-  getFormatWidthHeightMm(film_formats[selected_format], formatWidthMm, formatHeightMm);
-
-  int baseFormatIndex = constrain(DEFAULT_SELECTED_FORMAT, 0, static_cast<int>(NUM_FILM_FORMATS) - 1);
-
-  float baseFormatWidthMm = 0.0f;
-  float baseFormatHeightMm = 0.0f;
-  getFormatWidthHeightMm(film_formats[baseFormatIndex], baseFormatWidthMm, baseFormatHeightMm);
-
-  scaledWidth = baseWidth;
-  scaledHeight = baseHeight;
-  bool allowOverflow = false;
-
-  if (formatWidthMm > 0.0f && formatHeightMm > 0.0f)
-  {
-    float formatRatio = formatWidthMm / formatHeightMm;
-    float baseRatio = static_cast<float>(baseWidth) / static_cast<float>(baseHeight);
-
-    if (baseFormatWidthMm > 0.0f && baseFormatHeightMm > 0.0f)
-    {
-      float baseFormatRatio = baseFormatWidthMm / baseFormatHeightMm;
-      allowOverflow = formatRatio > baseFormatRatio && formatHeightMm >= baseFormatHeightMm;
-    }
-
-    if (allowOverflow)
-    {
-      scaledHeight = baseHeight;
-      scaledWidth = static_cast<int>(roundf(baseHeight * formatRatio));
-    }
-    else if (formatRatio >= baseRatio)
-    {
-      scaledWidth = baseWidth;
-      scaledHeight = static_cast<int>(roundf(baseWidth / formatRatio));
-    }
-    else
-    {
-      scaledHeight = baseHeight;
-      scaledWidth = static_cast<int>(roundf(baseHeight * formatRatio));
-    }
-  }
-
-  if (allowOverflow)
-  {
-    scaledWidth = max(1, scaledWidth);
-    scaledHeight = max(1, min(baseHeight, scaledHeight));
-  }
-  else
-  {
-    scaledWidth = max(1, min(baseWidth, scaledWidth));
-    scaledHeight = max(1, min(baseHeight, scaledHeight));
-  }
-}
-
 MainFramelineLayout buildMainFramelineLayout()
 {
   MainFramelineLayout layout = {};
@@ -416,9 +358,19 @@ MainFramelineLayout buildMainFramelineLayout()
   layout.width = lenses[selected_lens].framelines[2];
   layout.height = lenses[selected_lens].framelines[3];
 
-  int scaledWidth = layout.width;
-  int scaledHeight = layout.height;
-  getScaledFramelineDimensions(layout.width, layout.height, scaledWidth, scaledHeight);
+  float formatWidthMm = 0.0f, formatHeightMm = 0.0f;
+  getFormatWidthHeightMm(film_formats[selected_format], formatWidthMm, formatHeightMm);
+
+  const int baseFormatIndex = constrain(DEFAULT_SELECTED_FORMAT, 0, static_cast<int>(NUM_FILM_FORMATS) - 1);
+  float baseFormatWidthMm = 0.0f, baseFormatHeightMm = 0.0f;
+  getFormatWidthHeightMm(film_formats[baseFormatIndex], baseFormatWidthMm, baseFormatHeightMm);
+
+  const FramelineDimensions scaled = scaleFramelineToFormat(
+      layout.width, layout.height,
+      formatWidthMm, formatHeightMm,
+      baseFormatWidthMm, baseFormatHeightMm);
+  const int scaledWidth = scaled.width;
+  const int scaledHeight = scaled.height;
 
   ParallaxShift parallax = computeParallaxShiftPx(scaledWidth, scaledHeight);
   layout.shiftedX = layout.baseX + static_cast<int>(roundf(parallax.x));

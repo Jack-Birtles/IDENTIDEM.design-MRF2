@@ -6,6 +6,7 @@
 #include "film_counter_logic.h"
 #include "formats.h"
 #include "formatting_logic.h"
+#include "frameline_layout_logic.h"
 #include "calibration_logic.h"
 #include "lens_logic.h"
 #include "lens_spike_logic.h"
@@ -21,6 +22,7 @@
 #include "../../src/film_counter_logic.cpp"
 #include "../../src/formats.cpp"
 #include "../../src/formatting_logic.cpp"
+#include "../../src/frameline_layout_logic.cpp"
 #include "../../src/lens_logic.cpp"
 #include "../../src/lens_spike_logic.cpp"
 #include "../../src/lidar_recovery_logic.cpp"
@@ -677,6 +679,74 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
 }
 
+void test_frameline_scaling_returns_base_when_format_mm_invalid()
+{
+  // Zero or negative format dimensions short-circuit to the base box (still clamped).
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 0.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(100, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+
+  r = scaleFramelineToFormat(100, 60, 60.0f, -1.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(100, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+}
+
+void test_frameline_scaling_height_constrained_for_taller_format()
+{
+  // 6x7 base (60mm x 70mm, ratio 0.857) into a base pixel box that is wider
+  // than its own ratio (100x60 -> 1.667). formatRatio (0.857) < baseRatio
+  // (1.667), so height stays at baseHeight and width scales down.
+  // Expected width = round(60 * 0.857) = 51.
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 60.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(51, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+}
+
+void test_frameline_scaling_width_constrained_for_wider_pixel_ratio()
+{
+  // A current format wider than the pixel box but NOT wider than the base
+  // format (so overflow is not allowed). 6x4.5 (60x45, ratio 1.333) vs base
+  // 6x7 (60x70, ratio 0.857) — formatRatio > baseFormatRatio, but
+  // formatHeightMm (45) < baseFormatHeightMm (70), so allowOverflow is false.
+  // formatRatio (1.333) >= base pixel ratio (1.667)? No, 1.333 < 1.667 →
+  // height-constrained: width = round(60 * 1.333) = 80, height = 60.
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 60.0f, 45.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(80, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+}
+
+void test_frameline_scaling_allows_overflow_when_format_is_wider_and_taller()
+{
+  // 6x9 (60x90, ratio 0.667 — wait, let's pick a truly wider format).
+  // Panoramic 6x12 (60x120, ratio 0.5) vs base 6x7 (60x70, ratio 0.857):
+  // formatRatio (0.5) < baseFormatRatio (0.857), so overflow NOT allowed.
+  // To exercise overflow we need a format both wider in ratio AND at least
+  // as tall in mm. 6x9 vs 6x4.5 with 6x4.5 as base would do — but base is
+  // fixed to DEFAULT_SELECTED_FORMAT in the wrapper, so we use whatever
+  // satisfies the rule here.
+  // Use synthetic dimensions: format 90x60 (ratio 1.5) vs base 60x70
+  // (ratio 0.857). formatRatio > baseRatio AND formatHeightMm (60) is not
+  // >= baseFormatHeightMm (70) — so overflow still NOT allowed. Bump
+  // formatHeightMm to 70 and it does qualify: 90x70 (ratio 1.286) vs
+  // base 60x70 (ratio 0.857) — overflow allowed.
+  // Pixel box: 100x60. Expected: height=60, width=round(60*1.286)=77.
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 90.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(77, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+  // Overflow allows width to exceed baseWidth.
+  FramelineDimensions r2 = scaleFramelineToFormat(50, 60, 90.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(77, r2.width); // not clamped to 50
+  TEST_ASSERT_EQUAL_INT(60, r2.height);
+}
+
+void test_frameline_scaling_clamps_dimensions_to_minimum_one()
+{
+  // Extreme ratio that would round to zero is clamped to 1.
+  FramelineDimensions r = scaleFramelineToFormat(1, 100, 1.0f, 10000.0f, 60.0f, 70.0f);
+  TEST_ASSERT_GREATER_OR_EQUAL_INT(1, r.width);
+  TEST_ASSERT_GREATER_OR_EQUAL_INT(1, r.height);
+}
+
 void test_lens_spike_filter_initialises_and_accepts_small_movement()
 {
   LensSpikeFilterState state = {};
@@ -885,6 +955,11 @@ int main(int, char **)
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
+  RUN_TEST(test_frameline_scaling_returns_base_when_format_mm_invalid);
+  RUN_TEST(test_frameline_scaling_height_constrained_for_taller_format);
+  RUN_TEST(test_frameline_scaling_width_constrained_for_wider_pixel_ratio);
+  RUN_TEST(test_frameline_scaling_allows_overflow_when_format_is_wider_and_taller);
+  RUN_TEST(test_frameline_scaling_clamps_dimensions_to_minimum_one);
   RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
   RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
   RUN_TEST(test_lens_spike_filter_drifting_pending_resets_count);
