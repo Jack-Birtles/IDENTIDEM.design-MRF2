@@ -18,7 +18,7 @@
 // ---------------------
 static void resetFrameCounter()
 {
-  if (encoderReady)
+  if (hardware.encoder)
   {
     encoder.setEncoderPosition(0); // Reset encoder related values
   }
@@ -179,7 +179,7 @@ void handleLeftButtonShortPress()
           // Brief green LED pulse to confirm successful capture.
           // Invalidate prev_frame_progress so the next external UI draw
           // restores the correct progress colour.
-          if (statusPixelReady)
+          if (hardware.statusPixel)
           {
             sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(0, 255, 0));
             sspixel.show();
@@ -201,7 +201,7 @@ void handleLeftButtonShortPress()
             // Show full-screen success and pulse LED before leaving calibration.
             drawCalibCompleteUI();
 
-            if (statusPixelReady)
+            if (hardware.statusPixel)
             {
               for (int i = 0; i < CALIB_COMPLETE_LED_PULSES; i++)
               {
@@ -440,7 +440,7 @@ void handleRightShortCalib()
 
 void handleRightShortHealth()
 {
-  if (!lidarSensorReady) {
+  if (!hardware.lidarSensor) {
     retryLidarInit();
   }
   else {

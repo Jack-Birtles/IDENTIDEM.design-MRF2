@@ -133,15 +133,15 @@ MenuUiSnapshot captureMenuUiSnapshot()
       last_lidar_error_code,
       lidar_recovery_count,
       lidarEnabled,
-      adsReady,
-      mpuReady,
-      mainDisplayReady,
-      externalDisplayReady,
-      batteryGaugeReady,
-      lightMeterReady,
-      statusPixelReady,
-      encoderReady,
-      lidarSensorReady,
+      hardware.ads,
+      hardware.mpu,
+      hardware.mainDisplay,
+      hardware.externalDisplay,
+      hardware.batteryGauge,
+      hardware.lightMeter,
+      hardware.statusPixel,
+      hardware.encoder,
+      hardware.lidarSensor,
       prefsSchemaValid,
       prefsLoadedLegacy,
       static_cast<int>(prefsSchemaVersionLoaded),
@@ -268,7 +268,7 @@ unsigned long getLightMeterIntervalMs(unsigned long nowMs)
 
 bool sendLightMeterCommand(uint8_t command)
 {
-  if (!lightMeterReady)
+  if (!hardware.lightMeter)
   {
     return false;
   }
@@ -291,7 +291,7 @@ void powerDownLightMeterForSleep()
     return;
   }
 
-  lightMeterReady = false;
+  hardware.lightMeter = false;
   loopState.lightMeterSleeping = false;
 }
 
@@ -305,7 +305,7 @@ void wakeLightMeterFromSleep()
   bool poweredOn = sendLightMeterCommand(LIGHTMETER_CMD_POWER_ON);
   if (!poweredOn)
   {
-    lightMeterReady = false;
+    hardware.lightMeter = false;
     loopState.lightMeterSleeping = false;
     return;
   }
@@ -318,12 +318,12 @@ void wakeLightMeterFromSleep()
 
   if (!configured)
   {
-    lightMeterReady = false;
+    hardware.lightMeter = false;
     loopState.lightMeterSleeping = false;
     return;
   }
 
-  lightMeterReady = true;
+  hardware.lightMeter = true;
   loopState.lightMeterSleeping = false;
 }
 
@@ -336,14 +336,14 @@ void wakeLightMeterFromSleep()
 // has been crossed, so the poll functions never see uninitialized state.
 void initializeSleepWakeBaselines()
 {
-  loopState.sleepWakeEncoderBaseline = encoderReady ? encoder.getEncoderPosition() : 0;
-  loopState.sleepWakeLensBaseline = adsReady ? theads.readADC_SingleEnded(LENS_ADC_PIN) : 0;
+  loopState.sleepWakeEncoderBaseline = hardware.encoder ? encoder.getEncoderPosition() : 0;
+  loopState.sleepWakeLensBaseline = hardware.ads ? theads.readADC_SingleEnded(LENS_ADC_PIN) : 0;
   loopState.sleepWakeBaselinesInitialized = true;
 }
 
 void pollSleepWakeEncoder()
 {
-  if (!encoderReady)
+  if (!hardware.encoder)
   {
     return;
   }
@@ -358,7 +358,7 @@ void pollSleepWakeEncoder()
 
 void pollSleepWakeLens()
 {
-  if (!adsReady)
+  if (!hardware.ads)
   {
     return;
   }
@@ -386,7 +386,7 @@ void resetWakeSchedulerAndActivityBaselines(unsigned long nowMs)
 
 void beginFadeOutMainDisplay(unsigned long nowMs)
 {
-  if (!mainDisplayReady)
+  if (!hardware.mainDisplay)
   {
     return;
   }
@@ -403,7 +403,7 @@ bool isFadeComplete()
 
 void stepFadeOutMainDisplay(unsigned long nowMs)
 {
-  if (!loopState.fade.active || !mainDisplayReady)
+  if (!loopState.fade.active || !hardware.mainDisplay)
   {
     return;
   }
@@ -447,7 +447,7 @@ uint8_t computeTargetBrightnessByte()
 
 void applyDisplayBrightness()
 {
-  if (!mainDisplayReady || loopState.fade.active)
+  if (!hardware.mainDisplay || loopState.fade.active)
   {
     return;
   }
@@ -457,7 +457,7 @@ void applyDisplayBrightness()
 
 void restoreMainDisplayBrightness()
 {
-  if (!mainDisplayReady)
+  if (!hardware.mainDisplay)
   {
     return;
   }
@@ -478,12 +478,12 @@ void beginSleepFade(unsigned long nowMs)
 void finaliseSleepServices()
 {
   // Keep external sleep text visible while turning the main display fully off.
-  if (mainDisplayReady)
+  if (hardware.mainDisplay)
   {
     display.oled_command(OLED_CMD_DISPLAY_OFF);
   }
 
-  if (statusPixelReady)
+  if (hardware.statusPixel)
   {
     sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_OFF_R, NEOPIXEL_OFF_G, NEOPIXEL_OFF_B));
     sspixel.show();
@@ -491,7 +491,7 @@ void finaliseSleepServices()
 
   initializeSleepWakeBaselines();
 
-  if (mpuReady)
+  if (hardware.mpu)
   {
     mpu.enableSleep(true);
   }
@@ -516,13 +516,13 @@ void exitSleepServices()
   gpio_wakeup_disable(static_cast<gpio_num_t>(BUTTON_LEFT_PIN));
   gpio_wakeup_disable(static_cast<gpio_num_t>(BUTTON_RIGHT_PIN));
 
-  if (mainDisplayReady)
+  if (hardware.mainDisplay)
   {
     display.oled_command(OLED_CMD_DISPLAY_ON);
     restoreMainDisplayBrightness();
   }
 
-  if (mpuReady)
+  if (hardware.mpu)
   {
     mpu.enableSleep(false);
   }
@@ -539,7 +539,7 @@ void exitSleepServices()
 
 void updateLidarIdleStandby(unsigned long nowMs)
 {
-  if (!lidarSensorReady)
+  if (!hardware.lidarSensor)
   {
     loopState.lidarIdleStandbyActive = false;
     return;
@@ -724,7 +724,7 @@ void updateLidarTask(unsigned long nowMs)
 
 void updateLensTask(unsigned long nowMs)
 {
-  if (!adsReady)
+  if (!hardware.ads)
   {
     return;
   }
@@ -785,13 +785,13 @@ void updateUiTask(unsigned long nowMs)
   }
 
   bool drewPrimaryUi = false;
-  if (mainDisplayReady && shouldDrawPrimaryUi(nowMs))
+  if (hardware.mainDisplay && shouldDrawPrimaryUi(nowMs))
   {
     drewPrimaryUi = true;
     drawPrimaryUiForCurrentMode();
   }
 
-  if (externalDisplayReady && (drewPrimaryUi || shouldDrawExternalUi()))
+  if (hardware.externalDisplay && (drewPrimaryUi || shouldDrawExternalUi()))
   {
     drawExternalUI();
   }

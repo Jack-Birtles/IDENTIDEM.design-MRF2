@@ -129,14 +129,22 @@ extern uint16_t prefsSchemaVersionLoaded;
 extern int last_lidar_error_code;
 extern int lidar_recovery_count;
 extern char lidar_sensor_fw_version[20];
-extern bool adsReady;
-extern bool mpuReady;
-extern bool mainDisplayReady;
-extern bool externalDisplayReady;
-extern bool batteryGaugeReady;
-extern bool lightMeterReady;
-extern bool statusPixelReady;
-extern bool encoderReady;
-extern bool lidarSensorReady;
+
+// Per-peripheral readiness flags set during hardware.cpp init. Grouped here
+// so adding a new sensor is one struct field and one initialiser, and so
+// future Health-screen / boot-report code has a natural place to iterate.
+struct HardwareReadiness
+{
+  bool ads = false;
+  bool mpu = false;
+  bool mainDisplay = false;
+  bool externalDisplay = false;
+  bool batteryGauge = false;
+  bool lightMeter = false;
+  bool statusPixel = false;
+  bool encoder = false;
+  bool lidarSensor = false;
+};
+extern HardwareReadiness hardware;
 
 #endif // GLOBALS_H

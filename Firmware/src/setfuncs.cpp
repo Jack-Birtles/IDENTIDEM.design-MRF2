@@ -103,7 +103,7 @@ void clearLidarDisplay(const char *placeholder)
 // ---------------------
 void setDistance()
 {
-  if (!lidarSensorReady || !lidarEnabled)
+  if (!hardware.lidarSensor || !lidarEnabled)
   {
     lidarRuntime.recovery = {};
     lidar_high_sunlight = false;
@@ -219,7 +219,7 @@ void setDistance()
 // https://github.com/makeabilitylab/arduino/blob/master/Filters/MovingAverageFilter/MovingAverageFilter.ino
 int getLensSensorReading()
 {
-  if (!adsReady)
+  if (!hardware.ads)
   {
     return lensSpikeFilter.stableReading;
   }
@@ -318,7 +318,7 @@ void setFilmCounter()
   static int lastRawEncoderPosition = 0;
   const unsigned long now = millis();
 
-  if (!encoderReady)
+  if (!hardware.encoder)
   {
     return;
   }
@@ -375,7 +375,7 @@ void setFilmCounter()
 
 void setVoltage()
 {
-  if (!batteryGaugeReady)
+  if (!hardware.batteryGauge)
   {
     return;
   }
@@ -390,7 +390,7 @@ void setVoltage()
 
 void setLightMeter()
 {
-  if (!lightMeterReady)
+  if (!hardware.lightMeter)
   {
     lux = 0.0f;
     ev_readout = NAN;
@@ -432,7 +432,7 @@ void setLightMeter()
 
 void retryLidarInit()
 {
-  if (lidarSensorReady)
+  if (hardware.lidarSensor)
   {
     return;
   }
@@ -440,13 +440,13 @@ void retryLidarInit()
   DTSResult result = lidar.begin(LIDAR_BAUD_RATE, RXD2, TXD2);
   if (result != DTSError::NONE)
   {
-    lidarSensorReady = false;
+    hardware.lidarSensor = false;
     lidarEnabled = false;
     last_lidar_error_code = static_cast<int>(static_cast<DTSError>(result));
     return;
   }
 
-  lidarSensorReady = true;
+  hardware.lidarSensor = true;
   lidarEnabled = true;
   applyLidarCalibrationProfile();
   last_lidar_error_code = 0;
@@ -454,7 +454,7 @@ void retryLidarInit()
 
 void toggleLidar(bool lidarStatusParam)
 {
-  if (!lidarSensorReady)
+  if (!hardware.lidarSensor)
   {
     lidarEnabled = false;
     return;

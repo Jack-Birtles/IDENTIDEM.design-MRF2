@@ -23,7 +23,7 @@ const char *bootProgressLabel = "";
 
 void drawBootProgress()
 {
-  if (!mainDisplayReady)
+  if (!hardware.mainDisplay)
   {
     return;
   }
@@ -94,12 +94,12 @@ void configureButton(Bounce2::Button &button, int pin)
 
 void initializeInputHardware()
 {
-  adsReady = theads.begin();
-  logPeripheralInitStatus(F("ADS1015"), adsReady);
-  mpuReady = mpu.begin();
-  logPeripheralInitStatus(F("MPU6050"), mpuReady);
+  hardware.ads = theads.begin();
+  logPeripheralInitStatus(F("ADS1015"), hardware.ads);
+  hardware.mpu = mpu.begin();
+  logPeripheralInitStatus(F("MPU6050"), hardware.mpu);
 
-  if (adsReady)
+  if (hardware.ads)
   {
     theads.setDataRate(RATE_ADS1015_128SPS);
     theads.setGain(GAIN_TWOTHIRDS);
@@ -113,9 +113,9 @@ void initializeMainDisplay()
 {
   delay(DISPLAY_INIT_DELAY_MS); // Slight delay or the displays won't work.
 
-  mainDisplayReady = display.begin(SCREEN_ADDRESS, true);
-  logPeripheralInitStatus(F("Main OLED"), mainDisplayReady);
-  if (mainDisplayReady)
+  hardware.mainDisplay = display.begin(SCREEN_ADDRESS, true);
+  logPeripheralInitStatus(F("Main OLED"), hardware.mainDisplay);
+  if (hardware.mainDisplay)
   {
     display.oled_command(DISPLAY_COMMAND_FLIP);
     display.setRotation(DISPLAY_ROTATION);
@@ -125,13 +125,13 @@ void initializeMainDisplay()
   }
 
   delay(DISPLAY_EXT_INIT_DELAY_MS); // Slight delay or the displays won't work.
-  externalDisplayReady = display_ext.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS_EXT);
-  logPeripheralInitStatus(F("Ext OLED"), externalDisplayReady);
+  hardware.externalDisplay = display_ext.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS_EXT);
+  logPeripheralInitStatus(F("Ext OLED"), hardware.externalDisplay);
 }
 
 void showBootScreenOnExternalDisplay()
 {
-  if (!externalDisplayReady)
+  if (!hardware.externalDisplay)
   {
     return;
   }
@@ -168,14 +168,14 @@ void initializeLidarSensor()
   DTSResult lidarInit = lidar.begin(LIDAR_BAUD_RATE, RXD2, TXD2);
   if (lidarInit != DTSError::NONE)
   {
-    lidarSensorReady = false;
+    hardware.lidarSensor = false;
     lidarEnabled = false;
     Serial.print(F("LiDAR init error: "));
     Serial.println(static_cast<int>(static_cast<DTSError>(lidarInit)));
   }
   else
   {
-    lidarSensorReady = true;
+    hardware.lidarSensor = true;
     lidarEnabled = true;
 
     // Query sensor firmware version for diagnostics display.
@@ -200,8 +200,8 @@ void initializeLidarSensor()
 
 void initializePowerAndInputPeripherals()
 {
-  batteryGaugeReady = maxlipo.begin();
-  if (!batteryGaugeReady)
+  hardware.batteryGauge = maxlipo.begin();
+  if (!hardware.batteryGauge)
   {
     // maxlipo.begin() fails when the Seesaw (also at I2C address 0x36) ACKs
     // the soft-reset write that MAX17048 deliberately NACKs as part of its
@@ -211,25 +211,25 @@ void initializePowerAndInputPeripherals()
     // therefore return accurate data despite the shared address. Confirm the
     // gauge is present by checking that a direct SOC read is plausible.
     float testPct = maxlipo.cellPercent();
-    batteryGaugeReady = (testPct >= 0.0f && testPct <= 100.0f);
+    hardware.batteryGauge = (testPct >= 0.0f && testPct <= 100.0f);
   }
-  logPeripheralInitStatus(F("MAX17048"), batteryGaugeReady);
+  logPeripheralInitStatus(F("MAX17048"), hardware.batteryGauge);
 
-  lightMeterReady = lightMeter.begin();
-  logPeripheralInitStatus(F("BH1750"), lightMeterReady);
+  hardware.lightMeter = lightMeter.begin();
+  logPeripheralInitStatus(F("BH1750"), hardware.lightMeter);
 
-  statusPixelReady = sspixel.begin(SEESAW_ADDR);
-  logPeripheralInitStatus(F("Seesaw Pixel"), statusPixelReady);
-  if (statusPixelReady)
+  hardware.statusPixel = sspixel.begin(SEESAW_ADDR);
+  logPeripheralInitStatus(F("Seesaw Pixel"), hardware.statusPixel);
+  if (hardware.statusPixel)
   {
     delay(SEESAW_INIT_DELAY_MS);
     sspixel.setBrightness(SEESAW_NEOPIXEL_BRIGHTNESS);
     sspixel.show();
   }
 
-  encoderReady = encoder.begin(SEESAW_ADDR);
-  logPeripheralInitStatus(F("Seesaw Encoder"), encoderReady);
-  if (encoderReady)
+  hardware.encoder = encoder.begin(SEESAW_ADDR);
+  logPeripheralInitStatus(F("Seesaw Encoder"), hardware.encoder);
+  if (hardware.encoder)
   {
     delay(SEESAW_INIT_DELAY_MS);
     encoder.setEncoderPosition(encoder_value);

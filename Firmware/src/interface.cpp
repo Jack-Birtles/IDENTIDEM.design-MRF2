@@ -590,7 +590,7 @@ void renderLevelLine(int centerX, int centerY, const LevelAngles &angles)
 
 void drawLevelIndicator(int centerX, int centerY)
 {
-  if (!mpuReady)
+  if (!hardware.mpu)
   {
     return;
   }
@@ -1133,7 +1133,7 @@ void drawHealthUI()
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 2));
   u8g2.print(F("LiDAR: "));
-  u8g2.print(lidarSensorReady ? F("OK ") : F("InitErr "));
+  u8g2.print(hardware.lidarSensor ? F("OK ") : F("InitErr "));
   u8g2.print(lidarEnabled ? F("On") : F("Off"));
   u8g2.print(F(" err:"));
   u8g2.print(last_lidar_error_code);
@@ -1146,26 +1146,26 @@ void drawHealthUI()
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 4));
   u8g2.print(F("HW D"));
-  u8g2.print(mainDisplayReady ? 1 : 0);
+  u8g2.print(hardware.mainDisplay ? 1 : 0);
   u8g2.print(F(" X"));
-  u8g2.print(externalDisplayReady ? 1 : 0);
+  u8g2.print(hardware.externalDisplay ? 1 : 0);
   u8g2.print(F(" A"));
-  u8g2.print(adsReady ? 1 : 0);
+  u8g2.print(hardware.ads ? 1 : 0);
   u8g2.print(F(" M"));
-  u8g2.print(mpuReady ? 1 : 0);
+  u8g2.print(hardware.mpu ? 1 : 0);
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 5));
   u8g2.print(F("HW L"));
-  u8g2.print(lightMeterReady ? 1 : 0);
+  u8g2.print(hardware.lightMeter ? 1 : 0);
   u8g2.print(F(" B"));
-  u8g2.print(batteryGaugeReady ? 1 : 0);
+  u8g2.print(hardware.batteryGauge ? 1 : 0);
   u8g2.print(F(" E"));
-  u8g2.print(encoderReady ? 1 : 0);
+  u8g2.print(hardware.encoder ? 1 : 0);
   u8g2.print(F(" P"));
-  u8g2.print(statusPixelReady ? 1 : 0);
+  u8g2.print(hardware.statusPixel ? 1 : 0);
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_FOOTER_Y - 8);
-  if (!lidarSensorReady)
+  if (!hardware.lidarSensor)
   {
     u8g2.print(F(" (L) Back  (R) Retry LiDAR"));
   }
@@ -1181,7 +1181,7 @@ void drawHealthUI()
 
 void drawExternalUI()
 {
-  if (!externalDisplayReady)
+  if (!hardware.externalDisplay)
   {
     return;
   }
@@ -1193,7 +1193,7 @@ void drawExternalUI()
   bool progressVisible = drawExternalProgressBarAndLed();
   drawExternalCounterText(progressVisible);
 
-  if (statusPixelReady)
+  if (hardware.statusPixel)
   {
     sspixel.show();
   }
@@ -1202,13 +1202,13 @@ void drawExternalUI()
 
 void drawSleepUI()
 {
-  if (mainDisplayReady)
+  if (hardware.mainDisplay)
   {
     display.clearDisplay();
     display.display();
   }
 
-  if (externalDisplayReady)
+  if (hardware.externalDisplay)
   {
     display_ext.clearDisplay();
     // Face outline
