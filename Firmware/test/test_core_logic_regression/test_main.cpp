@@ -8,6 +8,7 @@
 #include "formatting_logic.h"
 #include "calibration_logic.h"
 #include "lens_logic.h"
+#include "lens_spike_logic.h"
 #include "lidar_recovery_logic.h"
 #include "lidar_logic.h"
 #include "lightmeter_logic.h"
@@ -21,6 +22,7 @@
 #include "../../src/formats.cpp"
 #include "../../src/formatting_logic.cpp"
 #include "../../src/lens_logic.cpp"
+#include "../../src/lens_spike_logic.cpp"
 #include "../../src/lidar_recovery_logic.cpp"
 #include "../../src/lenses.cpp"
 #include "../../src/lidar_logic.cpp"
@@ -675,6 +677,55 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
 }
 
+void test_lens_spike_filter_initialises_and_accepts_small_movement()
+{
+  LensSpikeFilterState state = {};
+
+  // First call seeds the stable reading.
+  TEST_ASSERT_EQUAL_INT(1000, updateLensSpikeFilter(state, 1000));
+  TEST_ASSERT_TRUE(state.initialized);
+
+  // A reading within +/-LENS_SPIKE_DELTA_THRESHOLD (8) is accepted immediately
+  // as the new stable value.
+  TEST_ASSERT_EQUAL_INT(1007, updateLensSpikeFilter(state, 1007));
+  TEST_ASSERT_EQUAL_INT(1007, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(0, state.pendingCount);
+}
+
+void test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending()
+{
+  LensSpikeFilterState state = {};
+  updateLensSpikeFilter(state, 1000); // seed
+
+  // A single jump well outside the threshold does not move stable.
+  TEST_ASSERT_EQUAL_INT(1000, updateLensSpikeFilter(state, 1100));
+  TEST_ASSERT_EQUAL_INT(1000, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(1, state.pendingCount);
+
+  // A consistent second sample (within threshold of pending) promotes it.
+  // LENS_SPIKE_CONFIRMATION_COUNT defaults to 2.
+  TEST_ASSERT_EQUAL_INT(1102, updateLensSpikeFilter(state, 1102));
+  TEST_ASSERT_EQUAL_INT(1102, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(0, state.pendingCount);
+}
+
+void test_lens_spike_filter_drifting_pending_resets_count()
+{
+  LensSpikeFilterState state = {};
+  updateLensSpikeFilter(state, 1000); // seed
+
+  // First spike: stable unchanged, pendingCount=1.
+  updateLensSpikeFilter(state, 1100);
+  TEST_ASSERT_EQUAL_UINT8(1, state.pendingCount);
+
+  // Second sample wanders well off the pending value (delta > threshold):
+  // pending is restarted, count goes back to 1, stable still unchanged.
+  TEST_ASSERT_EQUAL_INT(1000, updateLensSpikeFilter(state, 1200));
+  TEST_ASSERT_EQUAL_INT(1000, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(1, state.pendingCount);
+  TEST_ASSERT_EQUAL_INT(1200, state.pendingReading);
+}
+
 void test_cm_to_readable_renders_cm_below_one_metre_and_metres_above()
 {
   char out[16] = {0};
@@ -834,6 +885,9 @@ int main(int, char **)
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
+  RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
+  RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
+  RUN_TEST(test_lens_spike_filter_drifting_pending_resets_count);
   RUN_TEST(test_cm_to_readable_renders_cm_below_one_metre_and_metres_above);
   RUN_TEST(test_lidar_secondary_quality_inherits_primary_when_invalid);
   RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);

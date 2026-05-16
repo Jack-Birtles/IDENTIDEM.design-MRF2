@@ -12,6 +12,7 @@
 #include "hardware.h"
 #include "helpers.h"
 #include "lens_logic.h"
+#include "lens_spike_logic.h"
 #include "lenses.h"
 #include "lidar_logic.h"
 #include "lidar_recovery_logic.h"
@@ -21,14 +22,6 @@
 
 namespace
 {
-struct LensSpikeFilterState
-{
-  bool initialized = false;
-  int stableReading = 0;
-  int pendingReading = 0;
-  uint8_t pendingCount = 0;
-};
-
 struct LensSnapState
 {
   int prevIndex = -1;
@@ -237,38 +230,7 @@ int getLensSensorReading()
   }
 
   int smoothedReading = calcMovingAvg(sensorVal);
-  if (!lensSpikeFilter.initialized)
-  {
-    lensSpikeFilter.initialized = true;
-    lensSpikeFilter.stableReading = smoothedReading;
-    lensSpikeFilter.pendingReading = smoothedReading;
-    lensSpikeFilter.pendingCount = 0;
-    return lensSpikeFilter.stableReading;
-  }
-
-  if (abs(smoothedReading - lensSpikeFilter.stableReading) <= LENS_SPIKE_DELTA_THRESHOLD)
-  {
-    lensSpikeFilter.stableReading = smoothedReading;
-    lensSpikeFilter.pendingCount = 0;
-    return lensSpikeFilter.stableReading;
-  }
-
-  if (lensSpikeFilter.pendingCount == 0 ||
-      abs(smoothedReading - lensSpikeFilter.pendingReading) > LENS_SPIKE_DELTA_THRESHOLD)
-  {
-    lensSpikeFilter.pendingReading = smoothedReading;
-    lensSpikeFilter.pendingCount = 1;
-    return lensSpikeFilter.stableReading;
-  }
-
-  lensSpikeFilter.pendingCount++;
-  if (lensSpikeFilter.pendingCount >= LENS_SPIKE_CONFIRMATION_COUNT)
-  {
-    lensSpikeFilter.stableReading = smoothedReading;
-    lensSpikeFilter.pendingCount = 0;
-  }
-
-  return lensSpikeFilter.stableReading;
+  return updateLensSpikeFilter(lensSpikeFilter, smoothedReading);
 }
 
 void setLensDistance()
