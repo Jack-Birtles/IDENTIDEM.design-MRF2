@@ -2,6 +2,32 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## Unreleased
+
+Internal refactoring branch. No user-visible behaviour change is intended; the two small functional fixes below are subtle UX improvements rather than bug fixes.
+
+### Subtle UX
+
+- **Portrait/landscape hysteresis is now self-healing after a long config detour.** When the user spends time in a config menu and rotates the device, the level renderer's cached `portraitMode` could stay stuck at the old orientation until the user rotated past the hysteresis bands again. The renderer now resets the cache whenever it has been idle for >1s.
+- **`toggleLidar()` now flips `lidarEnabled` before re-applying the calibration profile**, matching the order already used by the boot and retry paths. Functionally inert today; removes an ordering inconsistency.
+
+### Internals (no user-visible behaviour change)
+
+- **New host-testable logic modules** extracted out of hardware-coupled files: `lens_spike_logic`, `frameline_layout_logic`, `ui_signature_logic`, `formatting_logic`, `lidar_runtime_state` bundling. Each new module ships with unit tests.
+- **LiDAR pipeline cleanups** in `lidar_logic.cpp`: distance-tier lookups, DataQuality profile table, shared candidate-validation gate, shared fuse-or-pick-best selection.
+- **`handleRightButtonShortPress` split** into per-mode handlers; the dispatcher is now a clean switch on `ui_mode`.
+- **Shared U8G2 text-defaults helper** consolidates four near-identical OLED-prep sequences in interface.cpp.
+- **Display-layout pixel coordinates** moved out of `mrfconstants.h` into a dedicated `interface_layout_constants.h` so layout tweaks don't force a full-tree rebuild.
+- **`globals.h` regrouped by domain** (Lightmeter / Lens / LiDAR / UI / Calibration / Frame counter / Sleep / Health). Module-private caches (lens moving-average buffer, `prev_distance`, `prev_lens_sensor_reading`) demoted to file-scope statics in the only module that touches them.
+- **`helpers.cpp` reorganized**: lens moving-average buffer now lives next to `calcMovingAvg`; `cmToReadable` moved into its own pure module.
+- **Sleep-wake baseline ownership centralised** in `finaliseSleepServices`; removed unreachable lazy-init paths in the wake-poll functions.
+
+### Test coverage added
+
+- Regression guards for the v10.4.7 LiDAR-recovery incident class (state machine resilience under sustained failure), the v10.4.6 lightmeter scale-split (`K * LIGHTMETER_LUX_CAL_SCALE` product + known-scene shutter band), and the v10.4.6 6x9/9x3 sensor-table alignment.
+- New tests for hash primitives, lens spike filter, frameline scaling, cm-to-readable formatter, secondary-quality INVALID remapping, and the misnamed split lidar test.
+- `DTSMeasurement` and `findLensById` builders consolidate test setup boilerplate.
+
 ## 10.4.8 - 2026-05-16
 
 ### Bug fixes
