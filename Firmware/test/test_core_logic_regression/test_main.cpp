@@ -117,6 +117,13 @@ void test_format_3x6_supports_21_frames()
   TEST_ASSERT_EQUAL_INT(21, getFilmFormatMaxFrame(*format));
   TEST_ASSERT_EQUAL_INT(23, getFilmFormatPointCount(*format));
   TEST_ASSERT_EQUAL_INT(99, format->frame[getFilmFormatPointCount(*format) - 1]);
+
+  // 3x6 is a 120-film format. Catch regressions to the v10.4.7-and-earlier bug
+  // where its sensor[] table was a copy of PANO (35mm film) with one entry
+  // appended — leading delta ~37, end sentinel 800 — causing every-other-frame
+  // exposure on 120. Real 120 formats have a leader-paper offset of ~130+.
+  TEST_ASSERT_GREATER_OR_EQUAL_INT(120, format->sensor[1]);
+  TEST_ASSERT_EQUAL_INT(550, format->sensor[getFilmFormatPointCount(*format) - 1]);
 }
 
 void test_encoder_filter_forward_hysteresis_and_debounce()

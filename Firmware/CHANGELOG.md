@@ -2,6 +2,13 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.4.8 - 2026-05-16
+
+### Bug fixes
+
+- **3x6 frame spacing (every-other-frame exposure on 120 film, issue #21)**: rewrite the 3x6 `sensor[]` table to use 120-film geometry. The original 3x6 row in `d4f73cf` was a verbatim copy of PANO with one entry appended — same per-frame encoder deltas as a 65mm-wide panoramic frame on 35mm film, applied to a 30mm-wide frame on 120 — so users were advancing roughly twice as far per frame as the mask allowed, leaving every-other-frame slot blank on the developed roll. New deltas are derived from a per-frame counts/mm regression across the four calibrated 120 formats (6x4.5, 6x6, 6x7, 6x9), evaluated at 30mm frame width + 5mm gap. Leading offset matches 6x7. Verify with a calibration roll; fine-tune via Setup > Frame counter tuning if needed.
+- Strengthen `test_format_3x6_supports_21_frames` to assert 120-film geometry (leading delta ≥120, end sentinel 550) so future edits can't regress to PANO-shaped values.
+
 ## 10.4.7 - 2026-05-15
 
 ### Bug fixes
