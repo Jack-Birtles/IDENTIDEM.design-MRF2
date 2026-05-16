@@ -17,6 +17,7 @@
 #include "interface.h"
 #include "mrfconstants.h"
 #include "setfuncs.h"
+#include "ui_signature_logic.h"
 
 namespace
 {
@@ -71,131 +72,92 @@ struct LoopRuntimeState
 
 LoopRuntimeState loopState;
 
-constexpr uint32_t HASH_OFFSET_BASIS = 2166136261u;
-constexpr uint32_t HASH_PRIME = 16777619u;
-
-uint32_t hashUint32(uint32_t hash, uint32_t value)
+MainUiSnapshot captureMainUiSnapshot()
 {
-  hash ^= value;
-  hash *= HASH_PRIME;
-  return hash;
+  return {
+      static_cast<int>(ui_mode),
+      selected_lens,
+      selected_format,
+      iso,
+      aperture,
+      show_ev_readout,
+      ev_readout,
+      shutter_speed,
+      distance_cm,
+      lens_distance_cm,
+      distance,
+      lens_distance_raw,
+      lidar_quality_level,
+      lidar_high_sunlight,
+      parallaxEnabled,
+      reticle_offset_x,
+      reticle_offset_y,
+      show_horizon_line,
+  };
 }
 
-uint32_t hashInt(uint32_t hash, int value)
+MenuUiSnapshot captureMenuUiSnapshot()
 {
-  return hashUint32(hash, static_cast<uint32_t>(value));
+  return {
+      static_cast<int>(ui_mode),
+      config_step,
+      calib_step,
+      selected_lens,
+      selected_format,
+      calib_lens,
+      current_calib_distance,
+      calib_capture_status,
+      calib_capture_status_ms,
+      lens_sensor_reading,
+      iso,
+      aperture,
+      exposure_comp_thirds,
+      meter_smoothing_mode,
+      show_ev_readout,
+      parallaxEnabled,
+      sleep_timeout_mode,
+      lidar_idle_timeout_mode,
+      level_trim_landscape_deci_deg,
+      level_trim_portrait_pos_deci_deg,
+      level_trim_portrait_neg_deci_deg,
+      reticle_offset_x,
+      reticle_offset_y,
+      reticle_adjust_step,
+      brightness_auto,
+      brightness_manual_pct,
+      brightness_auto_top_pct,
+      show_horizon_line,
+      frame_one_offset,
+      frame_spacing_offset,
+      film_counter,
+      last_lidar_error_code,
+      lidar_recovery_count,
+      lidarEnabled,
+      adsReady,
+      mpuReady,
+      mainDisplayReady,
+      externalDisplayReady,
+      batteryGaugeReady,
+      lightMeterReady,
+      statusPixelReady,
+      encoderReady,
+      lidarSensorReady,
+      prefsSchemaValid,
+      prefsLoadedLegacy,
+      static_cast<int>(prefsSchemaVersionLoaded),
+  };
 }
 
-uint32_t hashBool(uint32_t hash, bool value)
+ExternalUiSnapshot captureExternalUiSnapshot()
 {
-  return hashUint32(hash, value ? 1u : 0u);
-}
-
-uint32_t hashFloat(uint32_t hash, float value)
-{
-  uint32_t bits = 0;
-  memcpy(&bits, &value, sizeof(bits));
-  return hashUint32(hash, bits);
-}
-
-uint32_t hashCString(uint32_t hash, const char *value)
-{
-  const char *raw = value ? value : "";
-  size_t len = strlen(raw);
-  hash = hashUint32(hash, static_cast<uint32_t>(len));
-  for (size_t i = 0; i < len; i++)
-  {
-    hash = hashUint32(hash, static_cast<uint8_t>(raw[i]));
-  }
-  return hash;
-}
-
-uint32_t buildMainUiSignature()
-{
-  uint32_t hash = HASH_OFFSET_BASIS;
-  hash = hashInt(hash, static_cast<int>(ui_mode));
-  hash = hashInt(hash, selected_lens);
-  hash = hashInt(hash, selected_format);
-  hash = hashInt(hash, iso);
-  hash = hashFloat(hash, aperture);
-  hash = hashBool(hash, show_ev_readout);
-  hash = hashFloat(hash, ev_readout);
-  hash = hashCString(hash, shutter_speed);
-  hash = hashCString(hash, distance_cm);
-  hash = hashCString(hash, lens_distance_cm);
-  hash = hashInt(hash, distance);
-  hash = hashInt(hash, lens_distance_raw);
-  hash = hashInt(hash, lidar_quality_level);
-  hash = hashBool(hash, lidar_high_sunlight);
-  hash = hashBool(hash, parallaxEnabled);
-  hash = hashInt(hash, reticle_offset_x);
-  hash = hashInt(hash, reticle_offset_y);
-  hash = hashBool(hash, show_horizon_line);
-  return hash;
-}
-
-uint32_t buildMenuUiSignature()
-{
-  uint32_t hash = HASH_OFFSET_BASIS;
-  hash = hashInt(hash, static_cast<int>(ui_mode));
-  hash = hashInt(hash, config_step);
-  hash = hashInt(hash, calib_step);
-  hash = hashInt(hash, selected_lens);
-  hash = hashInt(hash, selected_format);
-  hash = hashInt(hash, calib_lens);
-  hash = hashInt(hash, current_calib_distance);
-  hash = hashInt(hash, calib_capture_status);
-  hash = hashUint32(hash, static_cast<uint32_t>(calib_capture_status_ms));
-  hash = hashInt(hash, lens_sensor_reading);
-  hash = hashInt(hash, iso);
-  hash = hashFloat(hash, aperture);
-  hash = hashInt(hash, exposure_comp_thirds);
-  hash = hashInt(hash, meter_smoothing_mode);
-  hash = hashBool(hash, show_ev_readout);
-  hash = hashBool(hash, parallaxEnabled);
-  hash = hashInt(hash, sleep_timeout_mode);
-  hash = hashInt(hash, lidar_idle_timeout_mode);
-  hash = hashInt(hash, level_trim_landscape_deci_deg);
-  hash = hashInt(hash, level_trim_portrait_pos_deci_deg);
-  hash = hashInt(hash, level_trim_portrait_neg_deci_deg);
-  hash = hashInt(hash, reticle_offset_x);
-  hash = hashInt(hash, reticle_offset_y);
-  hash = hashInt(hash, reticle_adjust_step);
-  hash = hashBool(hash, brightness_auto);
-  hash = hashInt(hash, brightness_manual_pct);
-  hash = hashInt(hash, brightness_auto_top_pct);
-  hash = hashBool(hash, show_horizon_line);
-  hash = hashInt(hash, frame_one_offset);
-  hash = hashInt(hash, frame_spacing_offset);
-  hash = hashInt(hash, film_counter);
-  hash = hashInt(hash, last_lidar_error_code);
-  hash = hashInt(hash, lidar_recovery_count);
-  hash = hashBool(hash, lidarEnabled);
-  hash = hashBool(hash, adsReady);
-  hash = hashBool(hash, mpuReady);
-  hash = hashBool(hash, mainDisplayReady);
-  hash = hashBool(hash, externalDisplayReady);
-  hash = hashBool(hash, batteryGaugeReady);
-  hash = hashBool(hash, lightMeterReady);
-  hash = hashBool(hash, statusPixelReady);
-  hash = hashBool(hash, encoderReady);
-  hash = hashBool(hash, lidarSensorReady);
-  hash = hashBool(hash, prefsSchemaValid);
-  hash = hashBool(hash, prefsLoadedLegacy);
-  hash = hashInt(hash, prefsSchemaVersionLoaded);
-  return hash;
-}
-
-uint32_t buildExternalUiSignature()
-{
-  uint32_t hash = HASH_OFFSET_BASIS;
-  hash = hashInt(hash, selected_format);
-  hash = hashInt(hash, selected_lens);
-  hash = hashInt(hash, bat_per);
-  hash = hashInt(hash, film_counter);
-  hash = hashInt(hash, static_cast<int>(frame_progress * 1000.0f));
-  hash = hashBool(hash, sleepMode);
-  return hash;
+  return {
+      selected_format,
+      selected_lens,
+      bat_per,
+      film_counter,
+      frame_progress,
+      sleepMode,
+  };
 }
 
 bool shouldDrawPrimaryUi(unsigned long nowMs)
@@ -203,7 +165,7 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
   UiRenderCache &cache = loopState.uiRenderCache;
   if (ui_mode == UiMode::Main)
   {
-    uint32_t signature = buildMainUiSignature();
+    uint32_t signature = buildMainUiSignature(captureMainUiSnapshot());
     bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.mainSignature;
     bool refreshDue = (nowMs - cache.lastMainDrawMs) >= LOOP_UI_MAIN_REFRESH_MS;
     if (!changed && !refreshDue)
@@ -216,7 +178,7 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
     return true;
   }
 
-  uint32_t signature = buildMenuUiSignature();
+  uint32_t signature = buildMenuUiSignature(captureMenuUiSnapshot());
   bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.menuSignature;
   bool healthRefreshDue = (ui_mode == UiMode::Health) &&
                           ((nowMs - cache.lastHealthDrawMs) >= LOOP_UI_HEALTH_REFRESH_MS);
@@ -236,7 +198,7 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
 bool shouldDrawExternalUi()
 {
   UiRenderCache &cache = loopState.uiRenderCache;
-  uint32_t signature = buildExternalUiSignature();
+  uint32_t signature = buildExternalUiSignature(captureExternalUiSnapshot());
   bool changed = !cache.initialized || signature != cache.externalSignature;
   if (changed)
   {

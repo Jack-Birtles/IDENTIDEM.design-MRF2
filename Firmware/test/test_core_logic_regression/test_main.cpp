@@ -12,6 +12,7 @@
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
 #include "prefs_migration_logic.h"
+#include "ui_signature_logic.h"
 
 // Limit the test scope to the core logic modules only.
 #include "../../src/calibration_logic.cpp"
@@ -23,6 +24,7 @@
 #include "../../src/lidar_logic.cpp"
 #include "../../src/lightmeter_logic.cpp"
 #include "../../src/prefs_migration_logic.cpp"
+#include "../../src/ui_signature_logic.cpp"
 
 namespace
 {
@@ -677,6 +679,77 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
 }
 
+void test_ui_signature_hash_primitives_are_deterministic_and_distinct()
+{
+  // Determinism: same inputs produce same output.
+  TEST_ASSERT_EQUAL_UINT32(hashInt(HASH_OFFSET_BASIS, 42), hashInt(HASH_OFFSET_BASIS, 42));
+  TEST_ASSERT_EQUAL_UINT32(hashBool(HASH_OFFSET_BASIS, true), hashBool(HASH_OFFSET_BASIS, true));
+  TEST_ASSERT_EQUAL_UINT32(hashFloat(HASH_OFFSET_BASIS, 1.5f), hashFloat(HASH_OFFSET_BASIS, 1.5f));
+  TEST_ASSERT_EQUAL_UINT32(hashCString(HASH_OFFSET_BASIS, "abc"), hashCString(HASH_OFFSET_BASIS, "abc"));
+
+  // Distinctness: any change in input changes the hash.
+  TEST_ASSERT_NOT_EQUAL(hashInt(HASH_OFFSET_BASIS, 0), hashInt(HASH_OFFSET_BASIS, 1));
+  TEST_ASSERT_NOT_EQUAL(hashBool(HASH_OFFSET_BASIS, false), hashBool(HASH_OFFSET_BASIS, true));
+  TEST_ASSERT_NOT_EQUAL(hashFloat(HASH_OFFSET_BASIS, 1.0f), hashFloat(HASH_OFFSET_BASIS, 1.0000001f));
+  TEST_ASSERT_NOT_EQUAL(hashCString(HASH_OFFSET_BASIS, "ab"), hashCString(HASH_OFFSET_BASIS, "ba"));
+
+  // Length is part of the hash, so "ab"+"c" and "a"+"bc" do not collide.
+  uint32_t ab_then_c = hashCString(hashCString(HASH_OFFSET_BASIS, "ab"), "c");
+  uint32_t a_then_bc = hashCString(hashCString(HASH_OFFSET_BASIS, "a"), "bc");
+  TEST_ASSERT_NOT_EQUAL(ab_then_c, a_then_bc);
+}
+
+void test_ui_signature_hash_cstring_treats_null_as_empty()
+{
+  TEST_ASSERT_EQUAL_UINT32(hashCString(HASH_OFFSET_BASIS, nullptr),
+                           hashCString(HASH_OFFSET_BASIS, ""));
+}
+
+namespace
+{
+ExternalUiSnapshot baselineExternalSnapshot()
+{
+  return {/* selected_format */ 1,
+          /* selected_lens   */ 2,
+          /* bat_per         */ 75,
+          /* film_counter    */ 5,
+          /* frame_progress  */ 0.25f,
+          /* sleepMode       */ false};
+}
+} // namespace
+
+void test_ui_signature_external_changes_when_any_field_changes()
+{
+  const ExternalUiSnapshot base = baselineExternalSnapshot();
+  const uint32_t baseline = buildExternalUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildExternalUiSignature(baselineExternalSnapshot()));
+
+  ExternalUiSnapshot mutated = base;
+  mutated.selected_format = 9;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.selected_lens = 9;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.bat_per = 50;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.film_counter = 6;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.frame_progress = 0.5f;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.sleepMode = true;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -712,5 +785,8 @@ int main(int, char **)
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
+  RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);
+  RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
+  RUN_TEST(test_ui_signature_external_changes_when_any_field_changes);
   return UNITY_END();
 }
