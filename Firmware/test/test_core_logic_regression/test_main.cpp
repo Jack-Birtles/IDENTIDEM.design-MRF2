@@ -60,6 +60,18 @@ const FilmFormat *findFormatByName(const char *formatName)
   return nullptr;
 }
 
+const Lens *findLensById(int id)
+{
+  for (size_t i = 0; i < NUM_LENSES; i++)
+  {
+    if (lenses[i].id == id)
+    {
+      return &lenses[i];
+    }
+  }
+  return nullptr;
+}
+
 // A primary-only return with no secondary peak. Mirrors the most common
 // DTS6012M measurement shape in the field. sunlightBase stays 0; tests that
 // need a specific ambient level set it after the helper returns.
@@ -607,16 +619,7 @@ void test_lens_logic_ignores_unused_distance_markers()
 
 void test_150mm_profile_uses_custom_distance_scale()
 {
-  const Lens *lens150 = nullptr;
-  for (size_t i = 0; i < NUM_LENSES; i++)
-  {
-    if (lenses[i].id == 15056)
-    {
-      lens150 = &lenses[i];
-      break;
-    }
-  }
-
+  const Lens *lens150 = findLensById(15056);
   TEST_ASSERT_NOT_NULL(lens150);
   TEST_ASSERT_EQUAL_INT(5, getLensDistancePointCount(*lens150));
   TEST_ASSERT_FLOAT_WITHIN(0.0001f, 2.0f, lens150->distance[0]);
@@ -628,20 +631,8 @@ void test_150mm_profile_uses_custom_distance_scale()
 
 void test_250mm_profiles_use_custom_distance_scales()
 {
-  const Lens *lens250f5 = nullptr;
-  const Lens *lens250f8 = nullptr;
-  for (size_t i = 0; i < NUM_LENSES; i++)
-  {
-    if (lenses[i].id == 25005)
-    {
-      lens250f5 = &lenses[i];
-    }
-    else if (lenses[i].id == 25008)
-    {
-      lens250f8 = &lenses[i];
-    }
-  }
-
+  const Lens *lens250f5 = findLensById(25005);
+  const Lens *lens250f8 = findLensById(25008);
   TEST_ASSERT_NOT_NULL(lens250f5);
   TEST_ASSERT_NOT_NULL(lens250f8);
 
