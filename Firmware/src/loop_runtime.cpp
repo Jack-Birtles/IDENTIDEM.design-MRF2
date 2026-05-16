@@ -213,37 +213,47 @@ void updateUiRenderCacheMode()
   loopState.uiRenderCache.lastMode = ui_mode;
 }
 
+// Adaptive polling: stay on the fast cadence while a domain has been active
+// recently, then drop to the idle cadence after the hold window expires.
+struct AdaptivePollingProfile
+{
+  unsigned long fast_ms;
+  unsigned long idle_ms;
+  unsigned long hold_ms;
+};
+
 unsigned long selectAdaptiveInterval(unsigned long nowMs,
                                      unsigned long lastActivityMs,
-                                     unsigned long fastIntervalMs,
-                                     unsigned long idleIntervalMs,
-                                     unsigned long holdWindowMs)
+                                     const AdaptivePollingProfile &profile)
 {
-  if ((nowMs - lastActivityMs) < holdWindowMs)
+  if ((nowMs - lastActivityMs) < profile.hold_ms)
   {
-    return fastIntervalMs;
+    return profile.fast_ms;
   }
-  return idleIntervalMs;
+  return profile.idle_ms;
 }
+
+constexpr AdaptivePollingProfile FILM_COUNTER_POLLING_PROFILE = {
+    LOOP_FILM_COUNTER_INTERVAL_MS,
+    LOOP_FILM_COUNTER_IDLE_INTERVAL_MS,
+    LOOP_FILM_COUNTER_ACTIVE_HOLD_MS};
+constexpr AdaptivePollingProfile LENS_POLLING_PROFILE = {
+    LOOP_LENS_INTERVAL_MS,
+    LOOP_LENS_IDLE_INTERVAL_MS,
+    LOOP_LENS_ACTIVE_HOLD_MS};
+constexpr AdaptivePollingProfile LIGHTMETER_POLLING_PROFILE = {
+    LOOP_LIGHTMETER_INTERVAL_MS,
+    LOOP_LIGHTMETER_IDLE_INTERVAL_MS,
+    LOOP_LIGHTMETER_ACTIVE_HOLD_MS};
 
 unsigned long getFilmCounterIntervalMs(unsigned long nowMs)
 {
-  return selectAdaptiveInterval(
-      nowMs,
-      loopState.lastFilmMovementMs,
-      LOOP_FILM_COUNTER_INTERVAL_MS,
-      LOOP_FILM_COUNTER_IDLE_INTERVAL_MS,
-      LOOP_FILM_COUNTER_ACTIVE_HOLD_MS);
+  return selectAdaptiveInterval(nowMs, loopState.lastFilmMovementMs, FILM_COUNTER_POLLING_PROFILE);
 }
 
 unsigned long getLensIntervalMs(unsigned long nowMs)
 {
-  return selectAdaptiveInterval(
-      nowMs,
-      loopState.lastLensMovementMs,
-      LOOP_LENS_INTERVAL_MS,
-      LOOP_LENS_IDLE_INTERVAL_MS,
-      LOOP_LENS_ACTIVE_HOLD_MS);
+  return selectAdaptiveInterval(nowMs, loopState.lastLensMovementMs, LENS_POLLING_PROFILE);
 }
 
 unsigned long getLightMeterIntervalMs(unsigned long nowMs)
@@ -251,15 +261,9 @@ unsigned long getLightMeterIntervalMs(unsigned long nowMs)
   // Keep meter updates snappy whenever user-adjusted settings are pending.
   if (aperture != prev_aperture || iso != prev_iso)
   {
-    return LOOP_LIGHTMETER_INTERVAL_MS;
+    return LIGHTMETER_POLLING_PROFILE.fast_ms;
   }
-
-  return selectAdaptiveInterval(
-      nowMs,
-      loopState.lastMeterChangeMs,
-      LOOP_LIGHTMETER_INTERVAL_MS,
-      LOOP_LIGHTMETER_IDLE_INTERVAL_MS,
-      LOOP_LIGHTMETER_ACTIVE_HOLD_MS);
+  return selectAdaptiveInterval(nowMs, loopState.lastMeterChangeMs, LIGHTMETER_POLLING_PROFILE);
 }
 
 bool sendLightMeterCommand(uint8_t command)
