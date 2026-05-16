@@ -27,6 +27,14 @@ bool prefsDirty = false;
 uint8_t prefsDirtyMask = 0;
 unsigned long prefsLastDirtyMs = 0;
 
+// Lens-ADC moving-average buffer. Lives here because calcMovingAvg() is the
+// only consumer; previously these four lived in globals.h alongside unrelated
+// session state.
+int movingAvgSamples[SMOOTHING_WINDOW_SIZE];
+int movingAvgIndex = 0;
+int movingAvgTotal = 0;
+int movingAvgValue = 0;
+
 void getLensReadingsKey(size_t lensIndex, char *buffer, size_t bufferSize)
 {
   snprintf(buffer, bufferSize, "lc_sr_%u", static_cast<unsigned int>(lensIndex));
@@ -401,15 +409,26 @@ void flushPrefsIfDirty()
 
 int calcMovingAvg(int sensorVal)
 {
-  int index = constrain(curReadIndex, 0, SMOOTHING_WINDOW_SIZE - 1);
+  int index = constrain(movingAvgIndex, 0, SMOOTHING_WINDOW_SIZE - 1);
 
-  sampleTotal = sampleTotal - samples[index];
+  movingAvgTotal = movingAvgTotal - movingAvgSamples[index];
 
-  samples[index] = sensorVal;
-  sampleTotal = sampleTotal + samples[index];
-  curReadIndex = (index + 1) % SMOOTHING_WINDOW_SIZE;
-  sampleAvg = sampleTotal / SMOOTHING_WINDOW_SIZE;
-  return sampleAvg;
+  movingAvgSamples[index] = sensorVal;
+  movingAvgTotal = movingAvgTotal + movingAvgSamples[index];
+  movingAvgIndex = (index + 1) % SMOOTHING_WINDOW_SIZE;
+  movingAvgValue = movingAvgTotal / SMOOTHING_WINDOW_SIZE;
+  return movingAvgValue;
+}
+
+void resetLensMovingAverageState()
+{
+  for (int i = 0; i < SMOOTHING_WINDOW_SIZE; i++)
+  {
+    movingAvgSamples[i] = 0;
+  }
+  movingAvgIndex = 0;
+  movingAvgTotal = 0;
+  movingAvgValue = 0;
 }
 
 int_fast16_t getFocusRadius()

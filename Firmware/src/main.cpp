@@ -198,17 +198,6 @@ void initializeLidarSensor()
   delay(LIDAR_SERIAL_STARTUP_DELAY_MS);
 }
 
-void resetLensMovingAverageState()
-{
-  for (int i = 0; i < SMOOTHING_WINDOW_SIZE; i++)
-  {
-    samples[i] = 0;
-  }
-  curReadIndex = 0;
-  sampleTotal = 0;
-  sampleAvg = 0;
-}
-
 void initializePowerAndInputPeripherals()
 {
   batteryGaugeReady = maxlipo.begin();

@@ -53,12 +53,6 @@ extern int brightness_manual_pct;
 extern int brightness_auto_top_pct;
 extern bool show_horizon_line;
 
-// Filter algorithm
-extern int samples[SMOOTHING_WINDOW_SIZE];
-extern int curReadIndex;
-extern int sampleTotal;
-extern int sampleAvg;
-
 // Lens distance
 extern int prev_lens_sensor_reading;
 extern int lens_sensor_reading;

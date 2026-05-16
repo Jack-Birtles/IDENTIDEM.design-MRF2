@@ -35,12 +35,6 @@ int brightness_manual_pct = DEFAULT_BRIGHTNESS_MANUAL_PCT;
 int brightness_auto_top_pct = DEFAULT_BRIGHTNESS_AUTO_TOP_PCT;
 bool show_horizon_line = DEFAULT_SHOW_HORIZON_LINE;
 
-// Filter algorithm
-int samples[SMOOTHING_WINDOW_SIZE];
-int curReadIndex = 0;
-int sampleTotal = 0;
-int sampleAvg = 0;
-
 // Lens distance
 int prev_lens_sensor_reading = 0;
 int lens_sensor_reading = 0;

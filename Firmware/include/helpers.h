@@ -23,6 +23,7 @@ void flushPrefsIfDirty();
 void performFactoryReset();
 
 int calcMovingAvg(int sensorVal);
+void resetLensMovingAverageState();
 
 int_fast16_t getFocusRadius();
 // ---------------------
