@@ -12,6 +12,7 @@
 #include "globals.h"
 #include "hardware.h"
 #include "helpers.h"
+#include "interface_layout_constants.h"
 #include "lenses.h"
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
