@@ -385,14 +385,17 @@ void test_lidar_sunlight_warn_hysteresis()
   TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT));   // on, at exit
 }
 
-void test_lidar_invalid_and_display_formatting()
+void test_lidar_rejects_invalid_quality_and_zero_intensity()
 {
   // Below LIDAR_FUSION_MIN_INTENSITY and fallback floor; quality is INVALID.
   DTSMeasurement measurement = makeLidarMeasurement(1000, 0, DataQuality::INVALID);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_FALSE(candidate.valid);
+}
 
+void test_lidar_distance_display_formatting_covers_each_band()
+{
   char formattedDistance[16] = {0};
 
   formatDistanceDisplay(4, formattedDistance, sizeof(formattedDistance));
@@ -786,7 +789,8 @@ int main(int, char **)
   RUN_TEST(test_lidar_stable_boost_kicks_in_at_min_frames);
   RUN_TEST(test_lidar_stable_boost_clamps_at_max);
   RUN_TEST(test_lidar_sunlight_warn_hysteresis);
-  RUN_TEST(test_lidar_invalid_and_display_formatting);
+  RUN_TEST(test_lidar_rejects_invalid_quality_and_zero_intensity);
+  RUN_TEST(test_lidar_distance_display_formatting_covers_each_band);
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);
   RUN_TEST(test_lidar_far_fallback_prevents_dropouts);
