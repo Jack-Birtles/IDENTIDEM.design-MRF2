@@ -82,55 +82,59 @@ float priorWeightForQuality(DataQuality quality)
   return LIDAR_LENS_PRIOR_WEIGHT_GOOD;
 }
 
+// Pick the value for the first tier whose max_cm covers `distance_cm`.
+// The final tier's max_cm is ignored — it acts as the "very far" fallback.
+template <typename T>
+struct DistanceTier
+{
+  int max_cm;
+  T value;
+};
+
+template <typename T, size_t N>
+T lookupByDistance(int distance_cm, const DistanceTier<T> (&tiers)[N])
+{
+  for (size_t i = 0; i + 1 < N; i++)
+  {
+    if (distance_cm <= tiers[i].max_cm)
+    {
+      return tiers[i].value;
+    }
+  }
+  return tiers[N - 1].value;
+}
+
 float priorRangeScaleForDistanceCm(int corrected_cm)
 {
-  if (corrected_cm <= LIDAR_PRIOR_RANGE_NEAR_CM)
-  {
-    return LIDAR_PRIOR_RANGE_SCALE_NEAR;
-  }
-  if (corrected_cm <= LIDAR_PRIOR_RANGE_MID_CM)
-  {
-    return LIDAR_PRIOR_RANGE_SCALE_MID;
-  }
-  if (corrected_cm <= LIDAR_PRIOR_RANGE_FAR_CM)
-  {
-    return LIDAR_PRIOR_RANGE_SCALE_FAR;
-  }
-  return LIDAR_PRIOR_RANGE_SCALE_VERY_FAR;
+  static const DistanceTier<float> tiers[] = {
+      {LIDAR_PRIOR_RANGE_NEAR_CM, LIDAR_PRIOR_RANGE_SCALE_NEAR},
+      {LIDAR_PRIOR_RANGE_MID_CM, LIDAR_PRIOR_RANGE_SCALE_MID},
+      {LIDAR_PRIOR_RANGE_FAR_CM, LIDAR_PRIOR_RANGE_SCALE_FAR},
+      {0, LIDAR_PRIOR_RANGE_SCALE_VERY_FAR},
+  };
+  return lookupByDistance(corrected_cm, tiers);
 }
 
 int minIntensityThresholdForDistanceCm(int raw_cm)
 {
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM)
-  {
-    return LIDAR_FUSION_MIN_INTENSITY;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_MID_RANGE_CM)
-  {
-    return LIDAR_FUSION_MIN_INTENSITY_MID;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_FAR_RANGE_CM)
-  {
-    return LIDAR_FUSION_MIN_INTENSITY_FAR;
-  }
-  return LIDAR_FUSION_MIN_INTENSITY_MAX_RANGE;
+  static const DistanceTier<int> tiers[] = {
+      {LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM, LIDAR_FUSION_MIN_INTENSITY},
+      {LIDAR_FUSION_INTENSITY_MID_RANGE_CM, LIDAR_FUSION_MIN_INTENSITY_MID},
+      {LIDAR_FUSION_INTENSITY_FAR_RANGE_CM, LIDAR_FUSION_MIN_INTENSITY_FAR},
+      {0, LIDAR_FUSION_MIN_INTENSITY_MAX_RANGE},
+  };
+  return lookupByDistance(raw_cm, tiers);
 }
 
 int snrTargetPermilleForDistanceCm(int raw_cm)
 {
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM)
-  {
-    return LIDAR_SNR_PERMILLE_TARGET_NEAR;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_MID_RANGE_CM)
-  {
-    return LIDAR_SNR_PERMILLE_TARGET_MID;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_FAR_RANGE_CM)
-  {
-    return LIDAR_SNR_PERMILLE_TARGET_FAR;
-  }
-  return LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE;
+  static const DistanceTier<int> tiers[] = {
+      {LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM, LIDAR_SNR_PERMILLE_TARGET_NEAR},
+      {LIDAR_FUSION_INTENSITY_MID_RANGE_CM, LIDAR_SNR_PERMILLE_TARGET_MID},
+      {LIDAR_FUSION_INTENSITY_FAR_RANGE_CM, LIDAR_SNR_PERMILLE_TARGET_FAR},
+      {0, LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE},
+  };
+  return lookupByDistance(raw_cm, tiers);
 }
 
 int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
