@@ -37,9 +37,19 @@ struct LightMeterSmoothingState
 LensSpikeFilterState lensSpikeFilter;
 LensSnapState lensSnap;
 LightMeterSmoothingState lightMeterSmoothing;
-LidarRecoveryState lidarRecoveryState = {};
-int consecutive_implausible_lidar_frames = 0;
-int lidar_stable_streak_frames = 0;
+
+// LiDAR runtime tracking state. The three fields are independent — they
+// don't share an invariant — but they are all touched by setDistance() in
+// response to a single sensor frame, so keeping them in one struct makes
+// the "this is LiDAR's runtime state" concept easy to grep and gives a
+// single place to add a future related counter.
+struct LidarRuntimeState
+{
+  LidarRecoveryState recovery = {};    // error / timeout backoff for sensor recovery attempts
+  int implausibleFrames = 0;           // count of consecutive plausibility-gate rejections
+  int stableStreakFrames = 0;          // count of consecutive readings within stability delta
+};
+LidarRuntimeState lidarRuntime;
 
 // Per-frame caches consulted only by this module's sensor pipeline.
 // Previously declared extern in globals.h; kept file-scope so the global
@@ -95,7 +105,7 @@ void setDistance()
 {
   if (!lidarSensorReady || !lidarEnabled)
   {
-    lidarRecoveryState = {};
+    lidarRuntime.recovery = {};
     lidar_high_sunlight = false;
     return;
   }
@@ -123,9 +133,9 @@ void setDistance()
     if (!chosen.valid)
     {
       // Sensor frame unusable — break any subject-stable streak.
-      lidar_stable_streak_frames = 0;
+      lidarRuntime.stableStreakFrames = 0;
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
-      if ((now - lidarRecoveryState.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
+      if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
       {
         clearLidarDisplay(prev_distance >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf." : "...");
       }
@@ -139,9 +149,9 @@ void setDistance()
     // past the previous LiDAR target without being stuck.
     if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
     {
-      consecutive_implausible_lidar_frames++;
-      lidar_stable_streak_frames = 0; // Rejection means we are not tracking a stable subject.
-      if (consecutive_implausible_lidar_frames < LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES)
+      lidarRuntime.implausibleFrames++;
+      lidarRuntime.stableStreakFrames = 0; // Rejection means we are not tracking a stable subject.
+      if (lidarRuntime.implausibleFrames < LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES)
       {
         return;
       }
@@ -149,7 +159,7 @@ void setDistance()
     }
     else
     {
-      consecutive_implausible_lidar_frames = 0;
+      lidarRuntime.implausibleFrames = 0;
     }
 
     // Subject-stable confidence boost: count consecutive readings within the
@@ -157,15 +167,15 @@ void setDistance()
     // minimum-frames threshold.
     if (prev_distance > 0 && abs(chosen.distance_cm - prev_distance) <= LIDAR_STABLE_DELTA_CM)
     {
-      lidar_stable_streak_frames = min(lidar_stable_streak_frames + 1, LIDAR_STABLE_MIN_FRAMES + 1);
+      lidarRuntime.stableStreakFrames = min(lidarRuntime.stableStreakFrames + 1, LIDAR_STABLE_MIN_FRAMES + 1);
     }
     else
     {
-      lidar_stable_streak_frames = 1; // start a new streak from this reading
+      lidarRuntime.stableStreakFrames = 1; // start a new streak from this reading
     }
-    chosen.confidence = applyStableConfidenceBoost(chosen.confidence, lidar_stable_streak_frames);
+    chosen.confidence = applyStableConfidenceBoost(chosen.confidence, lidarRuntime.stableStreakFrames);
 
-    updateLidarRecoveryState(lidarRecoveryState, LidarRecoveryEvent::VALID_MEASUREMENT, now);
+    updateLidarRecoveryState(lidarRuntime.recovery, LidarRecoveryEvent::VALID_MEASUREMENT, now);
     lidar_quality_level = chosen.quality_level;
 
     distance = static_cast<int16_t>(blendLidarDistance(prev_distance, chosen.distance_cm, chosen.confidence));
@@ -181,7 +191,7 @@ void setDistance()
   LidarRecoveryEvent event = (lidarUpdateError == DTSError::TIMEOUT)
                                  ? LidarRecoveryEvent::TIMEOUT
                                  : LidarRecoveryEvent::ERROR;
-  LidarRecoveryDecision recoveryDecision = updateLidarRecoveryState(lidarRecoveryState, event, now);
+  LidarRecoveryDecision recoveryDecision = updateLidarRecoveryState(lidarRuntime.recovery, event, now);
 
   if (recoveryDecision.clear_display)
   {
@@ -202,7 +212,7 @@ void setDistance()
   {
     applyLidarCalibrationProfile();
   }
-  noteLidarRecoveryAttemptResult(lidarRecoveryState, recovered, now);
+  noteLidarRecoveryAttemptResult(lidarRuntime.recovery, recovered, now);
 }
 
 // Borrows moving average code from
