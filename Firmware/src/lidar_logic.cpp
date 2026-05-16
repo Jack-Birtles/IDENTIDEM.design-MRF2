@@ -335,6 +335,23 @@ LidarCandidate fuseLidarCandidates(const LidarCandidate &primary, const LidarCan
   int fused_quality_level = max(primary.quality_level, secondary.quality_level);
   return {true, fused_distance_cm, fused_confidence, fused_quality_level};
 }
+
+// Fuse the pair when both are valid and agree within the fusion delta; otherwise
+// return the stronger of the two (or the only valid one). Returns the empty
+// primary when both are invalid, so the caller can fall through to a fallback.
+LidarCandidate selectBestPair(const LidarCandidate &primary, const LidarCandidate &secondary)
+{
+  if (primary.valid && secondary.valid &&
+      abs(primary.distance_cm - secondary.distance_cm) <= LIDAR_FUSION_AGREE_DELTA_CM)
+  {
+    return fuseLidarCandidates(primary, secondary);
+  }
+  if (!primary.valid || (secondary.valid && secondary.confidence > primary.confidence))
+  {
+    return secondary;
+  }
+  return primary;
+}
 } // namespace
 
 LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
@@ -374,19 +391,9 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                     lens_prior_cm);
   }
 
-  if (primary.valid && secondary.valid &&
-      abs(primary.distance_cm - secondary.distance_cm) <= LIDAR_FUSION_AGREE_DELTA_CM)
-  {
-    return fuseLidarCandidates(primary, secondary);
-  }
-
   if (primary.valid || secondary.valid)
   {
-    if (!primary.valid || (secondary.valid && secondary.confidence > primary.confidence))
-    {
-      return secondary;
-    }
-    return primary;
+    return selectBestPair(primary, secondary);
   }
 
   // If quality/intensity gating rejects both candidates at long range, keep a
@@ -411,17 +418,7 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                                  measurement.sunlightBase,
                                                                  fb_secondary_quality,
                                                                  previous_distance_cm);
-
-  if (fallbackPrimary.valid && fallbackSecondary.valid &&
-      abs(fallbackPrimary.distance_cm - fallbackSecondary.distance_cm) <= LIDAR_FUSION_AGREE_DELTA_CM)
-  {
-    return fuseLidarCandidates(fallbackPrimary, fallbackSecondary);
-  }
-  if (!fallbackPrimary.valid || (fallbackSecondary.valid && fallbackSecondary.confidence > fallbackPrimary.confidence))
-  {
-    return fallbackSecondary;
-  }
-  return fallbackPrimary;
+  return selectBestPair(fallbackPrimary, fallbackSecondary);
 }
 
 bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
