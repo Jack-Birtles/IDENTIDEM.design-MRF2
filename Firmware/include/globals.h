@@ -54,13 +54,13 @@ extern int brightness_auto_top_pct;
 extern bool show_horizon_line;
 
 // Lens distance
-extern int prev_lens_sensor_reading;
+// (prev_lens_sensor_reading is a setfuncs-internal cache; not exposed here.)
 extern int lens_sensor_reading;
 extern int lens_distance_raw;
 extern char lens_distance_cm[16];
 
 // LiDAR distance
-extern int prev_distance;
+// (prev_distance is a setfuncs-internal cache; not exposed here.)
 extern int16_t distance;    // Distance to object in centimeters
 extern char distance_cm[16];
 extern int lidar_quality_level; // 0..4 (none, poor..excellent)

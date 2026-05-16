@@ -41,6 +41,12 @@ LidarRecoveryState lidarRecoveryState = {};
 int consecutive_implausible_lidar_frames = 0;
 int lidar_stable_streak_frames = 0;
 
+// Per-frame caches consulted only by this module's sensor pipeline.
+// Previously declared extern in globals.h; kept file-scope so the global
+// state surface stays focused on values shared across modules.
+int prev_distance = 0;             // Last accepted LiDAR distance for blend/stability checks.
+int prev_lens_sensor_reading = 0;  // Last lens ADC reading routed into setLensDistance().
+
 bool getLensPriorCm(int &lens_prior_cm)
 {
   if (!lenses[selected_lens].calibrated)

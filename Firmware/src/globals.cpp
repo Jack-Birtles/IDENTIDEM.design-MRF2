@@ -36,13 +36,11 @@ int brightness_auto_top_pct = DEFAULT_BRIGHTNESS_AUTO_TOP_PCT;
 bool show_horizon_line = DEFAULT_SHOW_HORIZON_LINE;
 
 // Lens distance
-int prev_lens_sensor_reading = 0;
 int lens_sensor_reading = 0;
 int lens_distance_raw = 0;
 char lens_distance_cm[16] = "...";
 
 // LiDAR distance
-int prev_distance = 0;
 int16_t distance = 0;    // Distance to object in centimeters
 char distance_cm[16] = "...";
 int lidar_quality_level = 0;
