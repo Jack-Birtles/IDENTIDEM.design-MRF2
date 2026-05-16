@@ -170,6 +170,49 @@ int snrPenaltyForAmbientLight(int raw_cm,
   return min(penalty_max, penalty);
 }
 
+struct LidarReading
+{
+  bool valid;
+  int raw_cm;
+  int corrected_cm;
+};
+
+// Shared gating for both the primary and the fallback candidate builders:
+// rejects invalid sensor readings, applies the SNR floor, and calibrates the
+// distance. Each builder layers its own additional reject checks on top.
+LidarReading prepareLidarReading(uint16_t raw_distance_mm,
+                                 uint16_t intensity,
+                                 uint16_t sunlight_base)
+{
+  LidarReading reading = {false, 0, 0};
+  if (raw_distance_mm == DTS_INVALID_DISTANCE)
+  {
+    return reading;
+  }
+
+  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
+  if (raw_cm <= 0)
+  {
+    return reading;
+  }
+
+  if (shouldRejectBySnrFloor(raw_cm, intensity, sunlight_base))
+  {
+    return reading;
+  }
+
+  int corrected_cm = applyLidarCalibrationCm(raw_cm);
+  if (corrected_cm <= 0)
+  {
+    return reading;
+  }
+
+  reading.valid = true;
+  reading.raw_cm = raw_cm;
+  reading.corrected_cm = corrected_cm;
+  return reading;
+}
+
 LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
                                            uint16_t intensity,
                                            uint16_t sunlight_base,
@@ -177,18 +220,8 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
                                            int previous_distance_cm)
 {
   LidarCandidate candidate = {false, 0, 0, 0};
-  if (raw_distance_mm == DTS_INVALID_DISTANCE)
-  {
-    return candidate;
-  }
-
-  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
-  if (raw_cm <= 0)
-  {
-    return candidate;
-  }
-
-  if (shouldRejectBySnrFloor(raw_cm, intensity, sunlight_base))
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  if (!reading.valid)
   {
     return candidate;
   }
@@ -200,11 +233,8 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int corrected_cm = applyLidarCalibrationCm(raw_cm);
-  if (corrected_cm <= 0)
-  {
-    return candidate;
-  }
+  const int raw_cm = reading.raw_cm;
+  const int corrected_cm = reading.corrected_cm;
 
   const QualityProfile &profile = profileFor(quality);
   int confidence = LIDAR_FALLBACK_BASE_CONFIDENCE + (profile.base_score / 8);
@@ -239,32 +269,19 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
 {
   LidarCandidate candidate = {false, 0, 0, 0};
 
-  if (raw_distance_mm == DTS_INVALID_DISTANCE)
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  if (!reading.valid)
   {
     return candidate;
   }
 
-  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
-  if (raw_cm <= 0)
+  if (intensity < minIntensityThresholdForDistanceCm(reading.raw_cm))
   {
     return candidate;
   }
 
-  if (intensity < minIntensityThresholdForDistanceCm(raw_cm))
-  {
-    return candidate;
-  }
-
-  if (shouldRejectBySnrFloor(raw_cm, intensity, sunlight_base))
-  {
-    return candidate;
-  }
-
-  int corrected_cm = applyLidarCalibrationCm(raw_cm);
-  if (corrected_cm <= 0)
-  {
-    return candidate;
-  }
+  const int raw_cm = reading.raw_cm;
+  const int corrected_cm = reading.corrected_cm;
 
   const QualityProfile &profile = profileFor(quality);
   int confidence = profile.base_score;
