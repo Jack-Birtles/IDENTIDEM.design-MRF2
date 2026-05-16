@@ -2,9 +2,9 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
-## Unreleased
+## 10.4.9 - 2026-05-16
 
-Internal refactoring branch plus a setup-menu reorganisation. The menu reorg is user-visible; everything else is structural.
+Internal refactoring release plus a setup-menu reorganisation. The menu reorg is the one user-visible change; everything else is structural. Pending field testing.
 
 ### Setup menu reorganisation
 
