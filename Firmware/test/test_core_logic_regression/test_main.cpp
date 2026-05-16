@@ -670,6 +670,29 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
 }
 
+void test_lidar_secondary_quality_inherits_primary_when_invalid()
+{
+  // chooseBestLidarCandidate remaps a secondary peak's INVALID quality onto
+  // the primary's quality before scoring. Verify that a peak with explicit
+  // EXCELLENT and a peak whose quality remaps to EXCELLENT produce the same
+  // fused candidate.
+  DTSMeasurement explicitExcellent = makeLidarDualPeakMeasurement(
+      3000, 180, DataQuality::EXCELLENT,
+      3120, 170, DataQuality::EXCELLENT);
+  DTSMeasurement inheritsFromPrimary = makeLidarDualPeakMeasurement(
+      3000, 180, DataQuality::EXCELLENT,
+      3120, 170, DataQuality::INVALID);
+
+  LidarCandidate explicitCandidate = chooseBestLidarCandidate(explicitExcellent, 0, false, 0);
+  LidarCandidate inheritedCandidate = chooseBestLidarCandidate(inheritsFromPrimary, 0, false, 0);
+
+  TEST_ASSERT_TRUE(explicitCandidate.valid);
+  TEST_ASSERT_TRUE(inheritedCandidate.valid);
+  TEST_ASSERT_EQUAL_INT(explicitCandidate.distance_cm, inheritedCandidate.distance_cm);
+  TEST_ASSERT_EQUAL_INT(explicitCandidate.confidence, inheritedCandidate.confidence);
+  TEST_ASSERT_EQUAL_INT(explicitCandidate.quality_level, inheritedCandidate.quality_level);
+}
+
 void test_ui_signature_hash_primitives_are_deterministic_and_distinct()
 {
   // Determinism: same inputs produce same output.
@@ -776,6 +799,7 @@ int main(int, char **)
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
+  RUN_TEST(test_lidar_secondary_quality_inherits_primary_when_invalid);
   RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);
   RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
   RUN_TEST(test_ui_signature_external_changes_when_any_field_changes);
