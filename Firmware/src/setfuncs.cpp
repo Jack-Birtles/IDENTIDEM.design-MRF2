@@ -453,11 +453,13 @@ void toggleLidar(bool lidarStatusParam)
                                      : static_cast<DTSError>(lidar.disableSensor());
   if (status == DTSError::NONE)
   {
+    // Match the boot and retry paths: flip lidarEnabled *first*, then re-apply
+    // the calibration profile, so every caller observes the same ordering.
+    lidarEnabled = lidarStatusParam;
     if (lidarStatusParam)
     {
       applyLidarCalibrationProfile();
     }
-    lidarEnabled = lidarStatusParam;
   }
 }
 // ---------------------
