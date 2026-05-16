@@ -39,47 +39,32 @@ int applyLidarCalibrationCm(int raw_cm)
   return static_cast<int>(roundf(scaled));
 }
 
-int qualityBaseScore(DataQuality quality)
+struct QualityProfile
 {
-  switch (quality)
-  {
-  case DataQuality::EXCELLENT:
-    return 80;
-  case DataQuality::GOOD:
-    return 65;
-  case DataQuality::FAIR:
-    return 45;
-  case DataQuality::POOR:
-    return 25;
-  default:
-    return 0;
-  }
-}
+  int base_score;
+  int prior_penalty_cap;
+  float prior_weight;
+  int quality_level; // 1..4 for poor..excellent, 0 for INVALID
+};
 
-int priorPenaltyCapForQuality(DataQuality quality)
-{
-  switch (quality)
-  {
-  case DataQuality::EXCELLENT:
-    return LIDAR_PRIOR_PENALTY_MAX_EXCELLENT;
-  case DataQuality::GOOD:
-    return LIDAR_PRIOR_PENALTY_MAX_GOOD;
-  case DataQuality::FAIR:
-    return LIDAR_PRIOR_PENALTY_MAX_FAIR;
-  case DataQuality::POOR:
-    return LIDAR_PRIOR_PENALTY_MAX_POOR;
-  default:
-    return LIDAR_PRIOR_PENALTY_MAX_POOR;
-  }
-}
+// Indexed by DataQuality enum value (EXCELLENT=0 .. INVALID=4).
+const QualityProfile QUALITY_PROFILES[] = {
+    /* EXCELLENT */ {80, LIDAR_PRIOR_PENALTY_MAX_EXCELLENT, LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT, 4},
+    /* GOOD      */ {65, LIDAR_PRIOR_PENALTY_MAX_GOOD,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      3},
+    /* FAIR      */ {45, LIDAR_PRIOR_PENALTY_MAX_FAIR,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      2},
+    /* POOR      */ {25, LIDAR_PRIOR_PENALTY_MAX_POOR,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      1},
+    /* INVALID   */ { 0, LIDAR_PRIOR_PENALTY_MAX_POOR,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      0},
+};
 
-float priorWeightForQuality(DataQuality quality)
+const QualityProfile &profileFor(DataQuality quality)
 {
-  if (quality == DataQuality::EXCELLENT)
+  uint8_t idx = static_cast<uint8_t>(quality);
+  const uint8_t invalid_idx = static_cast<uint8_t>(DataQuality::INVALID);
+  if (idx > invalid_idx)
   {
-    return LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT;
+    idx = invalid_idx;
   }
-  return LIDAR_LENS_PRIOR_WEIGHT_GOOD;
+  return QUALITY_PROFILES[idx];
 }
 
 // Pick the value for the first tier whose max_cm covers `distance_cm`.
@@ -185,23 +170,6 @@ int snrPenaltyForAmbientLight(int raw_cm,
   return min(penalty_max, penalty);
 }
 
-int qualityLevelFromDataQuality(DataQuality quality)
-{
-  switch (quality)
-  {
-  case DataQuality::POOR:
-    return 1;
-  case DataQuality::FAIR:
-    return 2;
-  case DataQuality::GOOD:
-    return 3;
-  case DataQuality::EXCELLENT:
-    return 4;
-  default:
-    return 0;
-  }
-}
-
 LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
                                            uint16_t intensity,
                                            uint16_t sunlight_base,
@@ -238,7 +206,8 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int confidence = LIDAR_FALLBACK_BASE_CONFIDENCE + (qualityBaseScore(quality) / 8);
+  const QualityProfile &profile = profileFor(quality);
+  int confidence = LIDAR_FALLBACK_BASE_CONFIDENCE + (profile.base_score / 8);
   if (previous_distance_cm > 0)
   {
     confidence -= min(LIDAR_TEMPORAL_PENALTY_MAX,
@@ -255,7 +224,7 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
   candidate.valid = true;
   candidate.distance_cm = corrected_cm;
   candidate.confidence = confidence;
-  candidate.quality_level = max(1, qualityLevelFromDataQuality(quality));
+  candidate.quality_level = max(1, profile.quality_level);
   return candidate;
 }
 
@@ -297,7 +266,8 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int confidence = qualityBaseScore(quality);
+  const QualityProfile &profile = profileFor(quality);
+  int confidence = profile.base_score;
   confidence += min(20, static_cast<int>(intensity / 150));
 
   if (previous_distance_cm > 0)
@@ -311,9 +281,9 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
   {
     int prior_error_cm = abs(corrected_cm - lens_prior_cm);
     int effective_error_cm = max(0, prior_error_cm - LIDAR_PRIOR_DEADBAND_CM);
-    float prior_weight = priorWeightForQuality(quality) * priorRangeScaleForDistanceCm(corrected_cm);
+    float prior_weight = profile.prior_weight * priorRangeScaleForDistanceCm(corrected_cm);
     int prior_penalty = static_cast<int>(roundf(static_cast<float>(effective_error_cm) * prior_weight));
-    confidence -= min(priorPenaltyCapForQuality(quality), prior_penalty);
+    confidence -= min(profile.prior_penalty_cap, prior_penalty);
   }
 
   if (secondary_candidate)
@@ -330,7 +300,7 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
   candidate.valid = true;
   candidate.distance_cm = corrected_cm;
   candidate.confidence = confidence;
-  candidate.quality_level = qualityLevelFromDataQuality(quality);
+  candidate.quality_level = profile.quality_level;
   return candidate;
 }
 
