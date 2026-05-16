@@ -28,6 +28,19 @@
 
 namespace
 {
+// Shared U8G2 text setup: transparent font mode, left-to-right direction, and
+// the requested foreground/background pair. Callers set the font separately
+// since each context uses a different size.
+void prepareU8g2TextDefaults(U8G2_FOR_ADAFRUIT_GFX &u8g2_ref,
+                             uint16_t foregroundColor,
+                             uint16_t backgroundColor)
+{
+  u8g2_ref.setFontMode(1);
+  u8g2_ref.setFontDirection(0);
+  u8g2_ref.setForegroundColor(foregroundColor);
+  u8g2_ref.setBackgroundColor(backgroundColor);
+}
+
 struct ParallaxShift
 {
   float x;
@@ -216,10 +229,7 @@ void printSignedDeciDegrees(int deciDegrees)
 void preparePrimaryDisplayTextMode()
 {
   display.clearDisplay();
-  u8g2.setFontMode(1);
-  u8g2.setFontDirection(0);
-  u8g2.setForegroundColor(WHITE);
-  u8g2.setBackgroundColor(BLACK);
+  prepareU8g2TextDefaults(u8g2, WHITE, BLACK);
 }
 
 int getConfigMenuRowY(int step)
@@ -285,10 +295,7 @@ void drawHighSunlightIndicator()
 
 void drawMainHeader()
 {
-  u8g2.setFontMode(1);
-  u8g2.setFontDirection(0);
-  u8g2.setForegroundColor(BLACK);
-  u8g2.setBackgroundColor(WHITE);
+  prepareU8g2TextDefaults(u8g2, BLACK, WHITE);
   u8g2.setFont(u8g2_font_4x6_mf);
 
   display.fillRect(0, 0, SCREEN_WIDTH, MAIN_HEADER_HEIGHT, WHITE);
@@ -630,10 +637,7 @@ void drawLevelIndicator(int centerX, int centerY)
 void prepareExternalDisplayTextMode()
 {
   display_ext.clearDisplay();
-  u8g2_ext.setFontMode(1);
-  u8g2_ext.setFontDirection(0);
-  u8g2_ext.setForegroundColor(BLACK);
-  u8g2_ext.setBackgroundColor(WHITE);
+  prepareU8g2TextDefaults(u8g2_ext, BLACK, WHITE);
   u8g2_ext.setFont(u8g2_font_6x10_mf);
 }
 
@@ -1252,10 +1256,7 @@ void drawSleepUI()
     display_ext.drawLine(EXT_SLEEP_FACE_CX - 4, EXT_SLEEP_FACE_CY + 5,
                          EXT_SLEEP_FACE_CX + 4, EXT_SLEEP_FACE_CY + 5, WHITE);
     // "Zzz" tag
-    u8g2_ext.setFontMode(1);
-    u8g2_ext.setFontDirection(0);
-    u8g2_ext.setForegroundColor(WHITE);
-    u8g2_ext.setBackgroundColor(BLACK);
+    prepareU8g2TextDefaults(u8g2_ext, WHITE, BLACK);
     u8g2_ext.setFont(u8g2_font_6x10_mf);
     u8g2_ext.setCursor(EXT_SLEEP_ZZZ_X, EXT_SLEEP_ZZZ_Y);
     u8g2_ext.print(F("Zzz"));
