@@ -116,9 +116,21 @@ void handleLeftButtonShortPress()
   {
     advanceMenuStep(CONFIG_METER_STEP_MAX);
   }
-  else if (ui_mode == UiMode::ConfigUi)
+  else if (ui_mode == UiMode::ConfigDisplay)
   {
-    advanceMenuStep(CONFIG_UI_STEP_MAX);
+    advanceMenuStep(CONFIG_DISPLAY_STEP_MAX);
+  }
+  else if (ui_mode == UiMode::ConfigLidar)
+  {
+    advanceMenuStep(CONFIG_LIDAR_STEP_MAX);
+  }
+  else if (ui_mode == UiMode::ConfigFrameTuning)
+  {
+    advanceMenuStep(CONFIG_FRAME_TUNING_STEP_MAX);
+  }
+  else if (ui_mode == UiMode::ConfigHorizonTrim)
+  {
+    advanceMenuStep(CONFIG_HORIZON_TRIM_STEP_MAX);
   }
   else if (ui_mode == UiMode::ReticleAdjust)
   {
@@ -228,8 +240,9 @@ void handleLeftButtonShortPress()
   }
   else if (ui_mode == UiMode::ResetConfirm)
   {
-    ui_mode = UiMode::Config;
-    config_step = CONFIG_ROOT_STEP_RESET;
+    // Reset frame counter is now a Film-submenu action; cancel returns there.
+    ui_mode = UiMode::ConfigFilm;
+    config_step = CONFIG_FILM_STEP_RESET;
   }
   else if (ui_mode == UiMode::Health)
   {
@@ -251,8 +264,8 @@ void handleReticleAdjustLongPress()
   else
   {
     savePrefs(false, PREFS_DIRTY_SETTINGS);
-    config_step = CONFIG_UI_STEP_RETICLE_ADJUST;
-    ui_mode = UiMode::ConfigUi;
+    config_step = CONFIG_DISPLAY_STEP_RETICLE_ADJUST;
+    ui_mode = UiMode::ConfigDisplay;
   }
 }
 
@@ -296,12 +309,13 @@ void handleRightShortConfig()
     config_step = CONFIG_METER_STEP_ISO;
     ui_mode = UiMode::ConfigMeter;
   }
-  else if (config_step == CONFIG_ROOT_STEP_UI_MENU) {
-    config_step = CONFIG_UI_STEP_HORIZON_LANDSCAPE;
-    ui_mode = UiMode::ConfigUi;
+  else if (config_step == CONFIG_ROOT_STEP_LIDAR_MENU) {
+    config_step = CONFIG_LIDAR_STEP_OFFSET;
+    ui_mode = UiMode::ConfigLidar;
   }
-  else if (config_step == CONFIG_ROOT_STEP_RESET) {
-    ui_mode = UiMode::ResetConfirm;
+  else if (config_step == CONFIG_ROOT_STEP_DISPLAY_MENU) {
+    config_step = CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE;
+    ui_mode = UiMode::ConfigDisplay;
   }
   else if (config_step == CONFIG_ROOT_STEP_HEALTH) {
     ui_mode = UiMode::Health;
@@ -320,15 +334,30 @@ void handleRightShortConfigFilm()
   else if (config_step == CONFIG_FILM_STEP_CURRENT_FRAME) {
     cycleCurrentFrame();
   }
-  else if (config_step == CONFIG_FILM_STEP_FRAME_ONE_OFFSET) {
-    cycleFrameOneOffset();
+  else if (config_step == CONFIG_FILM_STEP_RESET) {
+    ui_mode = UiMode::ResetConfirm;
   }
-  else if (config_step == CONFIG_FILM_STEP_FRAME_SPACING) {
-    cycleFrameSpacingOffset();
+  else if (config_step == CONFIG_FILM_STEP_TUNING_MENU) {
+    config_step = CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET;
+    ui_mode = UiMode::ConfigFrameTuning;
   }
   else if (config_step == CONFIG_FILM_STEP_BACK) {
     config_step = CONFIG_ROOT_STEP_FILM_MENU;
     ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigFrameTuning()
+{
+  if (config_step == CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET) {
+    cycleFrameOneOffset();
+  }
+  else if (config_step == CONFIG_FRAME_TUNING_STEP_FRAME_SPACING) {
+    cycleFrameSpacingOffset();
+  }
+  else if (config_step == CONFIG_FRAME_TUNING_STEP_BACK) {
+    config_step = CONFIG_FILM_STEP_TUNING_MENU;
+    ui_mode = UiMode::ConfigFilm;
   }
 }
 
@@ -375,42 +404,62 @@ void handleRightShortConfigMeter()
   }
 }
 
-void handleRightShortConfigUi()
+void handleRightShortConfigDisplay()
 {
-  if (config_step == CONFIG_UI_STEP_HORIZON_LANDSCAPE) {
-    cycleLevelTrimLandscape();
-  }
-  else if (config_step == CONFIG_UI_STEP_HORIZON_PORTRAIT_POS) {
-    cycleLevelTrimPortraitPos();
-  }
-  else if (config_step == CONFIG_UI_STEP_HORIZON_PORTRAIT_NEG) {
-    cycleLevelTrimPortraitNeg();
-  }
-  else if (config_step == CONFIG_UI_STEP_HORIZON_ENABLE) {
-    toggleHorizonLine();
-  }
-  else if (config_step == CONFIG_UI_STEP_BRIGHTNESS_MODE) {
+  if (config_step == CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE) {
     cycleBrightnessMode();
   }
-  else if (config_step == CONFIG_UI_STEP_BRIGHTNESS_VALUE) {
+  else if (config_step == CONFIG_DISPLAY_STEP_BRIGHTNESS_VALUE) {
     cycleBrightnessValue();
   }
-  else if (config_step == CONFIG_UI_STEP_SLEEP_TIMEOUT) {
+  else if (config_step == CONFIG_DISPLAY_STEP_HORIZON_ENABLE) {
+    toggleHorizonLine();
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_SLEEP_TIMEOUT) {
     cycleSleepTimeoutMode();
   }
-  else if (config_step == CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT) {
-    cycleLidarIdleTimeoutMode();
+  else if (config_step == CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU) {
+    config_step = CONFIG_HORIZON_TRIM_STEP_LANDSCAPE;
+    ui_mode = UiMode::ConfigHorizonTrim;
   }
-  else if (config_step == CONFIG_UI_STEP_LIDAR_OFFSET) {
-    cycleLidarDistanceOffset();
-  }
-  else if (config_step == CONFIG_UI_STEP_RETICLE_ADJUST) {
+  else if (config_step == CONFIG_DISPLAY_STEP_RETICLE_ADJUST) {
     reticle_adjust_step = 0;
     ui_mode = UiMode::ReticleAdjust;
   }
-  else if (config_step == CONFIG_UI_STEP_BACK) {
-    config_step = CONFIG_ROOT_STEP_UI_MENU;
+  else if (config_step == CONFIG_DISPLAY_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_DISPLAY_MENU;
     ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigLidar()
+{
+  if (config_step == CONFIG_LIDAR_STEP_OFFSET) {
+    cycleLidarDistanceOffset();
+  }
+  else if (config_step == CONFIG_LIDAR_STEP_IDLE_TIMEOUT) {
+    cycleLidarIdleTimeoutMode();
+  }
+  else if (config_step == CONFIG_LIDAR_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_LIDAR_MENU;
+    ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigHorizonTrim()
+{
+  if (config_step == CONFIG_HORIZON_TRIM_STEP_LANDSCAPE) {
+    cycleLevelTrimLandscape();
+  }
+  else if (config_step == CONFIG_HORIZON_TRIM_STEP_PORTRAIT_POS) {
+    cycleLevelTrimPortraitPos();
+  }
+  else if (config_step == CONFIG_HORIZON_TRIM_STEP_PORTRAIT_NEG) {
+    cycleLevelTrimPortraitNeg();
+  }
+  else if (config_step == CONFIG_HORIZON_TRIM_STEP_BACK) {
+    config_step = CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU;
+    ui_mode = UiMode::ConfigDisplay;
   }
 }
 
@@ -469,14 +518,23 @@ void handleRightButtonShortPress()
   case UiMode::ConfigFilm:
     handleRightShortConfigFilm();
     break;
+  case UiMode::ConfigFrameTuning:
+    handleRightShortConfigFrameTuning();
+    break;
   case UiMode::ConfigLens:
     handleRightShortConfigLens();
     break;
   case UiMode::ConfigMeter:
     handleRightShortConfigMeter();
     break;
-  case UiMode::ConfigUi:
-    handleRightShortConfigUi();
+  case UiMode::ConfigLidar:
+    handleRightShortConfigLidar();
+    break;
+  case UiMode::ConfigDisplay:
+    handleRightShortConfigDisplay();
+    break;
+  case UiMode::ConfigHorizonTrim:
+    handleRightShortConfigHorizonTrim();
     break;
   case UiMode::ReticleAdjust:
     handleRightShortReticleAdjust();

@@ -46,11 +46,11 @@ void drawConfigUI()
   u8g2.print(iso);
   u8g2.print(F(" > "));
 
-  selectConfigMenuRow(CONFIG_ROOT_STEP_UI_MENU, config_step == CONFIG_ROOT_STEP_UI_MENU);
-  u8g2.print(F(" UI Settings > "));
+  selectConfigMenuRow(CONFIG_ROOT_STEP_LIDAR_MENU, config_step == CONFIG_ROOT_STEP_LIDAR_MENU);
+  u8g2.print(F(" LiDAR > "));
 
-  selectConfigMenuRow(CONFIG_ROOT_STEP_RESET, config_step == CONFIG_ROOT_STEP_RESET);
-  u8g2.print(F(" Reset frame counter >> "));
+  selectConfigMenuRow(CONFIG_ROOT_STEP_DISPLAY_MENU, config_step == CONFIG_ROOT_STEP_DISPLAY_MENU);
+  u8g2.print(F(" Display > "));
 
   selectConfigMenuRow(CONFIG_ROOT_STEP_HEALTH, config_step == CONFIG_ROOT_STEP_HEALTH);
   u8g2.print(F(" System Health > "));
@@ -85,17 +85,35 @@ void drawFilmConfigUI()
   u8g2.print(maxFrameForFormat);
   u8g2.print(F(") "));
 
-  selectConfigMenuRow(CONFIG_FILM_STEP_FRAME_ONE_OFFSET, config_step == CONFIG_FILM_STEP_FRAME_ONE_OFFSET);
+  selectConfigMenuRow(CONFIG_FILM_STEP_RESET, config_step == CONFIG_FILM_STEP_RESET);
+  u8g2.print(F(" Reset frame counter >> "));
+
+  selectConfigMenuRow(CONFIG_FILM_STEP_TUNING_MENU, config_step == CONFIG_FILM_STEP_TUNING_MENU);
+  u8g2.print(F(" Frame counter tuning > "));
+
+  selectConfigMenuRow(CONFIG_FILM_STEP_BACK, config_step == CONFIG_FILM_STEP_BACK);
+  u8g2.print(F(" Back << "));
+
+  display.display();
+}
+
+void drawFrameTuningConfigUI()
+{
+  beginConfigMenuScreen(F("Film > Tuning"));
+
+  selectConfigMenuRow(CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET,
+                      config_step == CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET);
   u8g2.print(F(" Frame 1 offset: "));
   printSignedInt(frame_one_offset);
   u8g2.print(F(" "));
 
-  selectConfigMenuRow(CONFIG_FILM_STEP_FRAME_SPACING, config_step == CONFIG_FILM_STEP_FRAME_SPACING);
+  selectConfigMenuRow(CONFIG_FRAME_TUNING_STEP_FRAME_SPACING,
+                      config_step == CONFIG_FRAME_TUNING_STEP_FRAME_SPACING);
   u8g2.print(F(" Frame spacing: "));
   printSignedInt(frame_spacing_offset);
   u8g2.print(F(" "));
 
-  selectConfigMenuRow(CONFIG_FILM_STEP_BACK, config_step == CONFIG_FILM_STEP_BACK);
+  selectConfigMenuRow(CONFIG_FRAME_TUNING_STEP_BACK, config_step == CONFIG_FRAME_TUNING_STEP_BACK);
   u8g2.print(F(" Back << "));
 
   display.display();
@@ -159,34 +177,37 @@ void drawMeterConfigUI()
   display.display();
 }
 
-void drawUiConfigUI()
+void drawLidarConfigUI()
 {
-  beginConfigMenuScreen(F("Setup > UI"));
+  beginConfigMenuScreen(F("Setup > LiDAR"));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_HORIZON_LANDSCAPE, config_step == CONFIG_UI_STEP_HORIZON_LANDSCAPE);
-  u8g2.print(F(" Horizon Landscape:"));
-  printSignedDeciDegrees(level_trim_landscape_deci_deg);
-  u8g2.print(F("deg "));
+  selectConfigMenuRow(CONFIG_LIDAR_STEP_OFFSET, config_step == CONFIG_LIDAR_STEP_OFFSET);
+  u8g2.print(F(" Distance offset: "));
+  u8g2.print(lidar_distance_offset_mm);
+  u8g2.print(F("mm "));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_HORIZON_PORTRAIT_POS, config_step == CONFIG_UI_STEP_HORIZON_PORTRAIT_POS);
-  u8g2.print(F(" Horizon Portrait+:"));
-  printSignedDeciDegrees(level_trim_portrait_pos_deci_deg);
-  u8g2.print(F("deg "));
+  selectConfigMenuRow(CONFIG_LIDAR_STEP_IDLE_TIMEOUT, config_step == CONFIG_LIDAR_STEP_IDLE_TIMEOUT);
+  u8g2.print(F(" Idle timeout: "));
+  u8g2.print(getSleepTimeoutModeLabel(lidar_idle_timeout_mode));
+  u8g2.print(F(" "));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_HORIZON_PORTRAIT_NEG, config_step == CONFIG_UI_STEP_HORIZON_PORTRAIT_NEG);
-  u8g2.print(F(" Horizon Portrait-:"));
-  printSignedDeciDegrees(level_trim_portrait_neg_deci_deg);
-  u8g2.print(F("deg "));
+  selectConfigMenuRow(CONFIG_LIDAR_STEP_BACK, config_step == CONFIG_LIDAR_STEP_BACK);
+  u8g2.print(F(" Back << "));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_HORIZON_ENABLE, config_step == CONFIG_UI_STEP_HORIZON_ENABLE);
-  u8g2.print(F(" Horizon line: "));
-  u8g2.print(show_horizon_line ? F("On ") : F("Off"));
+  display.display();
+}
 
-  selectConfigMenuRow(CONFIG_UI_STEP_BRIGHTNESS_MODE, config_step == CONFIG_UI_STEP_BRIGHTNESS_MODE);
+void drawDisplayConfigUI()
+{
+  beginConfigMenuScreen(F("Setup > Display"));
+
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE,
+                      config_step == CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE);
   u8g2.print(F(" Bright mode: "));
   u8g2.print(brightness_auto ? F("Auto  ") : F("Manual"));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_BRIGHTNESS_VALUE, config_step == CONFIG_UI_STEP_BRIGHTNESS_VALUE);
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_BRIGHTNESS_VALUE,
+                      config_step == CONFIG_DISPLAY_STEP_BRIGHTNESS_VALUE);
   if (brightness_auto)
   {
     u8g2.print(F(" Bright top: "));
@@ -200,25 +221,54 @@ void drawUiConfigUI()
     u8g2.print(F("% "));
   }
 
-  selectConfigMenuRow(CONFIG_UI_STEP_SLEEP_TIMEOUT, config_step == CONFIG_UI_STEP_SLEEP_TIMEOUT);
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_HORIZON_ENABLE,
+                      config_step == CONFIG_DISPLAY_STEP_HORIZON_ENABLE);
+  u8g2.print(F(" Horizon line: "));
+  u8g2.print(show_horizon_line ? F("On ") : F("Off"));
+
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_SLEEP_TIMEOUT,
+                      config_step == CONFIG_DISPLAY_STEP_SLEEP_TIMEOUT);
   u8g2.print(F(" Sleep timeout: "));
   u8g2.print(getSleepTimeoutModeLabel(sleep_timeout_mode));
   u8g2.print(F(" "));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT, config_step == CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT);
-  u8g2.print(F(" LiDAR idle: "));
-  u8g2.print(getSleepTimeoutModeLabel(lidar_idle_timeout_mode));
-  u8g2.print(F(" "));
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU,
+                      config_step == CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU);
+  u8g2.print(F(" Horizon trim > "));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_LIDAR_OFFSET, config_step == CONFIG_UI_STEP_LIDAR_OFFSET);
-  u8g2.print(F(" LiDAR offset: "));
-  u8g2.print(lidar_distance_offset_mm);
-  u8g2.print(F("mm "));
-
-  selectConfigMenuRow(CONFIG_UI_STEP_RETICLE_ADJUST, config_step == CONFIG_UI_STEP_RETICLE_ADJUST);
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_RETICLE_ADJUST,
+                      config_step == CONFIG_DISPLAY_STEP_RETICLE_ADJUST);
   u8g2.print(F(" Focus reticle > "));
 
-  selectConfigMenuRow(CONFIG_UI_STEP_BACK, config_step == CONFIG_UI_STEP_BACK);
+  selectConfigMenuRow(CONFIG_DISPLAY_STEP_BACK, config_step == CONFIG_DISPLAY_STEP_BACK);
+  u8g2.print(F(" Back << "));
+
+  display.display();
+}
+
+void drawHorizonTrimConfigUI()
+{
+  beginConfigMenuScreen(F("Display > Horizon"));
+
+  selectConfigMenuRow(CONFIG_HORIZON_TRIM_STEP_LANDSCAPE,
+                      config_step == CONFIG_HORIZON_TRIM_STEP_LANDSCAPE);
+  u8g2.print(F(" Landscape: "));
+  printSignedDeciDegrees(level_trim_landscape_deci_deg);
+  u8g2.print(F("deg "));
+
+  selectConfigMenuRow(CONFIG_HORIZON_TRIM_STEP_PORTRAIT_POS,
+                      config_step == CONFIG_HORIZON_TRIM_STEP_PORTRAIT_POS);
+  u8g2.print(F(" Portrait+: "));
+  printSignedDeciDegrees(level_trim_portrait_pos_deci_deg);
+  u8g2.print(F("deg "));
+
+  selectConfigMenuRow(CONFIG_HORIZON_TRIM_STEP_PORTRAIT_NEG,
+                      config_step == CONFIG_HORIZON_TRIM_STEP_PORTRAIT_NEG);
+  u8g2.print(F(" Portrait-: "));
+  printSignedDeciDegrees(level_trim_portrait_neg_deci_deg);
+  u8g2.print(F("deg "));
+
+  selectConfigMenuRow(CONFIG_HORIZON_TRIM_STEP_BACK, config_step == CONFIG_HORIZON_TRIM_STEP_BACK);
   u8g2.print(F(" Back << "));
 
   display.display();

@@ -16,9 +16,12 @@ enum class UiMode : uint8_t
   Main,
   Config,
   ConfigFilm,
+  ConfigFrameTuning,  // Film > Frame counter tuning sub-submenu.
   ConfigLens,
   ConfigMeter,
-  ConfigUi,
+  ConfigLidar,        // LiDAR submenu (distance offset, idle timeout).
+  ConfigDisplay,      // Display submenu (formerly "UI Settings").
+  ConfigHorizonTrim,  // Display > Horizon trim sub-submenu.
   Calib,
   ResetConfirm,
   Health,

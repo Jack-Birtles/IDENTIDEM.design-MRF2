@@ -602,14 +602,23 @@ void drawPrimaryUiForCurrentMode()
   case UiMode::ConfigFilm:
     drawFilmConfigUI();
     break;
+  case UiMode::ConfigFrameTuning:
+    drawFrameTuningConfigUI();
+    break;
   case UiMode::ConfigLens:
     drawLensConfigUI();
     break;
   case UiMode::ConfigMeter:
     drawMeterConfigUI();
     break;
-  case UiMode::ConfigUi:
-    drawUiConfigUI();
+  case UiMode::ConfigLidar:
+    drawLidarConfigUI();
+    break;
+  case UiMode::ConfigDisplay:
+    drawDisplayConfigUI();
+    break;
+  case UiMode::ConfigHorizonTrim:
+    drawHorizonTrimConfigUI();
     break;
   case UiMode::Calib:
     drawCalibUI();

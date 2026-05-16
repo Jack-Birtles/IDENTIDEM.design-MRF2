@@ -6,9 +6,12 @@
 void drawMainUI();
 void drawConfigUI();
 void drawFilmConfigUI();
+void drawFrameTuningConfigUI();
 void drawLensConfigUI();
 void drawMeterConfigUI();
-void drawUiConfigUI();
+void drawLidarConfigUI();
+void drawDisplayConfigUI();
+void drawHorizonTrimConfigUI();
 void drawCalibUI();
 void drawCalibCompleteUI();
 void drawResetConfirmUI();

@@ -334,8 +334,8 @@ enum ConfigRootStep
   CONFIG_ROOT_STEP_FILM_MENU = 0,  // Enter Film submenu.
   CONFIG_ROOT_STEP_LENS_MENU,      // Enter Lens submenu.
   CONFIG_ROOT_STEP_METER_MENU,     // Enter Light Meter submenu.
-  CONFIG_ROOT_STEP_UI_MENU,        // Enter UI Settings submenu.
-  CONFIG_ROOT_STEP_RESET,          // Enter reset-frame confirmation.
+  CONFIG_ROOT_STEP_LIDAR_MENU,     // Enter LiDAR submenu.
+  CONFIG_ROOT_STEP_DISPLAY_MENU,   // Enter Display submenu.
   CONFIG_ROOT_STEP_HEALTH,         // Enter health diagnostics screen.
   CONFIG_ROOT_STEP_EXIT,           // Exit setup to main UI.
   CONFIG_ROOT_STEP_COUNT
@@ -349,14 +349,26 @@ enum ConfigFilmStep
 {
   CONFIG_FILM_STEP_FORMAT = 0,          // Film format selector.
   CONFIG_FILM_STEP_CURRENT_FRAME,       // Current frame selector.
-  CONFIG_FILM_STEP_FRAME_ONE_OFFSET,    // Frame-1 offset tuning.
-  CONFIG_FILM_STEP_FRAME_SPACING,       // Frame spacing tuning.
+  CONFIG_FILM_STEP_RESET,               // Enter reset-frame confirmation.
+  CONFIG_FILM_STEP_TUNING_MENU,         // Enter frame-counter tuning submenu.
   CONFIG_FILM_STEP_BACK,                // Back to setup root.
   CONFIG_FILM_STEP_COUNT
 };
 const int CONFIG_FILM_STEP_MAX = CONFIG_FILM_STEP_BACK;
 static_assert(CONFIG_FILM_STEP_COUNT - 1 == CONFIG_FILM_STEP_MAX,
               "CONFIG_FILM_STEP_MAX does not match enum count");
+
+// Config menu indexes: Film > Frame counter tuning sub-submenu.
+enum ConfigFrameTuningStep
+{
+  CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET = 0, // Frame-1 offset tuning.
+  CONFIG_FRAME_TUNING_STEP_FRAME_SPACING,        // Frame spacing tuning.
+  CONFIG_FRAME_TUNING_STEP_BACK,                 // Back to Film submenu.
+  CONFIG_FRAME_TUNING_STEP_COUNT
+};
+const int CONFIG_FRAME_TUNING_STEP_MAX = CONFIG_FRAME_TUNING_STEP_BACK;
+static_assert(CONFIG_FRAME_TUNING_STEP_COUNT - 1 == CONFIG_FRAME_TUNING_STEP_MAX,
+              "CONFIG_FRAME_TUNING_STEP_MAX does not match enum count");
 
 // Config menu indexes: Lens submenu.
 enum ConfigLensStep
@@ -385,25 +397,46 @@ const int CONFIG_METER_STEP_MAX = CONFIG_METER_STEP_BACK;
 static_assert(CONFIG_METER_STEP_COUNT - 1 == CONFIG_METER_STEP_MAX,
               "CONFIG_METER_STEP_MAX does not match enum count");
 
-// Config menu indexes: UI Settings submenu.
-enum ConfigUiStep
+// Config menu indexes: LiDAR submenu.
+enum ConfigLidarStep
 {
-  CONFIG_UI_STEP_HORIZON_LANDSCAPE = 0,  // Landscape horizon trim.
-  CONFIG_UI_STEP_HORIZON_PORTRAIT_POS,   // Portrait + horizon trim.
-  CONFIG_UI_STEP_HORIZON_PORTRAIT_NEG,   // Portrait - horizon trim.
-  CONFIG_UI_STEP_HORIZON_ENABLE,         // Horizon line on/off toggle.
-  CONFIG_UI_STEP_BRIGHTNESS_MODE,        // Display brightness mode (Auto/Manual).
-  CONFIG_UI_STEP_BRIGHTNESS_VALUE,       // Display brightness level.
-  CONFIG_UI_STEP_SLEEP_TIMEOUT,          // Sleep timeout selector.
-  CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT,     // LiDAR idle-timeout selector.
-  CONFIG_UI_STEP_LIDAR_OFFSET,           // LiDAR distance offset (calibration).
-  CONFIG_UI_STEP_RETICLE_ADJUST,         // Enter reticle offset adjustment.
-  CONFIG_UI_STEP_BACK,                   // Back to setup root.
-  CONFIG_UI_STEP_COUNT
+  CONFIG_LIDAR_STEP_OFFSET = 0,    // LiDAR distance offset (sensor calibration).
+  CONFIG_LIDAR_STEP_IDLE_TIMEOUT,  // LiDAR idle-timeout selector.
+  CONFIG_LIDAR_STEP_BACK,          // Back to setup root.
+  CONFIG_LIDAR_STEP_COUNT
 };
-const int CONFIG_UI_STEP_MAX = CONFIG_UI_STEP_BACK;
-static_assert(CONFIG_UI_STEP_COUNT - 1 == CONFIG_UI_STEP_MAX,
-              "CONFIG_UI_STEP_MAX does not match enum count");
+const int CONFIG_LIDAR_STEP_MAX = CONFIG_LIDAR_STEP_BACK;
+static_assert(CONFIG_LIDAR_STEP_COUNT - 1 == CONFIG_LIDAR_STEP_MAX,
+              "CONFIG_LIDAR_STEP_MAX does not match enum count");
+
+// Config menu indexes: Display submenu (formerly "UI Settings").
+enum ConfigDisplayStep
+{
+  CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE = 0,  // Display brightness mode (Auto/Manual).
+  CONFIG_DISPLAY_STEP_BRIGHTNESS_VALUE,     // Display brightness level.
+  CONFIG_DISPLAY_STEP_HORIZON_ENABLE,       // Horizon line on/off toggle.
+  CONFIG_DISPLAY_STEP_SLEEP_TIMEOUT,        // Sleep timeout selector.
+  CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU,    // Enter horizon-trim sub-submenu.
+  CONFIG_DISPLAY_STEP_RETICLE_ADJUST,       // Enter reticle offset adjustment.
+  CONFIG_DISPLAY_STEP_BACK,                 // Back to setup root.
+  CONFIG_DISPLAY_STEP_COUNT
+};
+const int CONFIG_DISPLAY_STEP_MAX = CONFIG_DISPLAY_STEP_BACK;
+static_assert(CONFIG_DISPLAY_STEP_COUNT - 1 == CONFIG_DISPLAY_STEP_MAX,
+              "CONFIG_DISPLAY_STEP_MAX does not match enum count");
+
+// Config menu indexes: Display > Horizon trim sub-submenu.
+enum ConfigHorizonTrimStep
+{
+  CONFIG_HORIZON_TRIM_STEP_LANDSCAPE = 0,  // Landscape horizon trim.
+  CONFIG_HORIZON_TRIM_STEP_PORTRAIT_POS,   // Portrait + horizon trim.
+  CONFIG_HORIZON_TRIM_STEP_PORTRAIT_NEG,   // Portrait - horizon trim.
+  CONFIG_HORIZON_TRIM_STEP_BACK,           // Back to Display submenu.
+  CONFIG_HORIZON_TRIM_STEP_COUNT
+};
+const int CONFIG_HORIZON_TRIM_STEP_MAX = CONFIG_HORIZON_TRIM_STEP_BACK;
+static_assert(CONFIG_HORIZON_TRIM_STEP_COUNT - 1 == CONFIG_HORIZON_TRIM_STEP_MAX,
+              "CONFIG_HORIZON_TRIM_STEP_MAX does not match enum count");
 
 // ---------------------------------------------------------------------------
 // Main UI numeric formatting and level-aid tuning
