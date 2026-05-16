@@ -472,6 +472,19 @@ AccelReading readAccelerometer()
 
 void updatePortraitMode(float rollRaw)
 {
+  // updatePortraitMode runs only during Main UI redraws. If the user has
+  // been in a config menu (or otherwise away from the level indicator) for
+  // long enough that they could have rotated the device, the cached
+  // portraitMode hysteresis no longer reflects reality. Reset it so the
+  // next reading re-evaluates from scratch.
+  static unsigned long lastUpdateMs = 0;
+  unsigned long now = millis();
+  if (lastUpdateMs != 0 && (now - lastUpdateMs) > LEVEL_PORTRAIT_STALE_MS)
+  {
+    portraitMode = false;
+  }
+  lastUpdateMs = now;
+
   float absRollRaw = fabsf(rollRaw);
   if (!portraitMode)
   {

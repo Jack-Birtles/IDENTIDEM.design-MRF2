@@ -420,6 +420,7 @@ const int LEVEL_TRIM_MAX_DECI_DEG = 300;    // Maximum user-adjustable horizon t
 const int LEVEL_TRIM_STEP_DECI_DEG = 25;    // Horizon trim increment size (2.5deg).
 const float LEVEL_PORTRAIT_ENTER_RAD = 1.00f; // Enter portrait mode threshold.
 const float LEVEL_PORTRAIT_EXIT_RAD = 0.75f;  // Exit portrait mode threshold.
+const unsigned long LEVEL_PORTRAIT_STALE_MS = 1000; // Reset portrait hysteresis if the level renderer hasn't run in this many ms (e.g. user spent time in a config menu and may have rotated the device).
 const int LEVEL_LINE_MARGIN_PX = 10;        // Horizon line horizontal margin.
 const int LEVEL_VERTICAL_LINE_LENGTH = 30;  // Center marker vertical line length.
 const bool DEFAULT_SHOW_HORIZON_LINE = true; // Default horizon line visibility.
