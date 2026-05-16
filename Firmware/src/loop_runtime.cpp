@@ -323,6 +323,13 @@ void wakeLightMeterFromSleep()
   loopState.lightMeterSleeping = false;
 }
 
+// Sleep-wake activity baselines are owned by finaliseSleepServices(): it is
+// the single site that captures fresh encoder and lens positions when the
+// device enters its first light-sleep tick, and exitSleepServices() is the
+// single site that clears sleepWakeBaselinesInitialized when waking. The
+// poll functions below rely on baselines being populated; the runtime loop
+// only calls them after the sleepWakeBaselinesInitialized gate at line ~675
+// has been crossed, so the poll functions never see uninitialized state.
 void initializeSleepWakeBaselines()
 {
   loopState.sleepWakeEncoderBaseline = encoderReady ? encoder.getEncoderPosition() : 0;
@@ -335,11 +342,6 @@ void pollSleepWakeEncoder()
   if (!encoderReady)
   {
     return;
-  }
-
-  if (!loopState.sleepWakeBaselinesInitialized)
-  {
-    initializeSleepWakeBaselines();
   }
 
   int currentEncoder = encoder.getEncoderPosition();
@@ -355,11 +357,6 @@ void pollSleepWakeLens()
   if (!adsReady)
   {
     return;
-  }
-
-  if (!loopState.sleepWakeBaselinesInitialized)
-  {
-    initializeSleepWakeBaselines();
   }
 
   int currentLensReading = theads.readADC_SingleEnded(LENS_ADC_PIN);
