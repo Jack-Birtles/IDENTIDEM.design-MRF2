@@ -296,6 +296,34 @@ void test_lidar_recovery_state_machine_survives_many_consecutive_failures()
   TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
 }
 
+void test_calibration_logic_rejects_invalid_input_shapes()
+{
+  // Defensive guards in calibration_logic.cpp that nothing currently tested
+  // was exercising. computeStableCalibrationReading is called with caller-
+  // supplied buffers and counts; a future refactor that wires up a new
+  // capture path could pass null or empty by mistake, and these tests
+  // document the contract.
+  int averaged = 0;
+
+  // Null sample buffer → false.
+  TEST_ASSERT_FALSE(computeStableCalibrationReading(nullptr, 8, 6, 5, 10, averaged));
+
+  // Non-positive sample count → false.
+  const int dummy[1] = {300};
+  TEST_ASSERT_FALSE(computeStableCalibrationReading(dummy, 0, 6, 5, 10, averaged));
+  TEST_ASSERT_FALSE(computeStableCalibrationReading(dummy, -1, 6, 5, 10, averaged));
+
+  // sample_count larger than the internal sorted-buffer capacity → false.
+  TEST_ASSERT_FALSE(
+      computeStableCalibrationReading(dummy, CALIB_SAMPLE_COUNT + 1, 6, 5, 10, averaged));
+
+  // validateMonotonicCalibration: empty or single-element sequences are vacuously
+  // monotonic. Null pointer also treated as the empty case.
+  TEST_ASSERT_TRUE(validateMonotonicCalibration(nullptr, 0, CALIB_MONOTONIC_MIN_STEP));
+  TEST_ASSERT_TRUE(validateMonotonicCalibration(dummy, 0, CALIB_MONOTONIC_MIN_STEP));
+  TEST_ASSERT_TRUE(validateMonotonicCalibration(dummy, 1, CALIB_MONOTONIC_MIN_STEP));
+}
+
 void test_calibration_validation_stable_and_monotonic()
 {
   const int stableSamples[8] = {300, 301, 299, 300, 302, 298, 301, 350};
@@ -1012,6 +1040,7 @@ int main(int, char **)
   RUN_TEST(test_encoder_filter_reverse_requires_rewind_mode);
   RUN_TEST(test_lidar_timeout_recovery_and_backoff);
   RUN_TEST(test_lidar_recovery_state_machine_survives_many_consecutive_failures);
+  RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_calibration_median_spread_tolerates_gentle_drift);
   RUN_TEST(test_calibration_rejects_truly_unstable_readings);
