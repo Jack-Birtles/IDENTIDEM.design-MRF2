@@ -7,6 +7,7 @@
 #include "activity.h"
 #include "cyclefuncs.h"
 #include "film_counter_logic.h"
+#include "formatting_logic.h"
 #include "globals.h"
 #include "hardware.h"
 #include "helpers.h"

@@ -5,6 +5,7 @@
 
 #include "film_counter_logic.h"
 #include "formats.h"
+#include "formatting_logic.h"
 #include "calibration_logic.h"
 #include "lens_logic.h"
 #include "lidar_recovery_logic.h"
@@ -18,6 +19,7 @@
 #include "../../src/calibration_logic.cpp"
 #include "../../src/film_counter_logic.cpp"
 #include "../../src/formats.cpp"
+#include "../../src/formatting_logic.cpp"
 #include "../../src/lens_logic.cpp"
 #include "../../src/lidar_recovery_logic.cpp"
 #include "../../src/lenses.cpp"
@@ -673,6 +675,35 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
 }
 
+void test_cm_to_readable_renders_cm_below_one_metre_and_metres_above()
+{
+  char out[16] = {0};
+
+  cmToReadable(0, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("0cm", out);
+
+  cmToReadable(75, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("75cm", out);
+
+  cmToReadable(99, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("99cm", out);
+
+  // 100cm is the m/cm boundary — first value rendered in metres.
+  cmToReadable(100, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("1.00m", out);
+
+  cmToReadable(150, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("1.50m", out);
+
+  cmToReadable(1234, 1, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("12.3m", out);
+
+  // Zero buffer size must not write or read past the buffer.
+  char guard[4] = {'X', 'X', 'X', 'X'};
+  cmToReadable(42, 2, guard, 0);
+  TEST_ASSERT_EQUAL_CHAR('X', guard[0]);
+}
+
 void test_lidar_secondary_quality_inherits_primary_when_invalid()
 {
   // chooseBestLidarCandidate remaps a secondary peak's INVALID quality onto
@@ -803,6 +834,7 @@ int main(int, char **)
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
+  RUN_TEST(test_cm_to_readable_renders_cm_below_one_metre_and_metres_above);
   RUN_TEST(test_lidar_secondary_quality_inherits_primary_when_invalid);
   RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);
   RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
