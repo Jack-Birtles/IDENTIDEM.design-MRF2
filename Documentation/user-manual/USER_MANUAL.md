@@ -344,7 +344,7 @@ After all points are captured, the MRF2 saves a lookup table pairing sensor valu
 
 ![Calibration - select lens](images/calib-select-lens.svg)
 
-Navigate to **Setup > Lens Settings > Lens Calibration**. The calibration screen shows the currently selected lens.
+Navigate to **Setup > Lens > Lens Calibration**. The calibration screen shows the currently selected lens.
 
 - **L**: cycle through available lenses
 - **R**: confirm lens selection and begin capture
