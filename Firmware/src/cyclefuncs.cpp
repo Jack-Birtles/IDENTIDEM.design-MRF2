@@ -193,7 +193,7 @@ void cycleCurrentFrame()
 
   int nextEncoderPosition =
       getAdjustedSensorPointForFrame(selectedFilmFormat, nextFrame, encoder_value);
-  if (encoderReady)
+  if (hardware.encoder)
   {
     encoder.setEncoderPosition(nextEncoderPosition);
   }
@@ -319,7 +319,7 @@ void cycleLidarDistanceOffset()
                                                 LIDAR_DISTANCE_OFFSET_MIN_MM,
                                                 LIDAR_DISTANCE_OFFSET_MAX_MM);
   // Push immediately so the live LiDAR readout reflects the change without waiting for reboot.
-  if (lidarSensorReady)
+  if (hardware.lidarSensor)
   {
     lidar.setDistanceOffset(static_cast<int16_t>(lidar_distance_offset_mm));
   }

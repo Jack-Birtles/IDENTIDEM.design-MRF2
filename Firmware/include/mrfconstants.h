@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 // Firmware identity and boot behavior
 // ---------------------------------------------------------------------------
-#define FWVERSION "10.4.8"                  // Version shown in UI and release metadata.
+#define FWVERSION "10.4.10"                  // Version shown in UI and release metadata.
 const unsigned long SLEEP_BOOT_GRACE_MS = 15000; // Ignore sleep timer immediately after boot.
 
 // ---------------------------------------------------------------------------
@@ -186,9 +186,11 @@ const float LIDAR_PRIOR_RANGE_SCALE_FAR = 0.35f; // Prior penalty scale at far r
 const float LIDAR_PRIOR_RANGE_SCALE_VERY_FAR = 0.2f; // Prior penalty scale at max range (8m+) — minimal influence.
 const float LIDAR_LENS_PRIOR_WEIGHT_GOOD = 0.025f;    // Lens-prior pull when confidence is good.
 const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when confidence is excellent.
-const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 200;      // Apply plausibility gate only when lens is focused at or below 2m (parallax matters most close).
+const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 300;      // Apply plausibility gate only when lens is focused at or below 3m (parallax matters most close; covers portrait/group range).
 const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Reject LiDAR readings more than this far beyond the lens prior — almost certainly a beam-miss past the subject.
-const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 8;  // Accept LiDAR after this many consecutive plausibility rejections (lets the user re-focus past the previous target without being permanently stuck).
+const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 3;  // Absolute cap: accept LiDAR after this many consecutive rejections no matter what, so a noisy beam-miss can never pin a stale value forever.
+const int LIDAR_PLAUSIBILITY_STABLE_DELTA_CM = 30;    // Two consecutive rejected readings within this distance count as "the same far subject" (intentional re-aim) rather than beam-miss jitter.
+const int LIDAR_PLAUSIBILITY_STABLE_RELEASE_FRAMES = 2; // Release the gate after this many consistent rejected readings — a deliberate re-aim past the subject is accepted at once.
 const int LIDAR_STABLE_DELTA_CM = 5;                  // Max frame-to-frame distance change to count as "subject locked".
 const int LIDAR_STABLE_MIN_FRAMES = 5;                // Consecutive stable frames required before the confidence boost kicks in.
 const int LIDAR_STABLE_CONFIDENCE_BOOST = 10;         // Confidence delta added once subject lock is established.
@@ -334,8 +336,8 @@ enum ConfigRootStep
   CONFIG_ROOT_STEP_FILM_MENU = 0,  // Enter Film submenu.
   CONFIG_ROOT_STEP_LENS_MENU,      // Enter Lens submenu.
   CONFIG_ROOT_STEP_METER_MENU,     // Enter Light Meter submenu.
-  CONFIG_ROOT_STEP_UI_MENU,        // Enter UI Settings submenu.
-  CONFIG_ROOT_STEP_RESET,          // Enter reset-frame confirmation.
+  CONFIG_ROOT_STEP_LIDAR_MENU,     // Enter LiDAR submenu.
+  CONFIG_ROOT_STEP_DISPLAY_MENU,   // Enter Display submenu.
   CONFIG_ROOT_STEP_HEALTH,         // Enter health diagnostics screen.
   CONFIG_ROOT_STEP_EXIT,           // Exit setup to main UI.
   CONFIG_ROOT_STEP_COUNT
@@ -349,14 +351,26 @@ enum ConfigFilmStep
 {
   CONFIG_FILM_STEP_FORMAT = 0,          // Film format selector.
   CONFIG_FILM_STEP_CURRENT_FRAME,       // Current frame selector.
-  CONFIG_FILM_STEP_FRAME_ONE_OFFSET,    // Frame-1 offset tuning.
-  CONFIG_FILM_STEP_FRAME_SPACING,       // Frame spacing tuning.
+  CONFIG_FILM_STEP_RESET,               // Enter reset-frame confirmation.
+  CONFIG_FILM_STEP_TUNING_MENU,         // Enter frame-counter tuning submenu.
   CONFIG_FILM_STEP_BACK,                // Back to setup root.
   CONFIG_FILM_STEP_COUNT
 };
 const int CONFIG_FILM_STEP_MAX = CONFIG_FILM_STEP_BACK;
 static_assert(CONFIG_FILM_STEP_COUNT - 1 == CONFIG_FILM_STEP_MAX,
               "CONFIG_FILM_STEP_MAX does not match enum count");
+
+// Config menu indexes: Film > Frame counter tuning sub-submenu.
+enum ConfigFrameTuningStep
+{
+  CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET = 0, // Frame-1 offset tuning.
+  CONFIG_FRAME_TUNING_STEP_FRAME_SPACING,        // Frame spacing tuning.
+  CONFIG_FRAME_TUNING_STEP_BACK,                 // Back to Film submenu.
+  CONFIG_FRAME_TUNING_STEP_COUNT
+};
+const int CONFIG_FRAME_TUNING_STEP_MAX = CONFIG_FRAME_TUNING_STEP_BACK;
+static_assert(CONFIG_FRAME_TUNING_STEP_COUNT - 1 == CONFIG_FRAME_TUNING_STEP_MAX,
+              "CONFIG_FRAME_TUNING_STEP_MAX does not match enum count");
 
 // Config menu indexes: Lens submenu.
 enum ConfigLensStep
@@ -385,25 +399,46 @@ const int CONFIG_METER_STEP_MAX = CONFIG_METER_STEP_BACK;
 static_assert(CONFIG_METER_STEP_COUNT - 1 == CONFIG_METER_STEP_MAX,
               "CONFIG_METER_STEP_MAX does not match enum count");
 
-// Config menu indexes: UI Settings submenu.
-enum ConfigUiStep
+// Config menu indexes: LiDAR submenu.
+enum ConfigLidarStep
 {
-  CONFIG_UI_STEP_HORIZON_LANDSCAPE = 0,  // Landscape horizon trim.
-  CONFIG_UI_STEP_HORIZON_PORTRAIT_POS,   // Portrait + horizon trim.
-  CONFIG_UI_STEP_HORIZON_PORTRAIT_NEG,   // Portrait - horizon trim.
-  CONFIG_UI_STEP_HORIZON_ENABLE,         // Horizon line on/off toggle.
-  CONFIG_UI_STEP_BRIGHTNESS_MODE,        // Display brightness mode (Auto/Manual).
-  CONFIG_UI_STEP_BRIGHTNESS_VALUE,       // Display brightness level.
-  CONFIG_UI_STEP_SLEEP_TIMEOUT,          // Sleep timeout selector.
-  CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT,     // LiDAR idle-timeout selector.
-  CONFIG_UI_STEP_LIDAR_OFFSET,           // LiDAR distance offset (calibration).
-  CONFIG_UI_STEP_RETICLE_ADJUST,         // Enter reticle offset adjustment.
-  CONFIG_UI_STEP_BACK,                   // Back to setup root.
-  CONFIG_UI_STEP_COUNT
+  CONFIG_LIDAR_STEP_OFFSET = 0,    // LiDAR distance offset (sensor calibration).
+  CONFIG_LIDAR_STEP_IDLE_TIMEOUT,  // LiDAR idle-timeout selector.
+  CONFIG_LIDAR_STEP_BACK,          // Back to setup root.
+  CONFIG_LIDAR_STEP_COUNT
 };
-const int CONFIG_UI_STEP_MAX = CONFIG_UI_STEP_BACK;
-static_assert(CONFIG_UI_STEP_COUNT - 1 == CONFIG_UI_STEP_MAX,
-              "CONFIG_UI_STEP_MAX does not match enum count");
+const int CONFIG_LIDAR_STEP_MAX = CONFIG_LIDAR_STEP_BACK;
+static_assert(CONFIG_LIDAR_STEP_COUNT - 1 == CONFIG_LIDAR_STEP_MAX,
+              "CONFIG_LIDAR_STEP_MAX does not match enum count");
+
+// Config menu indexes: Display submenu (formerly "UI Settings").
+enum ConfigDisplayStep
+{
+  CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE = 0,  // Display brightness mode (Auto/Manual).
+  CONFIG_DISPLAY_STEP_BRIGHTNESS_VALUE,     // Display brightness level.
+  CONFIG_DISPLAY_STEP_HORIZON_ENABLE,       // Horizon line on/off toggle.
+  CONFIG_DISPLAY_STEP_SLEEP_TIMEOUT,        // Sleep timeout selector.
+  CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU,    // Enter horizon-trim sub-submenu.
+  CONFIG_DISPLAY_STEP_RETICLE_ADJUST,       // Enter reticle offset adjustment.
+  CONFIG_DISPLAY_STEP_BACK,                 // Back to setup root.
+  CONFIG_DISPLAY_STEP_COUNT
+};
+const int CONFIG_DISPLAY_STEP_MAX = CONFIG_DISPLAY_STEP_BACK;
+static_assert(CONFIG_DISPLAY_STEP_COUNT - 1 == CONFIG_DISPLAY_STEP_MAX,
+              "CONFIG_DISPLAY_STEP_MAX does not match enum count");
+
+// Config menu indexes: Display > Horizon trim sub-submenu.
+enum ConfigHorizonTrimStep
+{
+  CONFIG_HORIZON_TRIM_STEP_LANDSCAPE = 0,  // Landscape horizon trim.
+  CONFIG_HORIZON_TRIM_STEP_PORTRAIT_POS,   // Portrait + horizon trim.
+  CONFIG_HORIZON_TRIM_STEP_PORTRAIT_NEG,   // Portrait - horizon trim.
+  CONFIG_HORIZON_TRIM_STEP_BACK,           // Back to Display submenu.
+  CONFIG_HORIZON_TRIM_STEP_COUNT
+};
+const int CONFIG_HORIZON_TRIM_STEP_MAX = CONFIG_HORIZON_TRIM_STEP_BACK;
+static_assert(CONFIG_HORIZON_TRIM_STEP_COUNT - 1 == CONFIG_HORIZON_TRIM_STEP_MAX,
+              "CONFIG_HORIZON_TRIM_STEP_MAX does not match enum count");
 
 // ---------------------------------------------------------------------------
 // Main UI numeric formatting and level-aid tuning
@@ -420,88 +455,14 @@ const int LEVEL_TRIM_MAX_DECI_DEG = 300;    // Maximum user-adjustable horizon t
 const int LEVEL_TRIM_STEP_DECI_DEG = 25;    // Horizon trim increment size (2.5deg).
 const float LEVEL_PORTRAIT_ENTER_RAD = 1.00f; // Enter portrait mode threshold.
 const float LEVEL_PORTRAIT_EXIT_RAD = 0.75f;  // Exit portrait mode threshold.
+const unsigned long LEVEL_PORTRAIT_STALE_MS = 1000; // Reset portrait hysteresis if the level renderer hasn't run in this many ms (e.g. user spent time in a config menu and may have rotated the device).
 const int LEVEL_LINE_MARGIN_PX = 10;        // Horizon line horizontal margin.
 const int LEVEL_VERTICAL_LINE_LENGTH = 30;  // Center marker vertical line length.
 const bool DEFAULT_SHOW_HORIZON_LINE = true; // Default horizon line visibility.
 
-// ---------------------------------------------------------------------------
-// Main display layout coordinates
-// ---------------------------------------------------------------------------
-const int MAIN_HEADER_HEIGHT = 15;         // Header bar height.
-const int MAIN_RETICLE_CENTER_Y_OFFSET = 5; // Reticle center vertical offset.
-const int MAIN_RETICLE_CENTER_RADIUS = 3;  // Reticle center dot radius.
-const int MAIN_ISO_X = 2;                  // ISO label X position.
-const int MAIN_ISO_Y = 7;                  // ISO label Y position.
-const int MAIN_APERTURE_X = 46;            // Aperture label X position.
-const int MAIN_APERTURE_Y = 7;             // Aperture label Y position.
-const int MAIN_SHUTTER_X = 2;              // Shutter label X position.
-const int MAIN_SHUTTER_Y = 14;             // Shutter label Y position.
-const int MAIN_DISTANCE_X = 68;            // LiDAR distance label X position.
-const int MAIN_DISTANCE_Y = 7;             // LiDAR distance label Y position.
-const int MAIN_LENS_X = 68;                // Lens distance label X position.
-const int MAIN_LENS_Y = 14;                // Lens distance label Y position.
-const int MAIN_LIDAR_QUALITY_X = 123;      // LiDAR quality indicator origin X.
-const int MAIN_LIDAR_QUALITY_Y = 2;        // LiDAR quality indicator origin Y.
-const int MAIN_LIDAR_QUALITY_SIZE = 2;     // LiDAR quality block size.
-const int MAIN_LIDAR_QUALITY_GAP = 1;      // Gap between LiDAR quality blocks.
-const int MAIN_SUNLIGHT_ICON_CX = 116;     // Centre X of the high-sunlight indicator (sits in the gap before the quality blocks).
-const int MAIN_SUNLIGHT_ICON_CY = 4;       // Centre Y of the high-sunlight indicator.
-
-// ---------------------------------------------------------------------------
-// Setup/calibration/health UI layout coordinates
-// ---------------------------------------------------------------------------
-const int CONFIG_TITLE_X = 3;              // Setup title X position.
-const int CONFIG_TITLE_Y = 15;             // Setup title Y position.
-const int CONFIG_HEADER_PADDING_Y = 4;     // Vertical padding below setup title.
-const int CONFIG_ITEM_X = 3;               // Setup item X position.
-const int CONFIG_ITEM_Y_START = 22;        // Setup item Y start.
-const int CONFIG_ITEM_Y_STEP = 9;          // Setup item Y spacing.
-const int CONFIG_FOOTER_Y = 121;           // Setup footer Y position.
-const int CALIB_TITLE_X = 3;               // Calibration title X position.
-const int CALIB_TITLE_Y = 15;              // Calibration title Y position.
-const int CALIB_ITEM_X = 3;                // Calibration item X position.
-const int CALIB_LENS_Y = 35;               // Calibration lens line Y position.
-const int CALIB_DISTANCE_Y = 47;           // Calibration distance line Y position.
-const int CALIB_PROGRESS_BAR_Y = 53;       // Calibration progress bar Y (below distance line).
-const int CALIB_HELP_Y1 = 70;              // Calibration help line 1 Y.
-const int CALIB_HELP_Y2 = 78;              // Calibration help line 2 Y.
-const int CALIB_HELP_Y3 = 86;              // Calibration help line 3 Y.
-const int HEALTH_TITLE_X = 3;              // Health title X position.
-const int HEALTH_TITLE_Y = 15;             // Health title Y position.
-const int HEALTH_ITEM_X = 3;               // Health item X position.
-const int HEALTH_ITEM_Y_START = 30;        // Health item start Y.
-const int HEALTH_ITEM_Y_STEP = 10;         // Health item line spacing.
-const int HEALTH_FOOTER_Y = 112;           // Health footer Y position.
-
-// ---------------------------------------------------------------------------
-// External display layout coordinates
-// ---------------------------------------------------------------------------
-const int EXT_HEADER_HEIGHT = 10;          // External header bar height.
-const int EXT_HEADER_FORMAT_X = 2;         // Format label X.
-const int EXT_HEADER_FORMAT_Y = 8;         // Format label Y.
-const int EXT_HEADER_DIVIDER_X = 33;       // Header divider X.
-const int EXT_HEADER_LENS_X = 37;          // Lens label X.
-const int EXT_HEADER_LENS_Y = 8;           // Lens label Y.
-const int EXT_BATTERY_DIVIDER_FULL_X = 100; // Battery divider X when >=100%.
-const int EXT_BATTERY_CURSOR_FULL_X = 104;  // Battery cursor X when >=100%.
-const int EXT_BATTERY_DIVIDER_LOW_X = 111;  // Battery divider X for low percentage layout.
-const int EXT_BATTERY_CURSOR_LOW_X = 115;   // Battery cursor X for low percentage layout.
-const int EXT_BATTERY_DIVIDER_MID_X = 103;  // Battery divider X for mid percentage layout.
-const int EXT_BATTERY_CURSOR_MID_X = 107;   // Battery cursor X for mid percentage layout.
-const int EXT_PROGRESS_BAR_WIDTH = 90;      // Progress bar width.
-const int EXT_PROGRESS_BAR_HEIGHT = 17;     // Progress bar height.
-const int EXT_PROGRESS_BAR_X = 34;          // Progress bar X origin.
-const int EXT_PROGRESS_BAR_Y = 15;          // Progress bar Y origin.
-const float PERCENT_SCALE = 100.0f;         // Percentage scaling helper.
-const int EXT_COUNTER_TEXT_Y = 30;          // Counter text baseline Y.
-const int EXT_COUNTER_MESSAGE_X = 8;        // "Load film"/"Roll end" message X.
-const int EXT_COUNTER_VALUE_X_WITH_PROGRESS = 8; // Counter X when progress bar is visible.
-const int EXT_COUNTER_VALUE_X_NO_PROGRESS = 60;  // Counter X when no progress bar is visible.
-const int EXT_SLEEP_FACE_CX     = 52;       // Sleep indicator face centre X.
-const int EXT_SLEEP_FACE_CY     = 16;       // Sleep indicator face centre Y.
-const int EXT_SLEEP_FACE_RADIUS = 12;       // Sleep indicator face radius (px).
-const int EXT_SLEEP_ZZZ_X       = 70;       // Sleep indicator "Zzz" text cursor X.
-const int EXT_SLEEP_ZZZ_Y       = 22;       // Sleep indicator "Zzz" text cursor Y.
+// Display layout coordinates (Main / Setup / Calibration / Health / External)
+// live in interface_layout_constants.h to keep this file focused on cross-
+// module behaviour tuning.
 
 // ---------------------------------------------------------------------------
 // Static option lists and calibration flow thresholds

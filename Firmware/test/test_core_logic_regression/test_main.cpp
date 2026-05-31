@@ -5,24 +5,32 @@
 
 #include "film_counter_logic.h"
 #include "formats.h"
+#include "formatting_logic.h"
+#include "frameline_layout_logic.h"
 #include "calibration_logic.h"
 #include "lens_logic.h"
+#include "lens_spike_logic.h"
 #include "lidar_recovery_logic.h"
 #include "lidar_logic.h"
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
 #include "prefs_migration_logic.h"
+#include "ui_signature_logic.h"
 
 // Limit the test scope to the core logic modules only.
 #include "../../src/calibration_logic.cpp"
 #include "../../src/film_counter_logic.cpp"
 #include "../../src/formats.cpp"
+#include "../../src/formatting_logic.cpp"
+#include "../../src/frameline_layout_logic.cpp"
 #include "../../src/lens_logic.cpp"
+#include "../../src/lens_spike_logic.cpp"
 #include "../../src/lidar_recovery_logic.cpp"
 #include "../../src/lenses.cpp"
 #include "../../src/lidar_logic.cpp"
 #include "../../src/lightmeter_logic.cpp"
 #include "../../src/prefs_migration_logic.cpp"
+#include "../../src/ui_signature_logic.cpp"
 
 namespace
 {
@@ -50,6 +58,49 @@ const FilmFormat *findFormatByName(const char *formatName)
     }
   }
   return nullptr;
+}
+
+const Lens *findLensById(int id)
+{
+  for (size_t i = 0; i < NUM_LENSES; i++)
+  {
+    if (lenses[i].id == id)
+    {
+      return &lenses[i];
+    }
+  }
+  return nullptr;
+}
+
+// A primary-only return with no secondary peak. Mirrors the most common
+// DTS6012M measurement shape in the field. sunlightBase stays 0; tests that
+// need a specific ambient level set it after the helper returns.
+DTSMeasurement makeLidarMeasurement(uint16_t primaryDistance_mm,
+                                    uint16_t primaryIntensity,
+                                    DataQuality primaryQuality)
+{
+  DTSMeasurement m = {};
+  m.primaryDistance_mm = primaryDistance_mm;
+  m.primaryIntensity = primaryIntensity;
+  m.primaryQuality = primaryQuality;
+  m.secondaryDistance_mm = DTS_INVALID_DISTANCE;
+  m.secondaryIntensity = 0;
+  m.secondaryQuality = DataQuality::INVALID;
+  return m;
+}
+
+DTSMeasurement makeLidarDualPeakMeasurement(uint16_t primaryDistance_mm,
+                                            uint16_t primaryIntensity,
+                                            DataQuality primaryQuality,
+                                            uint16_t secondaryDistance_mm,
+                                            uint16_t secondaryIntensity,
+                                            DataQuality secondaryQuality)
+{
+  DTSMeasurement m = makeLidarMeasurement(primaryDistance_mm, primaryIntensity, primaryQuality);
+  m.secondaryDistance_mm = secondaryDistance_mm;
+  m.secondaryIntensity = secondaryIntensity;
+  m.secondaryQuality = secondaryQuality;
+  return m;
 }
 } // namespace
 
@@ -207,6 +258,72 @@ void test_lidar_timeout_recovery_and_backoff()
   TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
 }
 
+void test_lidar_recovery_state_machine_survives_many_consecutive_failures()
+{
+  // Regression guard for the SHAPE of the v10.4.7 incident. The original bug
+  // was in applyLidarCalibrationProfile() re-issuing setFrameRate from the
+  // recovery path, leaving some DTS6012M units unable to recover; from the
+  // state machine's perspective that manifested as the Recoveries counter
+  // climbing indefinitely. The hardware-side fix isn't unit-testable (no
+  // mock for the DTS library) — what we can pin is that the state machine
+  // layer stays well-behaved under that scenario: consecutive_errors must
+  // saturate, the schedule must keep advancing, and a single late success
+  // must still drop the machine cleanly back to idle.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  // Cross the error threshold so recovery engages.
+  for (int i = 0; i < LIDAR_RECOVERY_ERROR_THRESHOLD; i++)
+  {
+    updateLidarRecoveryState(state, LidarRecoveryEvent::ERROR, 100 + i);
+  }
+  TEST_ASSERT_TRUE(state.recovering);
+
+  // 20 failed recovery attempts. consecutive_errors must stay bounded; each
+  // attempt time must be >= the previous one (no schedule going backwards,
+  // which would mean an unbounded retry spin).
+  for (int i = 0; i < 20; i++)
+  {
+    unsigned long previousAttemptTime = state.next_recovery_attempt_ms;
+    noteLidarRecoveryAttemptResult(state, false, previousAttemptTime);
+    TEST_ASSERT_LESS_OR_EQUAL_INT(10, state.consecutive_errors);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT32(previousAttemptTime, state.next_recovery_attempt_ms);
+  }
+
+  // A single late success after 20 failures must still reset the machine.
+  noteLidarRecoveryAttemptResult(state, true, state.next_recovery_attempt_ms);
+  TEST_ASSERT_FALSE(state.recovering);
+  TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
+}
+
+void test_calibration_logic_rejects_invalid_input_shapes()
+{
+  // Defensive guards in calibration_logic.cpp that nothing currently tested
+  // was exercising. computeStableCalibrationReading is called with caller-
+  // supplied buffers and counts; a future refactor that wires up a new
+  // capture path could pass null or empty by mistake, and these tests
+  // document the contract.
+  int averaged = 0;
+
+  // Null sample buffer → false.
+  TEST_ASSERT_FALSE(computeStableCalibrationReading(nullptr, 8, 6, 5, 10, averaged));
+
+  // Non-positive sample count → false.
+  const int dummy[1] = {300};
+  TEST_ASSERT_FALSE(computeStableCalibrationReading(dummy, 0, 6, 5, 10, averaged));
+  TEST_ASSERT_FALSE(computeStableCalibrationReading(dummy, -1, 6, 5, 10, averaged));
+
+  // sample_count larger than the internal sorted-buffer capacity → false.
+  TEST_ASSERT_FALSE(
+      computeStableCalibrationReading(dummy, CALIB_SAMPLE_COUNT + 1, 6, 5, 10, averaged));
+
+  // validateMonotonicCalibration: empty or single-element sequences are vacuously
+  // monotonic. Null pointer also treated as the empty case.
+  TEST_ASSERT_TRUE(validateMonotonicCalibration(nullptr, 0, CALIB_MONOTONIC_MIN_STEP));
+  TEST_ASSERT_TRUE(validateMonotonicCalibration(dummy, 0, CALIB_MONOTONIC_MIN_STEP));
+  TEST_ASSERT_TRUE(validateMonotonicCalibration(dummy, 1, CALIB_MONOTONIC_MIN_STEP));
+}
+
 void test_calibration_validation_stable_and_monotonic()
 {
   const int stableSamples[8] = {300, 301, 299, 300, 302, 298, 301, 350};
@@ -262,13 +379,9 @@ void test_prefs_migration_mode_and_blob_apply()
 
 void test_lidar_candidate_selection_and_blend()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 1200;
-  measurement.primaryIntensity = 180;
-  measurement.primaryQuality = DataQuality::FAIR;
-  measurement.secondaryDistance_mm = 1000;
-  measurement.secondaryIntensity = 1200;
-  measurement.secondaryQuality = DataQuality::EXCELLENT;
+  DTSMeasurement measurement = makeLidarDualPeakMeasurement(
+      1200, 180, DataQuality::FAIR,
+      1000, 1200, DataQuality::EXCELLENT);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -301,9 +414,11 @@ void test_lidar_plausibility_gate_allows_undershoot_and_far_focus()
   TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500));
   // No lens prior available: gate disabled.
   TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0));
-  // Lens at boundary itself (200cm) still gated; lens just past it (201cm) not gated.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 200));
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 201));
+  // Lens focused at 2.5m is now within the gate's coverage (boundary raised to 3m).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 250));
+  // Lens at boundary itself (300cm) still gated; lens just past it (301cm) not gated.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 300));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 301));
 }
 
 void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
@@ -312,6 +427,37 @@ void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
   TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100));
   // 301cm IS implausible.
   TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
+}
+
+void test_lidar_plausibility_hold_releases_on_stable_far_readings()
+{
+  PlausibilityHoldState state = {};
+  // First implausible reading: held — one frame, neither consistent nor capped.
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 500, 30, 2, 3));
+  // Second reading agrees within the stable delta (510 vs 500): a deliberate
+  // re-aim at a real far subject, so release immediately.
+  TEST_ASSERT_TRUE(updatePlausibilityHold(state, 510, 30, 2, 3));
+}
+
+void test_lidar_plausibility_hold_caps_noisy_beam_miss()
+{
+  PlausibilityHoldState state = {};
+  // Jumpy beam-miss returns never settle within the stable delta...
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 500, 30, 2, 3)); // frame 1
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 800, 30, 2, 3)); // frame 2 (jumped)
+  // ...but the absolute fallthrough cap (3 frames) still releases so the
+  // readout can never be pinned to a stale value forever.
+  TEST_ASSERT_TRUE(updatePlausibilityHold(state, 400, 30, 2, 3));  // frame 3 hits cap
+}
+
+void test_lidar_plausibility_hold_reset_restarts_counts()
+{
+  PlausibilityHoldState state = {};
+  updatePlausibilityHold(state, 500, 30, 2, 3);
+  updatePlausibilityHold(state, 510, 30, 2, 3); // would have released
+  resetPlausibilityHold(state);
+  // After a plausible reading resets the hold, a fresh overshoot is held again.
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 500, 30, 2, 3));
 }
 
 void test_lidar_stable_boost_under_min_frames_does_nothing()
@@ -356,19 +502,17 @@ void test_lidar_sunlight_warn_hysteresis()
   TEST_ASSERT_TRUE(updateSunlightWarnState(true, LIDAR_SUNLIGHT_WARN_EXIT));   // on, at exit
 }
 
-void test_lidar_invalid_and_display_formatting()
+void test_lidar_rejects_invalid_quality_and_zero_intensity()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 1000;
-  measurement.primaryIntensity = 0; // Below LIDAR_FUSION_MIN_INTENSITY and fallback floor
-  measurement.primaryQuality = DataQuality::INVALID;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // Below LIDAR_FUSION_MIN_INTENSITY and fallback floor; quality is INVALID.
+  DTSMeasurement measurement = makeLidarMeasurement(1000, 0, DataQuality::INVALID);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_FALSE(candidate.valid);
+}
 
+void test_lidar_distance_display_formatting_covers_each_band()
+{
   char formattedDistance[16] = {0};
 
   formatDistanceDisplay(4, formattedDistance, sizeof(formattedDistance));
@@ -387,13 +531,8 @@ void test_lidar_invalid_and_display_formatting()
 
 void test_lidar_low_confidence_tracks_beyond_previous_distance()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 6000;   // 6.0m target
-  measurement.primaryIntensity = 100;      // low/harsh-light like return, but valid
-  measurement.primaryQuality = DataQuality::POOR;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // 6.0m target with low/harsh-light-like return, but still valid.
+  DTSMeasurement measurement = makeLidarMeasurement(6000, 100, DataQuality::POOR);
 
   int filtered_distance_cm = 250;
   const int lens_prior_cm = 250;
@@ -411,13 +550,9 @@ void test_lidar_low_confidence_tracks_beyond_previous_distance()
 
 void test_lidar_dynamic_intensity_threshold_accepts_mid_range()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 3200; // 3.2m
-  measurement.primaryIntensity = LIDAR_FUSION_MIN_INTENSITY_MID;
-  measurement.primaryQuality = DataQuality::GOOD;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // 3.2m at exactly the mid-range minimum intensity.
+  DTSMeasurement measurement = makeLidarMeasurement(
+      3200, LIDAR_FUSION_MIN_INTENSITY_MID, DataQuality::GOOD);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -425,13 +560,9 @@ void test_lidar_dynamic_intensity_threshold_accepts_mid_range()
 
 void test_lidar_far_fallback_prevents_dropouts()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 4200; // 4.2m
-  measurement.primaryIntensity = LIDAR_FALLBACK_MIN_INTENSITY + 1;
-  measurement.primaryQuality = DataQuality::INVALID;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
+  // 4.2m, just above the fallback intensity floor, with INVALID quality.
+  DTSMeasurement measurement = makeLidarMeasurement(
+      4200, LIDAR_FALLBACK_MIN_INTENSITY + 1, DataQuality::INVALID);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 250, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -441,13 +572,10 @@ void test_lidar_far_fallback_prevents_dropouts()
 
 void test_lidar_candidate_fusion_when_returns_agree()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 3000;     // 300cm
-  measurement.primaryIntensity = 180;
-  measurement.primaryQuality = DataQuality::GOOD;
-  measurement.secondaryDistance_mm = 3120;   // 312cm (within fusion delta)
-  measurement.secondaryIntensity = 170;
-  measurement.secondaryQuality = DataQuality::FAIR;
+  // 300cm primary + 312cm secondary (within fusion-agree delta) — both valid.
+  DTSMeasurement measurement = makeLidarDualPeakMeasurement(
+      3000, 180, DataQuality::GOOD,
+      3120, 170, DataQuality::FAIR);
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_TRUE(candidate.valid);
@@ -458,13 +586,7 @@ void test_lidar_candidate_fusion_when_returns_agree()
 
 void test_lidar_lens_prior_is_range_weighted()
 {
-  DTSMeasurement nearMeasurement = {};
-  nearMeasurement.primaryDistance_mm = 2000; // 200cm
-  nearMeasurement.primaryIntensity = 200;
-  nearMeasurement.primaryQuality = DataQuality::GOOD;
-  nearMeasurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  nearMeasurement.secondaryIntensity = 0;
-  nearMeasurement.secondaryQuality = DataQuality::INVALID;
+  DTSMeasurement nearMeasurement = makeLidarMeasurement(2000, 200, DataQuality::GOOD);
 
   DTSMeasurement farMeasurement = nearMeasurement;
   farMeasurement.primaryDistance_mm = 8000; // 800cm
@@ -480,14 +602,9 @@ void test_lidar_lens_prior_is_range_weighted()
 
 void test_lidar_sunlight_penalizes_confidence_without_dropping_valid_measurement()
 {
-  DTSMeasurement lowAmbientMeasurement = {};
-  lowAmbientMeasurement.primaryDistance_mm = 4500; // 450cm
-  lowAmbientMeasurement.primaryIntensity = 40;
+  // 450cm subject under low ambient IR; sunlightBase is set below.
+  DTSMeasurement lowAmbientMeasurement = makeLidarMeasurement(4500, 40, DataQuality::GOOD);
   lowAmbientMeasurement.sunlightBase = 25;
-  lowAmbientMeasurement.primaryQuality = DataQuality::GOOD;
-  lowAmbientMeasurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  lowAmbientMeasurement.secondaryIntensity = 0;
-  lowAmbientMeasurement.secondaryQuality = DataQuality::INVALID;
 
   DTSMeasurement highAmbientMeasurement = lowAmbientMeasurement;
   highAmbientMeasurement.sunlightBase = 650;
@@ -502,14 +619,10 @@ void test_lidar_sunlight_penalizes_confidence_without_dropping_valid_measurement
 
 void test_lidar_sunlight_hard_rejects_very_low_snr_measurement()
 {
-  DTSMeasurement measurement = {};
-  measurement.primaryDistance_mm = 7000; // 700cm
-  measurement.primaryIntensity = LIDAR_FUSION_MIN_INTENSITY_FAR;
+  // 700cm at the far-range minimum intensity, under heavy ambient IR.
+  DTSMeasurement measurement = makeLidarMeasurement(
+      7000, LIDAR_FUSION_MIN_INTENSITY_FAR, DataQuality::GOOD);
   measurement.sunlightBase = 1500;
-  measurement.primaryQuality = DataQuality::GOOD;
-  measurement.secondaryDistance_mm = DTS_INVALID_DISTANCE;
-  measurement.secondaryIntensity = 0;
-  measurement.secondaryQuality = DataQuality::INVALID;
 
   LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
   TEST_ASSERT_FALSE(candidate.valid);
@@ -567,16 +680,7 @@ void test_lens_logic_ignores_unused_distance_markers()
 
 void test_150mm_profile_uses_custom_distance_scale()
 {
-  const Lens *lens150 = nullptr;
-  for (size_t i = 0; i < NUM_LENSES; i++)
-  {
-    if (lenses[i].id == 15056)
-    {
-      lens150 = &lenses[i];
-      break;
-    }
-  }
-
+  const Lens *lens150 = findLensById(15056);
   TEST_ASSERT_NOT_NULL(lens150);
   TEST_ASSERT_EQUAL_INT(5, getLensDistancePointCount(*lens150));
   TEST_ASSERT_FLOAT_WITHIN(0.0001f, 2.0f, lens150->distance[0]);
@@ -588,20 +692,8 @@ void test_150mm_profile_uses_custom_distance_scale()
 
 void test_250mm_profiles_use_custom_distance_scales()
 {
-  const Lens *lens250f5 = nullptr;
-  const Lens *lens250f8 = nullptr;
-  for (size_t i = 0; i < NUM_LENSES; i++)
-  {
-    if (lenses[i].id == 25005)
-    {
-      lens250f5 = &lenses[i];
-    }
-    else if (lenses[i].id == 25008)
-    {
-      lens250f8 = &lenses[i];
-    }
-  }
-
+  const Lens *lens250f5 = findLensById(25005);
+  const Lens *lens250f8 = findLensById(25008);
   TEST_ASSERT_NOT_NULL(lens250f5);
   TEST_ASSERT_NOT_NULL(lens250f8);
 
@@ -677,6 +769,299 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("25m0s", formattedShutter);
 }
 
+void test_frameline_scaling_returns_base_when_format_mm_invalid()
+{
+  // Zero or negative format dimensions short-circuit to the base box (still clamped).
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 0.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(100, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+
+  r = scaleFramelineToFormat(100, 60, 60.0f, -1.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(100, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+}
+
+void test_frameline_scaling_height_constrained_for_taller_format()
+{
+  // 6x7 base (60mm x 70mm, ratio 0.857) into a base pixel box that is wider
+  // than its own ratio (100x60 -> 1.667). formatRatio (0.857) < baseRatio
+  // (1.667), so height stays at baseHeight and width scales down.
+  // Expected width = round(60 * 0.857) = 51.
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 60.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(51, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+}
+
+void test_frameline_scaling_width_constrained_for_wider_pixel_ratio()
+{
+  // A current format wider than the pixel box but NOT wider than the base
+  // format (so overflow is not allowed). 6x4.5 (60x45, ratio 1.333) vs base
+  // 6x7 (60x70, ratio 0.857) — formatRatio > baseFormatRatio, but
+  // formatHeightMm (45) < baseFormatHeightMm (70), so allowOverflow is false.
+  // formatRatio (1.333) >= base pixel ratio (1.667)? No, 1.333 < 1.667 →
+  // height-constrained: width = round(60 * 1.333) = 80, height = 60.
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 60.0f, 45.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(80, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+}
+
+void test_frameline_scaling_allows_overflow_when_format_is_wider_and_taller()
+{
+  // 6x9 (60x90, ratio 0.667 — wait, let's pick a truly wider format).
+  // Panoramic 6x12 (60x120, ratio 0.5) vs base 6x7 (60x70, ratio 0.857):
+  // formatRatio (0.5) < baseFormatRatio (0.857), so overflow NOT allowed.
+  // To exercise overflow we need a format both wider in ratio AND at least
+  // as tall in mm. 6x9 vs 6x4.5 with 6x4.5 as base would do — but base is
+  // fixed to DEFAULT_SELECTED_FORMAT in the wrapper, so we use whatever
+  // satisfies the rule here.
+  // Use synthetic dimensions: format 90x60 (ratio 1.5) vs base 60x70
+  // (ratio 0.857). formatRatio > baseRatio AND formatHeightMm (60) is not
+  // >= baseFormatHeightMm (70) — so overflow still NOT allowed. Bump
+  // formatHeightMm to 70 and it does qualify: 90x70 (ratio 1.286) vs
+  // base 60x70 (ratio 0.857) — overflow allowed.
+  // Pixel box: 100x60. Expected: height=60, width=round(60*1.286)=77.
+  FramelineDimensions r = scaleFramelineToFormat(100, 60, 90.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(77, r.width);
+  TEST_ASSERT_EQUAL_INT(60, r.height);
+  // Overflow allows width to exceed baseWidth.
+  FramelineDimensions r2 = scaleFramelineToFormat(50, 60, 90.0f, 70.0f, 60.0f, 70.0f);
+  TEST_ASSERT_EQUAL_INT(77, r2.width); // not clamped to 50
+  TEST_ASSERT_EQUAL_INT(60, r2.height);
+}
+
+void test_frameline_scaling_clamps_dimensions_to_minimum_one()
+{
+  // Extreme ratio that would round to zero is clamped to 1.
+  FramelineDimensions r = scaleFramelineToFormat(1, 100, 1.0f, 10000.0f, 60.0f, 70.0f);
+  TEST_ASSERT_GREATER_OR_EQUAL_INT(1, r.width);
+  TEST_ASSERT_GREATER_OR_EQUAL_INT(1, r.height);
+}
+
+void test_6x9_and_9x3_share_corrected_sensor_table()
+{
+  // Regression guard for v10.4.6. 9x3 shared its physical advance pattern
+  // with 6x9 on 120 film but was using a slightly out-of-tolerance sensor
+  // array (1-2 ticks more per frame). The fix aligned 9x3 onto 6x9's
+  // corrected spacing; a later refactor (commit b5f10ad) deduplicated the
+  // two via a shared macro. This test pins the corrected values directly
+  // so that a future edit can't silently restore the drift.
+  const FilmFormat *fmt_6x9 = findFormatByName("6x9");
+  const FilmFormat *fmt_9x3 = findFormatByName("9x3");
+  TEST_ASSERT_NOT_NULL(fmt_6x9);
+  TEST_ASSERT_NOT_NULL(fmt_9x3);
+
+  const int expected_sensor[] = {0, 142, 184, 223, 260, 295, 329, 360, 390, 550};
+  const int expected_count = sizeof(expected_sensor) / sizeof(expected_sensor[0]);
+
+  for (int i = 0; i < expected_count; i++)
+  {
+    TEST_ASSERT_EQUAL_INT(expected_sensor[i], fmt_6x9->sensor[i]);
+    TEST_ASSERT_EQUAL_INT(expected_sensor[i], fmt_9x3->sensor[i]);
+  }
+  // Sanity: the two formats must remain in lock-step on physical advance.
+  for (int i = 0; i < expected_count; i++)
+  {
+    TEST_ASSERT_EQUAL_INT(fmt_6x9->sensor[i], fmt_9x3->sensor[i]);
+  }
+}
+
+void test_lightmeter_scale_split_preserves_effective_exposure_constant()
+{
+  // Regression guard for v10.4.6 metering fix. The original bug came from
+  // setting K to the ISO-standard 12.5 without re-introducing the 1.77x
+  // BH1750 mounting compensation that the previous K=20 had absorbed; the
+  // result was ~1.5 stops of overexposure. The fix splits the two factors:
+  // K is now the standard and LIGHTMETER_LUX_CAL_SCALE applies the mounting
+  // factor at the sensor read site. Removing either factor regresses the
+  // exposure by a stop and a half. Pin the product so a future tweak of
+  // either constant has to be deliberate.
+  const float effective = K * LIGHTMETER_LUX_CAL_SCALE;
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 22.125f, effective);
+
+  // formatShutterSpeed uses K directly. Pinning a known (lux, aperture, iso)
+  // triple to its expected shutter band catches a stealth change to K alone
+  // (e.g. reverting it to 20) that the product test above would also flag,
+  // but a downstream reader will see the effect on actual exposure here.
+  char shutter[16] = {0};
+  // (8^2 * 12.5) / (100 * 100) = 800/10000 = 0.08 s -> falls in the 1/15 band.
+  // If K reverted to the old 20, the same scene would land in the 1/8 band,
+  // failing the assert and flagging the 1.5-stop drift.
+  formatShutterSpeed(100.0f, 8.0f, 100, shutter, sizeof(shutter));
+  TEST_ASSERT_EQUAL_STRING("1/15 sec.", shutter);
+}
+
+void test_lens_spike_filter_initialises_and_accepts_small_movement()
+{
+  LensSpikeFilterState state = {};
+
+  // First call seeds the stable reading.
+  TEST_ASSERT_EQUAL_INT(1000, updateLensSpikeFilter(state, 1000));
+  TEST_ASSERT_TRUE(state.initialized);
+
+  // A reading within +/-LENS_SPIKE_DELTA_THRESHOLD (8) is accepted immediately
+  // as the new stable value.
+  TEST_ASSERT_EQUAL_INT(1007, updateLensSpikeFilter(state, 1007));
+  TEST_ASSERT_EQUAL_INT(1007, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(0, state.pendingCount);
+}
+
+void test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending()
+{
+  LensSpikeFilterState state = {};
+  updateLensSpikeFilter(state, 1000); // seed
+
+  // A single jump well outside the threshold does not move stable.
+  TEST_ASSERT_EQUAL_INT(1000, updateLensSpikeFilter(state, 1100));
+  TEST_ASSERT_EQUAL_INT(1000, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(1, state.pendingCount);
+
+  // A consistent second sample (within threshold of pending) promotes it.
+  // LENS_SPIKE_CONFIRMATION_COUNT defaults to 2.
+  TEST_ASSERT_EQUAL_INT(1102, updateLensSpikeFilter(state, 1102));
+  TEST_ASSERT_EQUAL_INT(1102, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(0, state.pendingCount);
+}
+
+void test_lens_spike_filter_drifting_pending_resets_count()
+{
+  LensSpikeFilterState state = {};
+  updateLensSpikeFilter(state, 1000); // seed
+
+  // First spike: stable unchanged, pendingCount=1.
+  updateLensSpikeFilter(state, 1100);
+  TEST_ASSERT_EQUAL_UINT8(1, state.pendingCount);
+
+  // Second sample wanders well off the pending value (delta > threshold):
+  // pending is restarted, count goes back to 1, stable still unchanged.
+  TEST_ASSERT_EQUAL_INT(1000, updateLensSpikeFilter(state, 1200));
+  TEST_ASSERT_EQUAL_INT(1000, state.stableReading);
+  TEST_ASSERT_EQUAL_UINT8(1, state.pendingCount);
+  TEST_ASSERT_EQUAL_INT(1200, state.pendingReading);
+}
+
+void test_cm_to_readable_renders_cm_below_one_metre_and_metres_above()
+{
+  char out[16] = {0};
+
+  cmToReadable(0, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("0cm", out);
+
+  cmToReadable(75, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("75cm", out);
+
+  cmToReadable(99, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("99cm", out);
+
+  // 100cm is the m/cm boundary — first value rendered in metres.
+  cmToReadable(100, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("1.00m", out);
+
+  cmToReadable(150, 2, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("1.50m", out);
+
+  cmToReadable(1234, 1, out, sizeof(out));
+  TEST_ASSERT_EQUAL_STRING("12.3m", out);
+
+  // Zero buffer size must not write or read past the buffer.
+  char guard[4] = {'X', 'X', 'X', 'X'};
+  cmToReadable(42, 2, guard, 0);
+  TEST_ASSERT_EQUAL_CHAR('X', guard[0]);
+}
+
+void test_lidar_secondary_quality_inherits_primary_when_invalid()
+{
+  // chooseBestLidarCandidate remaps a secondary peak's INVALID quality onto
+  // the primary's quality before scoring. Verify that a peak with explicit
+  // EXCELLENT and a peak whose quality remaps to EXCELLENT produce the same
+  // fused candidate.
+  DTSMeasurement explicitExcellent = makeLidarDualPeakMeasurement(
+      3000, 180, DataQuality::EXCELLENT,
+      3120, 170, DataQuality::EXCELLENT);
+  DTSMeasurement inheritsFromPrimary = makeLidarDualPeakMeasurement(
+      3000, 180, DataQuality::EXCELLENT,
+      3120, 170, DataQuality::INVALID);
+
+  LidarCandidate explicitCandidate = chooseBestLidarCandidate(explicitExcellent, 0, false, 0);
+  LidarCandidate inheritedCandidate = chooseBestLidarCandidate(inheritsFromPrimary, 0, false, 0);
+
+  TEST_ASSERT_TRUE(explicitCandidate.valid);
+  TEST_ASSERT_TRUE(inheritedCandidate.valid);
+  TEST_ASSERT_EQUAL_INT(explicitCandidate.distance_cm, inheritedCandidate.distance_cm);
+  TEST_ASSERT_EQUAL_INT(explicitCandidate.confidence, inheritedCandidate.confidence);
+  TEST_ASSERT_EQUAL_INT(explicitCandidate.quality_level, inheritedCandidate.quality_level);
+}
+
+void test_ui_signature_hash_primitives_are_deterministic_and_distinct()
+{
+  // Determinism: same inputs produce same output.
+  TEST_ASSERT_EQUAL_UINT32(hashInt(HASH_OFFSET_BASIS, 42), hashInt(HASH_OFFSET_BASIS, 42));
+  TEST_ASSERT_EQUAL_UINT32(hashBool(HASH_OFFSET_BASIS, true), hashBool(HASH_OFFSET_BASIS, true));
+  TEST_ASSERT_EQUAL_UINT32(hashFloat(HASH_OFFSET_BASIS, 1.5f), hashFloat(HASH_OFFSET_BASIS, 1.5f));
+  TEST_ASSERT_EQUAL_UINT32(hashCString(HASH_OFFSET_BASIS, "abc"), hashCString(HASH_OFFSET_BASIS, "abc"));
+
+  // Distinctness: any change in input changes the hash.
+  TEST_ASSERT_NOT_EQUAL(hashInt(HASH_OFFSET_BASIS, 0), hashInt(HASH_OFFSET_BASIS, 1));
+  TEST_ASSERT_NOT_EQUAL(hashBool(HASH_OFFSET_BASIS, false), hashBool(HASH_OFFSET_BASIS, true));
+  TEST_ASSERT_NOT_EQUAL(hashFloat(HASH_OFFSET_BASIS, 1.0f), hashFloat(HASH_OFFSET_BASIS, 1.0000001f));
+  TEST_ASSERT_NOT_EQUAL(hashCString(HASH_OFFSET_BASIS, "ab"), hashCString(HASH_OFFSET_BASIS, "ba"));
+
+  // Length is part of the hash, so "ab"+"c" and "a"+"bc" do not collide.
+  uint32_t ab_then_c = hashCString(hashCString(HASH_OFFSET_BASIS, "ab"), "c");
+  uint32_t a_then_bc = hashCString(hashCString(HASH_OFFSET_BASIS, "a"), "bc");
+  TEST_ASSERT_NOT_EQUAL(ab_then_c, a_then_bc);
+}
+
+void test_ui_signature_hash_cstring_treats_null_as_empty()
+{
+  TEST_ASSERT_EQUAL_UINT32(hashCString(HASH_OFFSET_BASIS, nullptr),
+                           hashCString(HASH_OFFSET_BASIS, ""));
+}
+
+namespace
+{
+ExternalUiSnapshot baselineExternalSnapshot()
+{
+  return {/* selected_format */ 1,
+          /* selected_lens   */ 2,
+          /* bat_per         */ 75,
+          /* film_counter    */ 5,
+          /* frame_progress  */ 0.25f,
+          /* sleepMode       */ false};
+}
+} // namespace
+
+void test_ui_signature_external_changes_when_any_field_changes()
+{
+  const ExternalUiSnapshot base = baselineExternalSnapshot();
+  const uint32_t baseline = buildExternalUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildExternalUiSignature(baselineExternalSnapshot()));
+
+  ExternalUiSnapshot mutated = base;
+  mutated.selected_format = 9;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.selected_lens = 9;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.bat_per = 50;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.film_counter = 6;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.frame_progress = 0.5f;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+
+  mutated = base;
+  mutated.sleepMode = true;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -687,6 +1072,8 @@ int main(int, char **)
   RUN_TEST(test_encoder_filter_forward_hysteresis_and_debounce);
   RUN_TEST(test_encoder_filter_reverse_requires_rewind_mode);
   RUN_TEST(test_lidar_timeout_recovery_and_backoff);
+  RUN_TEST(test_lidar_recovery_state_machine_survives_many_consecutive_failures);
+  RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_calibration_median_spread_tolerates_gentle_drift);
   RUN_TEST(test_calibration_rejects_truly_unstable_readings);
@@ -695,11 +1082,15 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
   RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
   RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
+  RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
+  RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);
+  RUN_TEST(test_lidar_plausibility_hold_reset_restarts_counts);
   RUN_TEST(test_lidar_stable_boost_under_min_frames_does_nothing);
   RUN_TEST(test_lidar_stable_boost_kicks_in_at_min_frames);
   RUN_TEST(test_lidar_stable_boost_clamps_at_max);
   RUN_TEST(test_lidar_sunlight_warn_hysteresis);
-  RUN_TEST(test_lidar_invalid_and_display_formatting);
+  RUN_TEST(test_lidar_rejects_invalid_quality_and_zero_intensity);
+  RUN_TEST(test_lidar_distance_display_formatting_covers_each_band);
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);
   RUN_TEST(test_lidar_far_fallback_prevents_dropouts);
@@ -712,5 +1103,20 @@ int main(int, char **)
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
+  RUN_TEST(test_frameline_scaling_returns_base_when_format_mm_invalid);
+  RUN_TEST(test_frameline_scaling_height_constrained_for_taller_format);
+  RUN_TEST(test_frameline_scaling_width_constrained_for_wider_pixel_ratio);
+  RUN_TEST(test_frameline_scaling_allows_overflow_when_format_is_wider_and_taller);
+  RUN_TEST(test_frameline_scaling_clamps_dimensions_to_minimum_one);
+  RUN_TEST(test_6x9_and_9x3_share_corrected_sensor_table);
+  RUN_TEST(test_lightmeter_scale_split_preserves_effective_exposure_constant);
+  RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
+  RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
+  RUN_TEST(test_lens_spike_filter_drifting_pending_resets_count);
+  RUN_TEST(test_cm_to_readable_renders_cm_below_one_metre_and_metres_above);
+  RUN_TEST(test_lidar_secondary_quality_inherits_primary_when_invalid);
+  RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);
+  RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
+  RUN_TEST(test_ui_signature_external_changes_when_any_field_changes);
   return UNITY_END();
 }

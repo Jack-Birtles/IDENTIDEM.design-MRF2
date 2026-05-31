@@ -2,6 +2,57 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.4.10 - 2026-05-31
+
+### LiDAR plausibility gate
+
+Field reports of the distance readout appearing to "cap" at short range traced to the lens-prior plausibility gate (added in 10.4.6) holding the previous value too aggressively when the lens is focused close. This release retunes it and makes the hold visible.
+
+- **Faster release on a deliberate re-aim.** The gate no longer waits a blind 8 frames before accepting a far reading. It now releases as soon as two consecutive rejected readings agree (a real far subject the user has aimed at), and keeps an absolute 3-frame cap so a noisy beam-miss can never pin a stale value indefinitely. The release decision is a new pure, unit-tested helper (`updatePlausibilityHold`).
+- **Wider focus coverage.** The gate now applies out to 3m of lens focus (was 2m), so the parallax beam-miss guard also covers portrait and group distances.
+- **"Held:" indicator.** When the gate is showing the previous value instead of a live measurement, the main-screen label changes from `Dist:` to `Held:`, so a held reading reads as intentionally frozen rather than broken.
+
+Verify in the field: with the lens focused near, panning to a farther subject should update within a frame or two, and the label should briefly read `Held:` while it does.
+
+### Tests
+
+- Added coverage for the stable-vs-noisy release logic and the reset path; updated the gate boundary tests for the new 3m focus threshold. Test count: 50 → 53.
+
+## 10.4.9 - 2026-05-16
+
+Internal refactoring release plus a setup-menu reorganisation. The menu reorg is the one user-visible change; everything else is structural. Pending field testing.
+
+### Setup menu reorganisation
+
+- The setup menu hierarchy has been restructured around user mental categories. Persistence is untouched — your settings come back where you left them, just in their new home.
+  - **Reset frame counter** is now in **Setup > Film** (it's a film action, not navigation).
+  - **Frame 1 offset** and **Frame spacing** moved to **Setup > Film > Frame counter tuning** (one-time calibration knobs, demoted from the Film top level).
+  - **LiDAR distance offset** and **LiDAR idle timeout** moved into a new **Setup > LiDAR** submenu (they were miscategorised under UI Settings).
+  - **UI Settings** is renamed **Display** and trimmed: it now holds brightness, horizon line on/off, sleep timeout, horizon-trim sub-page, and reticle adjust.
+  - The three horizon-trim rows moved to **Setup > Display > Horizon trim** so they group cleanly.
+
+### Subtle UX
+
+- **Portrait/landscape hysteresis is now self-healing after a long config detour.** When the user spends time in a config menu and rotates the device, the level renderer's cached `portraitMode` could stay stuck at the old orientation until the user rotated past the hysteresis bands again. The renderer now resets the cache whenever it has been idle for >1s.
+- **`toggleLidar()` now flips `lidarEnabled` before re-applying the calibration profile**, matching the order already used by the boot and retry paths. Functionally inert today; removes an ordering inconsistency.
+
+### Internals (no user-visible behaviour change)
+
+- **New host-testable logic modules** extracted out of hardware-coupled files: `lens_spike_logic`, `frameline_layout_logic`, `ui_signature_logic`, `formatting_logic`, `lidar_runtime_state` bundling. Each new module ships with unit tests.
+- **LiDAR pipeline cleanups** in `lidar_logic.cpp`: distance-tier lookups, DataQuality profile table, shared candidate-validation gate, shared fuse-or-pick-best selection.
+- **`handleRightButtonShortPress` split** into per-mode handlers; the dispatcher is now a clean switch on `ui_mode`.
+- **Shared U8G2 text-defaults helper** consolidates four near-identical OLED-prep sequences in interface.cpp.
+- **Display-layout pixel coordinates** moved out of `mrfconstants.h` into a dedicated `interface_layout_constants.h` so layout tweaks don't force a full-tree rebuild.
+- **`globals.h` regrouped by domain** (Lightmeter / Lens / LiDAR / UI / Calibration / Frame counter / Sleep / Health). Module-private caches (lens moving-average buffer, `prev_distance`, `prev_lens_sensor_reading`) demoted to file-scope statics in the only module that touches them.
+- **`helpers.cpp` reorganized**: lens moving-average buffer now lives next to `calcMovingAvg`; `cmToReadable` moved into its own pure module.
+- **Sleep-wake baseline ownership centralised** in `finaliseSleepServices`; removed unreachable lazy-init paths in the wake-poll functions.
+
+### Test coverage added
+
+- Regression guards for the v10.4.7 LiDAR-recovery incident class (state machine resilience under sustained failure), the v10.4.6 lightmeter scale-split (`K * LIGHTMETER_LUX_CAL_SCALE` product + known-scene shutter band), and the v10.4.6 6x9/9x3 sensor-table alignment.
+- New tests for hash primitives, lens spike filter, frameline scaling, cm-to-readable formatter, secondary-quality INVALID remapping, and the misnamed split lidar test.
+- `DTSMeasurement` and `findLensById` builders consolidate test setup boilerplate.
+
 ## 10.4.8 - 2026-05-16
 
 ### Bug fixes

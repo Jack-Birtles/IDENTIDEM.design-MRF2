@@ -39,98 +39,87 @@ int applyLidarCalibrationCm(int raw_cm)
   return static_cast<int>(roundf(scaled));
 }
 
-int qualityBaseScore(DataQuality quality)
+struct QualityProfile
 {
-  switch (quality)
+  int base_score;
+  int prior_penalty_cap;
+  float prior_weight;
+  int quality_level; // 1..4 for poor..excellent, 0 for INVALID
+};
+
+// Indexed by DataQuality enum value (EXCELLENT=0 .. INVALID=4).
+const QualityProfile QUALITY_PROFILES[] = {
+    /* EXCELLENT */ {80, LIDAR_PRIOR_PENALTY_MAX_EXCELLENT, LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT, 4},
+    /* GOOD      */ {65, LIDAR_PRIOR_PENALTY_MAX_GOOD,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      3},
+    /* FAIR      */ {45, LIDAR_PRIOR_PENALTY_MAX_FAIR,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      2},
+    /* POOR      */ {25, LIDAR_PRIOR_PENALTY_MAX_POOR,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      1},
+    /* INVALID   */ { 0, LIDAR_PRIOR_PENALTY_MAX_POOR,      LIDAR_LENS_PRIOR_WEIGHT_GOOD,      0},
+};
+
+const QualityProfile &profileFor(DataQuality quality)
+{
+  uint8_t idx = static_cast<uint8_t>(quality);
+  const uint8_t invalid_idx = static_cast<uint8_t>(DataQuality::INVALID);
+  if (idx > invalid_idx)
   {
-  case DataQuality::EXCELLENT:
-    return 80;
-  case DataQuality::GOOD:
-    return 65;
-  case DataQuality::FAIR:
-    return 45;
-  case DataQuality::POOR:
-    return 25;
-  default:
-    return 0;
+    idx = invalid_idx;
   }
+  return QUALITY_PROFILES[idx];
 }
 
-int priorPenaltyCapForQuality(DataQuality quality)
+// Pick the value for the first tier whose max_cm covers `distance_cm`.
+// The final tier's max_cm is ignored — it acts as the "very far" fallback.
+template <typename T>
+struct DistanceTier
 {
-  switch (quality)
-  {
-  case DataQuality::EXCELLENT:
-    return LIDAR_PRIOR_PENALTY_MAX_EXCELLENT;
-  case DataQuality::GOOD:
-    return LIDAR_PRIOR_PENALTY_MAX_GOOD;
-  case DataQuality::FAIR:
-    return LIDAR_PRIOR_PENALTY_MAX_FAIR;
-  case DataQuality::POOR:
-    return LIDAR_PRIOR_PENALTY_MAX_POOR;
-  default:
-    return LIDAR_PRIOR_PENALTY_MAX_POOR;
-  }
-}
+  int max_cm;
+  T value;
+};
 
-float priorWeightForQuality(DataQuality quality)
+template <typename T, size_t N>
+T lookupByDistance(int distance_cm, const DistanceTier<T> (&tiers)[N])
 {
-  if (quality == DataQuality::EXCELLENT)
+  for (size_t i = 0; i + 1 < N; i++)
   {
-    return LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT;
+    if (distance_cm <= tiers[i].max_cm)
+    {
+      return tiers[i].value;
+    }
   }
-  return LIDAR_LENS_PRIOR_WEIGHT_GOOD;
+  return tiers[N - 1].value;
 }
 
 float priorRangeScaleForDistanceCm(int corrected_cm)
 {
-  if (corrected_cm <= LIDAR_PRIOR_RANGE_NEAR_CM)
-  {
-    return LIDAR_PRIOR_RANGE_SCALE_NEAR;
-  }
-  if (corrected_cm <= LIDAR_PRIOR_RANGE_MID_CM)
-  {
-    return LIDAR_PRIOR_RANGE_SCALE_MID;
-  }
-  if (corrected_cm <= LIDAR_PRIOR_RANGE_FAR_CM)
-  {
-    return LIDAR_PRIOR_RANGE_SCALE_FAR;
-  }
-  return LIDAR_PRIOR_RANGE_SCALE_VERY_FAR;
+  static const DistanceTier<float> tiers[] = {
+      {LIDAR_PRIOR_RANGE_NEAR_CM, LIDAR_PRIOR_RANGE_SCALE_NEAR},
+      {LIDAR_PRIOR_RANGE_MID_CM, LIDAR_PRIOR_RANGE_SCALE_MID},
+      {LIDAR_PRIOR_RANGE_FAR_CM, LIDAR_PRIOR_RANGE_SCALE_FAR},
+      {0, LIDAR_PRIOR_RANGE_SCALE_VERY_FAR},
+  };
+  return lookupByDistance(corrected_cm, tiers);
 }
 
 int minIntensityThresholdForDistanceCm(int raw_cm)
 {
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM)
-  {
-    return LIDAR_FUSION_MIN_INTENSITY;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_MID_RANGE_CM)
-  {
-    return LIDAR_FUSION_MIN_INTENSITY_MID;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_FAR_RANGE_CM)
-  {
-    return LIDAR_FUSION_MIN_INTENSITY_FAR;
-  }
-  return LIDAR_FUSION_MIN_INTENSITY_MAX_RANGE;
+  static const DistanceTier<int> tiers[] = {
+      {LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM, LIDAR_FUSION_MIN_INTENSITY},
+      {LIDAR_FUSION_INTENSITY_MID_RANGE_CM, LIDAR_FUSION_MIN_INTENSITY_MID},
+      {LIDAR_FUSION_INTENSITY_FAR_RANGE_CM, LIDAR_FUSION_MIN_INTENSITY_FAR},
+      {0, LIDAR_FUSION_MIN_INTENSITY_MAX_RANGE},
+  };
+  return lookupByDistance(raw_cm, tiers);
 }
 
 int snrTargetPermilleForDistanceCm(int raw_cm)
 {
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM)
-  {
-    return LIDAR_SNR_PERMILLE_TARGET_NEAR;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_MID_RANGE_CM)
-  {
-    return LIDAR_SNR_PERMILLE_TARGET_MID;
-  }
-  if (raw_cm <= LIDAR_FUSION_INTENSITY_FAR_RANGE_CM)
-  {
-    return LIDAR_SNR_PERMILLE_TARGET_FAR;
-  }
-  return LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE;
+  static const DistanceTier<int> tiers[] = {
+      {LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM, LIDAR_SNR_PERMILLE_TARGET_NEAR},
+      {LIDAR_FUSION_INTENSITY_MID_RANGE_CM, LIDAR_SNR_PERMILLE_TARGET_MID},
+      {LIDAR_FUSION_INTENSITY_FAR_RANGE_CM, LIDAR_SNR_PERMILLE_TARGET_FAR},
+      {0, LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE},
+  };
+  return lookupByDistance(raw_cm, tiers);
 }
 
 int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
@@ -181,21 +170,47 @@ int snrPenaltyForAmbientLight(int raw_cm,
   return min(penalty_max, penalty);
 }
 
-int qualityLevelFromDataQuality(DataQuality quality)
+struct LidarReading
 {
-  switch (quality)
+  bool valid;
+  int raw_cm;
+  int corrected_cm;
+};
+
+// Shared gating for both the primary and the fallback candidate builders:
+// rejects invalid sensor readings, applies the SNR floor, and calibrates the
+// distance. Each builder layers its own additional reject checks on top.
+LidarReading prepareLidarReading(uint16_t raw_distance_mm,
+                                 uint16_t intensity,
+                                 uint16_t sunlight_base)
+{
+  LidarReading reading = {false, 0, 0};
+  if (raw_distance_mm == DTS_INVALID_DISTANCE)
   {
-  case DataQuality::POOR:
-    return 1;
-  case DataQuality::FAIR:
-    return 2;
-  case DataQuality::GOOD:
-    return 3;
-  case DataQuality::EXCELLENT:
-    return 4;
-  default:
-    return 0;
+    return reading;
   }
+
+  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
+  if (raw_cm <= 0)
+  {
+    return reading;
+  }
+
+  if (shouldRejectBySnrFloor(raw_cm, intensity, sunlight_base))
+  {
+    return reading;
+  }
+
+  int corrected_cm = applyLidarCalibrationCm(raw_cm);
+  if (corrected_cm <= 0)
+  {
+    return reading;
+  }
+
+  reading.valid = true;
+  reading.raw_cm = raw_cm;
+  reading.corrected_cm = corrected_cm;
+  return reading;
 }
 
 LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
@@ -205,18 +220,8 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
                                            int previous_distance_cm)
 {
   LidarCandidate candidate = {false, 0, 0, 0};
-  if (raw_distance_mm == DTS_INVALID_DISTANCE)
-  {
-    return candidate;
-  }
-
-  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
-  if (raw_cm <= 0)
-  {
-    return candidate;
-  }
-
-  if (shouldRejectBySnrFloor(raw_cm, intensity, sunlight_base))
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  if (!reading.valid)
   {
     return candidate;
   }
@@ -228,13 +233,11 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
     return candidate;
   }
 
-  int corrected_cm = applyLidarCalibrationCm(raw_cm);
-  if (corrected_cm <= 0)
-  {
-    return candidate;
-  }
+  const int raw_cm = reading.raw_cm;
+  const int corrected_cm = reading.corrected_cm;
 
-  int confidence = LIDAR_FALLBACK_BASE_CONFIDENCE + (qualityBaseScore(quality) / 8);
+  const QualityProfile &profile = profileFor(quality);
+  int confidence = LIDAR_FALLBACK_BASE_CONFIDENCE + (profile.base_score / 8);
   if (previous_distance_cm > 0)
   {
     confidence -= min(LIDAR_TEMPORAL_PENALTY_MAX,
@@ -251,7 +254,7 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
   candidate.valid = true;
   candidate.distance_cm = corrected_cm;
   candidate.confidence = confidence;
-  candidate.quality_level = max(1, qualityLevelFromDataQuality(quality));
+  candidate.quality_level = max(1, profile.quality_level);
   return candidate;
 }
 
@@ -266,34 +269,22 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
 {
   LidarCandidate candidate = {false, 0, 0, 0};
 
-  if (raw_distance_mm == DTS_INVALID_DISTANCE)
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  if (!reading.valid)
   {
     return candidate;
   }
 
-  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
-  if (raw_cm <= 0)
+  if (intensity < minIntensityThresholdForDistanceCm(reading.raw_cm))
   {
     return candidate;
   }
 
-  if (intensity < minIntensityThresholdForDistanceCm(raw_cm))
-  {
-    return candidate;
-  }
+  const int raw_cm = reading.raw_cm;
+  const int corrected_cm = reading.corrected_cm;
 
-  if (shouldRejectBySnrFloor(raw_cm, intensity, sunlight_base))
-  {
-    return candidate;
-  }
-
-  int corrected_cm = applyLidarCalibrationCm(raw_cm);
-  if (corrected_cm <= 0)
-  {
-    return candidate;
-  }
-
-  int confidence = qualityBaseScore(quality);
+  const QualityProfile &profile = profileFor(quality);
+  int confidence = profile.base_score;
   confidence += min(20, static_cast<int>(intensity / 150));
 
   if (previous_distance_cm > 0)
@@ -307,9 +298,9 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
   {
     int prior_error_cm = abs(corrected_cm - lens_prior_cm);
     int effective_error_cm = max(0, prior_error_cm - LIDAR_PRIOR_DEADBAND_CM);
-    float prior_weight = priorWeightForQuality(quality) * priorRangeScaleForDistanceCm(corrected_cm);
+    float prior_weight = profile.prior_weight * priorRangeScaleForDistanceCm(corrected_cm);
     int prior_penalty = static_cast<int>(roundf(static_cast<float>(effective_error_cm) * prior_weight));
-    confidence -= min(priorPenaltyCapForQuality(quality), prior_penalty);
+    confidence -= min(profile.prior_penalty_cap, prior_penalty);
   }
 
   if (secondary_candidate)
@@ -326,7 +317,7 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
   candidate.valid = true;
   candidate.distance_cm = corrected_cm;
   candidate.confidence = confidence;
-  candidate.quality_level = qualityLevelFromDataQuality(quality);
+  candidate.quality_level = profile.quality_level;
   return candidate;
 }
 
@@ -343,6 +334,23 @@ LidarCandidate fuseLidarCandidates(const LidarCandidate &primary, const LidarCan
                                    100);
   int fused_quality_level = max(primary.quality_level, secondary.quality_level);
   return {true, fused_distance_cm, fused_confidence, fused_quality_level};
+}
+
+// Fuse the pair when both are valid and agree within the fusion delta; otherwise
+// return the stronger of the two (or the only valid one). Returns the empty
+// primary when both are invalid, so the caller can fall through to a fallback.
+LidarCandidate selectBestPair(const LidarCandidate &primary, const LidarCandidate &secondary)
+{
+  if (primary.valid && secondary.valid &&
+      abs(primary.distance_cm - secondary.distance_cm) <= LIDAR_FUSION_AGREE_DELTA_CM)
+  {
+    return fuseLidarCandidates(primary, secondary);
+  }
+  if (!primary.valid || (secondary.valid && secondary.confidence > primary.confidence))
+  {
+    return secondary;
+  }
+  return primary;
 }
 } // namespace
 
@@ -383,19 +391,9 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                     lens_prior_cm);
   }
 
-  if (primary.valid && secondary.valid &&
-      abs(primary.distance_cm - secondary.distance_cm) <= LIDAR_FUSION_AGREE_DELTA_CM)
-  {
-    return fuseLidarCandidates(primary, secondary);
-  }
-
   if (primary.valid || secondary.valid)
   {
-    if (!primary.valid || (secondary.valid && secondary.confidence > primary.confidence))
-    {
-      return secondary;
-    }
-    return primary;
+    return selectBestPair(primary, secondary);
   }
 
   // If quality/intensity gating rejects both candidates at long range, keep a
@@ -420,17 +418,7 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                                  measurement.sunlightBase,
                                                                  fb_secondary_quality,
                                                                  previous_distance_cm);
-
-  if (fallbackPrimary.valid && fallbackSecondary.valid &&
-      abs(fallbackPrimary.distance_cm - fallbackSecondary.distance_cm) <= LIDAR_FUSION_AGREE_DELTA_CM)
-  {
-    return fuseLidarCandidates(fallbackPrimary, fallbackSecondary);
-  }
-  if (!fallbackPrimary.valid || (fallbackSecondary.valid && fallbackSecondary.confidence > fallbackPrimary.confidence))
-  {
-    return fallbackSecondary;
-  }
-  return fallbackPrimary;
+  return selectBestPair(fallbackPrimary, fallbackSecondary);
 }
 
 bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
@@ -444,6 +432,33 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
     return false;
   }
   return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
+}
+
+bool updatePlausibilityHold(PlausibilityHoldState &state,
+                            int reading_cm,
+                            int stable_delta_cm,
+                            int stable_release_frames,
+                            int max_hold_frames)
+{
+  state.rejectedFrames++;
+  if (state.lastRejectedCm > 0 && abs(reading_cm - state.lastRejectedCm) <= stable_delta_cm)
+  {
+    state.consistentFrames++;
+  }
+  else
+  {
+    state.consistentFrames = 1;
+  }
+  state.lastRejectedCm = reading_cm;
+
+  bool settled = state.consistentFrames >= stable_release_frames;
+  bool capped = state.rejectedFrames >= max_hold_frames;
+  return settled || capped;
+}
+
+void resetPlausibilityHold(PlausibilityHoldState &state)
+{
+  state = PlausibilityHoldState{};
 }
 
 int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames)

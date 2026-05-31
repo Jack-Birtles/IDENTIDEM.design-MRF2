@@ -150,6 +150,29 @@ void test_all_timeout_modes_have_correct_boundaries()
   }
 }
 
+void test_update_sleep_mode_clamps_future_activity_timestamp()
+{
+  // activity.cpp guards against an invalid future-dated lastActivityTime
+  // (e.g. millis() rollback, an explicit prefs load setting it to a stale
+  // value larger than the current clock) by clamping it down to now_ms.
+  // Without the clamp, the next now_ms - lastActivityTime calculation in
+  // updateSleepMode would underflow and the device could drop into sleep
+  // immediately. The existing combined boot-grace test exercises the
+  // clamp inline; this focused test documents the invariant by itself so
+  // a regression surfaces as a named assertion failure.
+  ui_mode = UiMode::Main;
+  sleep_timeout_mode = SLEEP_TIMEOUT_MODE_15S;
+  sleepMode = false;
+  lastActivityTime = 200000; // 200s "in the future"
+
+  // Use a now_ms that is past the boot grace so the sleep evaluation runs.
+  const unsigned long now = SLEEP_BOOT_GRACE_MS + 100000UL; // 100s into runtime
+  updateSleepMode(now);
+
+  TEST_ASSERT_EQUAL_UINT32(now, lastActivityTime);
+  TEST_ASSERT_FALSE(sleepMode);
+}
+
 void test_sleep_constants_match_intended_durations()
 {
   // LOOP_SLEEP_LIGHT_SLEEP_US drives the timer wakeup interval in
@@ -171,6 +194,7 @@ int main(int, char **)
   RUN_TEST(test_idle_duration_handles_ordering);
   RUN_TEST(test_sleep_mode_off_never_enters_sleep);
   RUN_TEST(test_all_timeout_modes_have_correct_boundaries);
+  RUN_TEST(test_update_sleep_mode_clamps_future_activity_timestamp);
   RUN_TEST(test_sleep_constants_match_intended_durations);
   return UNITY_END();
 }

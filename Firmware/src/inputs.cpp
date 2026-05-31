@@ -18,7 +18,7 @@
 // ---------------------
 static void resetFrameCounter()
 {
-  if (encoderReady)
+  if (hardware.encoder)
   {
     encoder.setEncoderPosition(0); // Reset encoder related values
   }
@@ -116,9 +116,21 @@ void handleLeftButtonShortPress()
   {
     advanceMenuStep(CONFIG_METER_STEP_MAX);
   }
-  else if (ui_mode == UiMode::ConfigUi)
+  else if (ui_mode == UiMode::ConfigDisplay)
   {
-    advanceMenuStep(CONFIG_UI_STEP_MAX);
+    advanceMenuStep(CONFIG_DISPLAY_STEP_MAX);
+  }
+  else if (ui_mode == UiMode::ConfigLidar)
+  {
+    advanceMenuStep(CONFIG_LIDAR_STEP_MAX);
+  }
+  else if (ui_mode == UiMode::ConfigFrameTuning)
+  {
+    advanceMenuStep(CONFIG_FRAME_TUNING_STEP_MAX);
+  }
+  else if (ui_mode == UiMode::ConfigHorizonTrim)
+  {
+    advanceMenuStep(CONFIG_HORIZON_TRIM_STEP_MAX);
   }
   else if (ui_mode == UiMode::ReticleAdjust)
   {
@@ -142,6 +154,15 @@ void handleLeftButtonShortPress()
     {
       // Do not allow a new capture attempt while the previous error is
       // still being held on screen for the minimum display time.
+      //
+      // Note on rapid double-press: there is no explicit debounce here. A
+      // press that arrives during the blocking sample window (or during the
+      // post-capture LED pulse delay) is processed after the handler returns.
+      // The lens hasn't moved by then, so the second capture's averaged
+      // reading equals the previous one and isMonotonicCalibSequenceWithCandidate
+      // rejects it as NON_MONOTONIC. current_calib_distance stays put.
+      // If the monotonic check is ever relaxed, add an explicit
+      // last_successful_capture_ms debounce here.
       if (calib_capture_status != CALIB_CAPTURE_STATUS_NONE &&
           (millis() - calib_capture_status_ms) < CALIB_ERROR_HOLD_MS)
       {
@@ -170,7 +191,7 @@ void handleLeftButtonShortPress()
           // Brief green LED pulse to confirm successful capture.
           // Invalidate prev_frame_progress so the next external UI draw
           // restores the correct progress colour.
-          if (statusPixelReady)
+          if (hardware.statusPixel)
           {
             sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(0, 255, 0));
             sspixel.show();
@@ -192,7 +213,7 @@ void handleLeftButtonShortPress()
             // Show full-screen success and pulse LED before leaving calibration.
             drawCalibCompleteUI();
 
-            if (statusPixelReady)
+            if (hardware.statusPixel)
             {
               for (int i = 0; i < CALIB_COMPLETE_LED_PULSES; i++)
               {
@@ -219,8 +240,9 @@ void handleLeftButtonShortPress()
   }
   else if (ui_mode == UiMode::ResetConfirm)
   {
-    ui_mode = UiMode::Config;
-    config_step = CONFIG_ROOT_STEP_RESET;
+    // Reset frame counter is now a Film-submenu action; cancel returns there.
+    ui_mode = UiMode::ConfigFilm;
+    config_step = CONFIG_FILM_STEP_RESET;
   }
   else if (ui_mode == UiMode::Health)
   {
@@ -242,8 +264,8 @@ void handleReticleAdjustLongPress()
   else
   {
     savePrefs(false, PREFS_DIRTY_SETTINGS);
-    config_step = CONFIG_UI_STEP_RETICLE_ADJUST;
-    ui_mode = UiMode::ConfigUi;
+    config_step = CONFIG_DISPLAY_STEP_RETICLE_ADJUST;
+    ui_mode = UiMode::ConfigDisplay;
   }
 }
 
@@ -273,6 +295,209 @@ void handleRightButtonLongPress()
   }
 }
 
+void handleRightShortConfig()
+{
+  if (config_step == CONFIG_ROOT_STEP_FILM_MENU) {
+    config_step = CONFIG_FILM_STEP_FORMAT;
+    ui_mode = UiMode::ConfigFilm;
+  }
+  else if (config_step == CONFIG_ROOT_STEP_LENS_MENU) {
+    config_step = CONFIG_LENS_STEP_LENS;
+    ui_mode = UiMode::ConfigLens;
+  }
+  else if (config_step == CONFIG_ROOT_STEP_METER_MENU) {
+    config_step = CONFIG_METER_STEP_ISO;
+    ui_mode = UiMode::ConfigMeter;
+  }
+  else if (config_step == CONFIG_ROOT_STEP_LIDAR_MENU) {
+    config_step = CONFIG_LIDAR_STEP_OFFSET;
+    ui_mode = UiMode::ConfigLidar;
+  }
+  else if (config_step == CONFIG_ROOT_STEP_DISPLAY_MENU) {
+    config_step = CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE;
+    ui_mode = UiMode::ConfigDisplay;
+  }
+  else if (config_step == CONFIG_ROOT_STEP_HEALTH) {
+    ui_mode = UiMode::Health;
+  }
+  else if (config_step == CONFIG_ROOT_STEP_EXIT) {
+    ui_mode = UiMode::Main;
+    config_step = 0;
+  }
+}
+
+void handleRightShortConfigFilm()
+{
+  if (config_step == CONFIG_FILM_STEP_FORMAT) {
+    cycleFormats();
+  }
+  else if (config_step == CONFIG_FILM_STEP_CURRENT_FRAME) {
+    cycleCurrentFrame();
+  }
+  else if (config_step == CONFIG_FILM_STEP_RESET) {
+    ui_mode = UiMode::ResetConfirm;
+  }
+  else if (config_step == CONFIG_FILM_STEP_TUNING_MENU) {
+    config_step = CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET;
+    ui_mode = UiMode::ConfigFrameTuning;
+  }
+  else if (config_step == CONFIG_FILM_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_FILM_MENU;
+    ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigFrameTuning()
+{
+  if (config_step == CONFIG_FRAME_TUNING_STEP_FRAME_ONE_OFFSET) {
+    cycleFrameOneOffset();
+  }
+  else if (config_step == CONFIG_FRAME_TUNING_STEP_FRAME_SPACING) {
+    cycleFrameSpacingOffset();
+  }
+  else if (config_step == CONFIG_FRAME_TUNING_STEP_BACK) {
+    config_step = CONFIG_FILM_STEP_TUNING_MENU;
+    ui_mode = UiMode::ConfigFilm;
+  }
+}
+
+void handleRightShortConfigLens()
+{
+  if (config_step == CONFIG_LENS_STEP_LENS) {
+    cycleLenses();
+  }
+  else if (config_step == CONFIG_LENS_STEP_PARALLAX) {
+    parallaxEnabled = !parallaxEnabled;
+    savePrefs();
+  }
+  else if (config_step == CONFIG_LENS_STEP_CALIB) {
+    calib_step = 0;
+    calib_lens = selected_lens; // Use current selected lens for calibration
+    current_calib_distance = 0;
+    calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
+    memset(calib_distance_set, 0, sizeof(calib_distance_set));
+    ui_mode = UiMode::Calib;
+  }
+  else if (config_step == CONFIG_LENS_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_LENS_MENU;
+    ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigMeter()
+{
+  if (config_step == CONFIG_METER_STEP_ISO) {
+    cycleISOs();
+  }
+  else if (config_step == CONFIG_METER_STEP_EV_COMP) {
+    cycleExposureCompensation(CycleDirection::Up);
+  }
+  else if (config_step == CONFIG_METER_STEP_SMOOTHING) {
+    cycleMeterSmoothing();
+  }
+  else if (config_step == CONFIG_METER_STEP_EV_READOUT) {
+    toggleEvReadout();
+  }
+  else if (config_step == CONFIG_METER_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_METER_MENU;
+    ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigDisplay()
+{
+  if (config_step == CONFIG_DISPLAY_STEP_BRIGHTNESS_MODE) {
+    cycleBrightnessMode();
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_BRIGHTNESS_VALUE) {
+    cycleBrightnessValue();
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_HORIZON_ENABLE) {
+    toggleHorizonLine();
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_SLEEP_TIMEOUT) {
+    cycleSleepTimeoutMode();
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU) {
+    config_step = CONFIG_HORIZON_TRIM_STEP_LANDSCAPE;
+    ui_mode = UiMode::ConfigHorizonTrim;
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_RETICLE_ADJUST) {
+    reticle_adjust_step = 0;
+    ui_mode = UiMode::ReticleAdjust;
+  }
+  else if (config_step == CONFIG_DISPLAY_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_DISPLAY_MENU;
+    ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigLidar()
+{
+  if (config_step == CONFIG_LIDAR_STEP_OFFSET) {
+    cycleLidarDistanceOffset();
+  }
+  else if (config_step == CONFIG_LIDAR_STEP_IDLE_TIMEOUT) {
+    cycleLidarIdleTimeoutMode();
+  }
+  else if (config_step == CONFIG_LIDAR_STEP_BACK) {
+    config_step = CONFIG_ROOT_STEP_LIDAR_MENU;
+    ui_mode = UiMode::Config;
+  }
+}
+
+void handleRightShortConfigHorizonTrim()
+{
+  if (config_step == CONFIG_HORIZON_TRIM_STEP_LANDSCAPE) {
+    cycleLevelTrimLandscape();
+  }
+  else if (config_step == CONFIG_HORIZON_TRIM_STEP_PORTRAIT_POS) {
+    cycleLevelTrimPortraitPos();
+  }
+  else if (config_step == CONFIG_HORIZON_TRIM_STEP_PORTRAIT_NEG) {
+    cycleLevelTrimPortraitNeg();
+  }
+  else if (config_step == CONFIG_HORIZON_TRIM_STEP_BACK) {
+    config_step = CONFIG_DISPLAY_STEP_HORIZON_TRIM_MENU;
+    ui_mode = UiMode::ConfigDisplay;
+  }
+}
+
+void handleRightShortReticleAdjust()
+{
+  if (reticle_adjust_step == 0) {
+    reticle_offset_x = constrain(reticle_offset_x + 1, RETICLE_OFFSET_MIN, RETICLE_OFFSET_MAX);
+  }
+  else {
+    reticle_offset_y = constrain(reticle_offset_y + 1, RETICLE_OFFSET_MIN, RETICLE_OFFSET_MAX);
+  }
+}
+
+void handleRightShortCalib()
+{
+  if (calib_step == 0) {
+    calib_step = 1;
+    calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
+  }
+  else if (calib_step == 1) {
+    calib_step = 0;
+    calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
+    config_step = CONFIG_LENS_STEP_CALIB;
+    ui_mode = UiMode::ConfigLens;
+  }
+}
+
+void handleRightShortHealth()
+{
+  if (!hardware.lidarSensor) {
+    retryLidarInit();
+  }
+  else {
+    ui_mode = UiMode::Config;
+    config_step = CONFIG_ROOT_STEP_HEALTH;
+  }
+}
+
 void handleRightButtonShortPress()
 {
   bool wasSleeping = sleepMode;
@@ -282,188 +507,52 @@ void handleRightButtonShortPress()
     return;
   }
 
-  if (ui_mode == UiMode::Main)
+  switch (ui_mode)
   {
+  case UiMode::Main:
     cycleApertures(CycleDirection::Up);
-  }
-  else if (ui_mode == UiMode::Config)
-  {
-    if (config_step == CONFIG_ROOT_STEP_FILM_MENU) {
-      config_step = CONFIG_FILM_STEP_FORMAT;
-      ui_mode = UiMode::ConfigFilm;
-    }
-    else if (config_step == CONFIG_ROOT_STEP_LENS_MENU) {
-      config_step = CONFIG_LENS_STEP_LENS;
-      ui_mode = UiMode::ConfigLens;
-    }
-    else if (config_step == CONFIG_ROOT_STEP_METER_MENU) {
-      config_step = CONFIG_METER_STEP_ISO;
-      ui_mode = UiMode::ConfigMeter;
-    }
-    else if (config_step == CONFIG_ROOT_STEP_UI_MENU) {
-      config_step = CONFIG_UI_STEP_HORIZON_LANDSCAPE;
-      ui_mode = UiMode::ConfigUi;
-    }
-    else if (config_step == CONFIG_ROOT_STEP_RESET) {
-      ui_mode = UiMode::ResetConfirm;
-    }
-    else if (config_step == CONFIG_ROOT_STEP_HEALTH) {
-      ui_mode = UiMode::Health;
-    }
-    else if (config_step == CONFIG_ROOT_STEP_EXIT) {
-      ui_mode = UiMode::Main;
-      config_step = 0;
-    }
-  }
-  else if (ui_mode == UiMode::ConfigFilm)
-  {
-    if (config_step == CONFIG_FILM_STEP_FORMAT)
-    {
-      cycleFormats();
-    }
-    else if (config_step == CONFIG_FILM_STEP_CURRENT_FRAME)
-    {
-      cycleCurrentFrame();
-    }
-    else if (config_step == CONFIG_FILM_STEP_FRAME_ONE_OFFSET)
-    {
-      cycleFrameOneOffset();
-    }
-    else if (config_step == CONFIG_FILM_STEP_FRAME_SPACING)
-    {
-      cycleFrameSpacingOffset();
-    }
-    else if (config_step == CONFIG_FILM_STEP_BACK)
-    {
-      config_step = CONFIG_ROOT_STEP_FILM_MENU;
-      ui_mode = UiMode::Config;
-    }
-  }
-  else if (ui_mode == UiMode::ConfigLens)
-  {
-    if (config_step == CONFIG_LENS_STEP_LENS) {
-      cycleLenses();
-    }
-    else if (config_step == CONFIG_LENS_STEP_PARALLAX) {
-      parallaxEnabled = !parallaxEnabled;
-      savePrefs();
-    }
-    else if (config_step == CONFIG_LENS_STEP_CALIB) {
-      calib_step = 0;
-      calib_lens = selected_lens; // Use current selected lens for calibration
-      current_calib_distance = 0;
-      calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
-      memset(calib_distance_set, 0, sizeof(calib_distance_set));
-      ui_mode = UiMode::Calib;
-    }
-    else if (config_step == CONFIG_LENS_STEP_BACK) {
-      config_step = CONFIG_ROOT_STEP_LENS_MENU;
-      ui_mode = UiMode::Config;
-    }
-  }
-  else if (ui_mode == UiMode::ConfigMeter)
-  {
-    if (config_step == CONFIG_METER_STEP_ISO) {
-      cycleISOs();
-    }
-    else if (config_step == CONFIG_METER_STEP_EV_COMP) {
-      cycleExposureCompensation(CycleDirection::Up);
-    }
-    else if (config_step == CONFIG_METER_STEP_SMOOTHING) {
-      cycleMeterSmoothing();
-    }
-    else if (config_step == CONFIG_METER_STEP_EV_READOUT) {
-      toggleEvReadout();
-    }
-    else if (config_step == CONFIG_METER_STEP_BACK) {
-      config_step = CONFIG_ROOT_STEP_METER_MENU;
-      ui_mode = UiMode::Config;
-    }
-  }
-  else if (ui_mode == UiMode::ConfigUi)
-  {
-    if (config_step == CONFIG_UI_STEP_HORIZON_LANDSCAPE) {
-      cycleLevelTrimLandscape();
-    }
-    else if (config_step == CONFIG_UI_STEP_HORIZON_PORTRAIT_POS) {
-      cycleLevelTrimPortraitPos();
-    }
-    else if (config_step == CONFIG_UI_STEP_HORIZON_PORTRAIT_NEG) {
-      cycleLevelTrimPortraitNeg();
-    }
-    else if (config_step == CONFIG_UI_STEP_HORIZON_ENABLE) {
-      toggleHorizonLine();
-    }
-    else if (config_step == CONFIG_UI_STEP_BRIGHTNESS_MODE) {
-      cycleBrightnessMode();
-    }
-    else if (config_step == CONFIG_UI_STEP_BRIGHTNESS_VALUE) {
-      cycleBrightnessValue();
-    }
-    else if (config_step == CONFIG_UI_STEP_SLEEP_TIMEOUT) {
-      cycleSleepTimeoutMode();
-    }
-    else if (config_step == CONFIG_UI_STEP_LIDAR_IDLE_TIMEOUT) {
-      cycleLidarIdleTimeoutMode();
-    }
-    else if (config_step == CONFIG_UI_STEP_LIDAR_OFFSET) {
-      cycleLidarDistanceOffset();
-    }
-    else if (config_step == CONFIG_UI_STEP_RETICLE_ADJUST) {
-      reticle_adjust_step = 0;
-      ui_mode = UiMode::ReticleAdjust;
-    }
-    else if (config_step == CONFIG_UI_STEP_BACK) {
-      config_step = CONFIG_ROOT_STEP_UI_MENU;
-      ui_mode = UiMode::Config;
-    }
-  }
-  else if (ui_mode == UiMode::ReticleAdjust)
-  {
-    if (reticle_adjust_step == 0)
-    {
-      reticle_offset_x = constrain(reticle_offset_x + 1, RETICLE_OFFSET_MIN, RETICLE_OFFSET_MAX);
-    }
-    else
-    {
-      reticle_offset_y = constrain(reticle_offset_y + 1, RETICLE_OFFSET_MIN, RETICLE_OFFSET_MAX);
-    }
-  }
-  else if (ui_mode == UiMode::Calib)
-  {
-    if (calib_step == 0)
-    {
-      calib_step = 1;
-      calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
-    }
-    else if (calib_step == 1) {
-      calib_step = 0;
-      calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
-      config_step = CONFIG_LENS_STEP_CALIB;
-      ui_mode = UiMode::ConfigLens;
-    }
-  }
-  else if (ui_mode == UiMode::ResetConfirm)
-  {
+    break;
+  case UiMode::Config:
+    handleRightShortConfig();
+    break;
+  case UiMode::ConfigFilm:
+    handleRightShortConfigFilm();
+    break;
+  case UiMode::ConfigFrameTuning:
+    handleRightShortConfigFrameTuning();
+    break;
+  case UiMode::ConfigLens:
+    handleRightShortConfigLens();
+    break;
+  case UiMode::ConfigMeter:
+    handleRightShortConfigMeter();
+    break;
+  case UiMode::ConfigLidar:
+    handleRightShortConfigLidar();
+    break;
+  case UiMode::ConfigDisplay:
+    handleRightShortConfigDisplay();
+    break;
+  case UiMode::ConfigHorizonTrim:
+    handleRightShortConfigHorizonTrim();
+    break;
+  case UiMode::ReticleAdjust:
+    handleRightShortReticleAdjust();
+    break;
+  case UiMode::Calib:
+    handleRightShortCalib();
+    break;
+  case UiMode::ResetConfirm:
     resetFrameCounter();
     ui_mode = UiMode::Main;
     config_step = 0;
-  }
-  else if (ui_mode == UiMode::Health)
-  {
-    if (!lidarSensorReady)
-    {
-      retryLidarInit();
-    }
-    else
-    {
-      ui_mode = UiMode::Config;
-      config_step = CONFIG_ROOT_STEP_HEALTH;
-    }
-  }
-  else if (ui_mode == UiMode::FactoryResetConfirm)
-  {
+    break;
+  case UiMode::Health:
+    handleRightShortHealth();
+    break;
+  case UiMode::FactoryResetConfirm:
     performFactoryReset();
+    break;
   }
 }
 } // namespace

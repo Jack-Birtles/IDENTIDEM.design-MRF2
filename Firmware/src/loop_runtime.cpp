@@ -17,6 +17,7 @@
 #include "interface.h"
 #include "mrfconstants.h"
 #include "setfuncs.h"
+#include "ui_signature_logic.h"
 
 namespace
 {
@@ -71,131 +72,92 @@ struct LoopRuntimeState
 
 LoopRuntimeState loopState;
 
-constexpr uint32_t HASH_OFFSET_BASIS = 2166136261u;
-constexpr uint32_t HASH_PRIME = 16777619u;
-
-uint32_t hashUint32(uint32_t hash, uint32_t value)
+MainUiSnapshot captureMainUiSnapshot()
 {
-  hash ^= value;
-  hash *= HASH_PRIME;
-  return hash;
+  return {
+      static_cast<int>(ui_mode),
+      selected_lens,
+      selected_format,
+      iso,
+      aperture,
+      show_ev_readout,
+      ev_readout,
+      shutter_speed,
+      distance_cm,
+      lens_distance_cm,
+      distance,
+      lens_distance_raw,
+      lidar_quality_level,
+      lidar_high_sunlight,
+      parallaxEnabled,
+      reticle_offset_x,
+      reticle_offset_y,
+      show_horizon_line,
+  };
 }
 
-uint32_t hashInt(uint32_t hash, int value)
+MenuUiSnapshot captureMenuUiSnapshot()
 {
-  return hashUint32(hash, static_cast<uint32_t>(value));
+  return {
+      static_cast<int>(ui_mode),
+      config_step,
+      calib_step,
+      selected_lens,
+      selected_format,
+      calib_lens,
+      current_calib_distance,
+      calib_capture_status,
+      calib_capture_status_ms,
+      lens_sensor_reading,
+      iso,
+      aperture,
+      exposure_comp_thirds,
+      meter_smoothing_mode,
+      show_ev_readout,
+      parallaxEnabled,
+      sleep_timeout_mode,
+      lidar_idle_timeout_mode,
+      level_trim_landscape_deci_deg,
+      level_trim_portrait_pos_deci_deg,
+      level_trim_portrait_neg_deci_deg,
+      reticle_offset_x,
+      reticle_offset_y,
+      reticle_adjust_step,
+      brightness_auto,
+      brightness_manual_pct,
+      brightness_auto_top_pct,
+      show_horizon_line,
+      frame_one_offset,
+      frame_spacing_offset,
+      film_counter,
+      last_lidar_error_code,
+      lidar_recovery_count,
+      lidarEnabled,
+      hardware.ads,
+      hardware.mpu,
+      hardware.mainDisplay,
+      hardware.externalDisplay,
+      hardware.batteryGauge,
+      hardware.lightMeter,
+      hardware.statusPixel,
+      hardware.encoder,
+      hardware.lidarSensor,
+      prefsSchemaValid,
+      prefsLoadedLegacy,
+      static_cast<int>(prefsSchemaVersionLoaded),
+  };
 }
 
-uint32_t hashBool(uint32_t hash, bool value)
+ExternalUiSnapshot captureExternalUiSnapshot()
 {
-  return hashUint32(hash, value ? 1u : 0u);
-}
-
-uint32_t hashFloat(uint32_t hash, float value)
-{
-  uint32_t bits = 0;
-  memcpy(&bits, &value, sizeof(bits));
-  return hashUint32(hash, bits);
-}
-
-uint32_t hashCString(uint32_t hash, const char *value)
-{
-  const char *raw = value ? value : "";
-  size_t len = strlen(raw);
-  hash = hashUint32(hash, static_cast<uint32_t>(len));
-  for (size_t i = 0; i < len; i++)
-  {
-    hash = hashUint32(hash, static_cast<uint8_t>(raw[i]));
-  }
-  return hash;
-}
-
-uint32_t buildMainUiSignature()
-{
-  uint32_t hash = HASH_OFFSET_BASIS;
-  hash = hashInt(hash, static_cast<int>(ui_mode));
-  hash = hashInt(hash, selected_lens);
-  hash = hashInt(hash, selected_format);
-  hash = hashInt(hash, iso);
-  hash = hashFloat(hash, aperture);
-  hash = hashBool(hash, show_ev_readout);
-  hash = hashFloat(hash, ev_readout);
-  hash = hashCString(hash, shutter_speed);
-  hash = hashCString(hash, distance_cm);
-  hash = hashCString(hash, lens_distance_cm);
-  hash = hashInt(hash, distance);
-  hash = hashInt(hash, lens_distance_raw);
-  hash = hashInt(hash, lidar_quality_level);
-  hash = hashBool(hash, lidar_high_sunlight);
-  hash = hashBool(hash, parallaxEnabled);
-  hash = hashInt(hash, reticle_offset_x);
-  hash = hashInt(hash, reticle_offset_y);
-  hash = hashBool(hash, show_horizon_line);
-  return hash;
-}
-
-uint32_t buildMenuUiSignature()
-{
-  uint32_t hash = HASH_OFFSET_BASIS;
-  hash = hashInt(hash, static_cast<int>(ui_mode));
-  hash = hashInt(hash, config_step);
-  hash = hashInt(hash, calib_step);
-  hash = hashInt(hash, selected_lens);
-  hash = hashInt(hash, selected_format);
-  hash = hashInt(hash, calib_lens);
-  hash = hashInt(hash, current_calib_distance);
-  hash = hashInt(hash, calib_capture_status);
-  hash = hashUint32(hash, static_cast<uint32_t>(calib_capture_status_ms));
-  hash = hashInt(hash, lens_sensor_reading);
-  hash = hashInt(hash, iso);
-  hash = hashFloat(hash, aperture);
-  hash = hashInt(hash, exposure_comp_thirds);
-  hash = hashInt(hash, meter_smoothing_mode);
-  hash = hashBool(hash, show_ev_readout);
-  hash = hashBool(hash, parallaxEnabled);
-  hash = hashInt(hash, sleep_timeout_mode);
-  hash = hashInt(hash, lidar_idle_timeout_mode);
-  hash = hashInt(hash, level_trim_landscape_deci_deg);
-  hash = hashInt(hash, level_trim_portrait_pos_deci_deg);
-  hash = hashInt(hash, level_trim_portrait_neg_deci_deg);
-  hash = hashInt(hash, reticle_offset_x);
-  hash = hashInt(hash, reticle_offset_y);
-  hash = hashInt(hash, reticle_adjust_step);
-  hash = hashBool(hash, brightness_auto);
-  hash = hashInt(hash, brightness_manual_pct);
-  hash = hashInt(hash, brightness_auto_top_pct);
-  hash = hashBool(hash, show_horizon_line);
-  hash = hashInt(hash, frame_one_offset);
-  hash = hashInt(hash, frame_spacing_offset);
-  hash = hashInt(hash, film_counter);
-  hash = hashInt(hash, last_lidar_error_code);
-  hash = hashInt(hash, lidar_recovery_count);
-  hash = hashBool(hash, lidarEnabled);
-  hash = hashBool(hash, adsReady);
-  hash = hashBool(hash, mpuReady);
-  hash = hashBool(hash, mainDisplayReady);
-  hash = hashBool(hash, externalDisplayReady);
-  hash = hashBool(hash, batteryGaugeReady);
-  hash = hashBool(hash, lightMeterReady);
-  hash = hashBool(hash, statusPixelReady);
-  hash = hashBool(hash, encoderReady);
-  hash = hashBool(hash, lidarSensorReady);
-  hash = hashBool(hash, prefsSchemaValid);
-  hash = hashBool(hash, prefsLoadedLegacy);
-  hash = hashInt(hash, prefsSchemaVersionLoaded);
-  return hash;
-}
-
-uint32_t buildExternalUiSignature()
-{
-  uint32_t hash = HASH_OFFSET_BASIS;
-  hash = hashInt(hash, selected_format);
-  hash = hashInt(hash, selected_lens);
-  hash = hashInt(hash, bat_per);
-  hash = hashInt(hash, film_counter);
-  hash = hashInt(hash, static_cast<int>(frame_progress * 1000.0f));
-  hash = hashBool(hash, sleepMode);
-  return hash;
+  return {
+      selected_format,
+      selected_lens,
+      bat_per,
+      film_counter,
+      frame_progress,
+      sleepMode,
+  };
 }
 
 bool shouldDrawPrimaryUi(unsigned long nowMs)
@@ -203,7 +165,7 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
   UiRenderCache &cache = loopState.uiRenderCache;
   if (ui_mode == UiMode::Main)
   {
-    uint32_t signature = buildMainUiSignature();
+    uint32_t signature = buildMainUiSignature(captureMainUiSnapshot());
     bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.mainSignature;
     bool refreshDue = (nowMs - cache.lastMainDrawMs) >= LOOP_UI_MAIN_REFRESH_MS;
     if (!changed && !refreshDue)
@@ -216,7 +178,7 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
     return true;
   }
 
-  uint32_t signature = buildMenuUiSignature();
+  uint32_t signature = buildMenuUiSignature(captureMenuUiSnapshot());
   bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.menuSignature;
   bool healthRefreshDue = (ui_mode == UiMode::Health) &&
                           ((nowMs - cache.lastHealthDrawMs) >= LOOP_UI_HEALTH_REFRESH_MS);
@@ -236,7 +198,7 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
 bool shouldDrawExternalUi()
 {
   UiRenderCache &cache = loopState.uiRenderCache;
-  uint32_t signature = buildExternalUiSignature();
+  uint32_t signature = buildExternalUiSignature(captureExternalUiSnapshot());
   bool changed = !cache.initialized || signature != cache.externalSignature;
   if (changed)
   {
@@ -251,37 +213,47 @@ void updateUiRenderCacheMode()
   loopState.uiRenderCache.lastMode = ui_mode;
 }
 
+// Adaptive polling: stay on the fast cadence while a domain has been active
+// recently, then drop to the idle cadence after the hold window expires.
+struct AdaptivePollingProfile
+{
+  unsigned long fast_ms;
+  unsigned long idle_ms;
+  unsigned long hold_ms;
+};
+
 unsigned long selectAdaptiveInterval(unsigned long nowMs,
                                      unsigned long lastActivityMs,
-                                     unsigned long fastIntervalMs,
-                                     unsigned long idleIntervalMs,
-                                     unsigned long holdWindowMs)
+                                     const AdaptivePollingProfile &profile)
 {
-  if ((nowMs - lastActivityMs) < holdWindowMs)
+  if ((nowMs - lastActivityMs) < profile.hold_ms)
   {
-    return fastIntervalMs;
+    return profile.fast_ms;
   }
-  return idleIntervalMs;
+  return profile.idle_ms;
 }
+
+constexpr AdaptivePollingProfile FILM_COUNTER_POLLING_PROFILE = {
+    LOOP_FILM_COUNTER_INTERVAL_MS,
+    LOOP_FILM_COUNTER_IDLE_INTERVAL_MS,
+    LOOP_FILM_COUNTER_ACTIVE_HOLD_MS};
+constexpr AdaptivePollingProfile LENS_POLLING_PROFILE = {
+    LOOP_LENS_INTERVAL_MS,
+    LOOP_LENS_IDLE_INTERVAL_MS,
+    LOOP_LENS_ACTIVE_HOLD_MS};
+constexpr AdaptivePollingProfile LIGHTMETER_POLLING_PROFILE = {
+    LOOP_LIGHTMETER_INTERVAL_MS,
+    LOOP_LIGHTMETER_IDLE_INTERVAL_MS,
+    LOOP_LIGHTMETER_ACTIVE_HOLD_MS};
 
 unsigned long getFilmCounterIntervalMs(unsigned long nowMs)
 {
-  return selectAdaptiveInterval(
-      nowMs,
-      loopState.lastFilmMovementMs,
-      LOOP_FILM_COUNTER_INTERVAL_MS,
-      LOOP_FILM_COUNTER_IDLE_INTERVAL_MS,
-      LOOP_FILM_COUNTER_ACTIVE_HOLD_MS);
+  return selectAdaptiveInterval(nowMs, loopState.lastFilmMovementMs, FILM_COUNTER_POLLING_PROFILE);
 }
 
 unsigned long getLensIntervalMs(unsigned long nowMs)
 {
-  return selectAdaptiveInterval(
-      nowMs,
-      loopState.lastLensMovementMs,
-      LOOP_LENS_INTERVAL_MS,
-      LOOP_LENS_IDLE_INTERVAL_MS,
-      LOOP_LENS_ACTIVE_HOLD_MS);
+  return selectAdaptiveInterval(nowMs, loopState.lastLensMovementMs, LENS_POLLING_PROFILE);
 }
 
 unsigned long getLightMeterIntervalMs(unsigned long nowMs)
@@ -289,20 +261,14 @@ unsigned long getLightMeterIntervalMs(unsigned long nowMs)
   // Keep meter updates snappy whenever user-adjusted settings are pending.
   if (aperture != prev_aperture || iso != prev_iso)
   {
-    return LOOP_LIGHTMETER_INTERVAL_MS;
+    return LIGHTMETER_POLLING_PROFILE.fast_ms;
   }
-
-  return selectAdaptiveInterval(
-      nowMs,
-      loopState.lastMeterChangeMs,
-      LOOP_LIGHTMETER_INTERVAL_MS,
-      LOOP_LIGHTMETER_IDLE_INTERVAL_MS,
-      LOOP_LIGHTMETER_ACTIVE_HOLD_MS);
+  return selectAdaptiveInterval(nowMs, loopState.lastMeterChangeMs, LIGHTMETER_POLLING_PROFILE);
 }
 
 bool sendLightMeterCommand(uint8_t command)
 {
-  if (!lightMeterReady)
+  if (!hardware.lightMeter)
   {
     return false;
   }
@@ -325,7 +291,7 @@ void powerDownLightMeterForSleep()
     return;
   }
 
-  lightMeterReady = false;
+  hardware.lightMeter = false;
   loopState.lightMeterSleeping = false;
 }
 
@@ -339,7 +305,7 @@ void wakeLightMeterFromSleep()
   bool poweredOn = sendLightMeterCommand(LIGHTMETER_CMD_POWER_ON);
   if (!poweredOn)
   {
-    lightMeterReady = false;
+    hardware.lightMeter = false;
     loopState.lightMeterSleeping = false;
     return;
   }
@@ -352,32 +318,34 @@ void wakeLightMeterFromSleep()
 
   if (!configured)
   {
-    lightMeterReady = false;
+    hardware.lightMeter = false;
     loopState.lightMeterSleeping = false;
     return;
   }
 
-  lightMeterReady = true;
+  hardware.lightMeter = true;
   loopState.lightMeterSleeping = false;
 }
 
+// Sleep-wake activity baselines are owned by finaliseSleepServices(): it is
+// the single site that captures fresh encoder and lens positions when the
+// device enters its first light-sleep tick, and exitSleepServices() is the
+// single site that clears sleepWakeBaselinesInitialized when waking. The
+// poll functions below rely on baselines being populated; the runtime loop
+// only calls them after the sleepWakeBaselinesInitialized gate at line ~675
+// has been crossed, so the poll functions never see uninitialized state.
 void initializeSleepWakeBaselines()
 {
-  loopState.sleepWakeEncoderBaseline = encoderReady ? encoder.getEncoderPosition() : 0;
-  loopState.sleepWakeLensBaseline = adsReady ? theads.readADC_SingleEnded(LENS_ADC_PIN) : 0;
+  loopState.sleepWakeEncoderBaseline = hardware.encoder ? encoder.getEncoderPosition() : 0;
+  loopState.sleepWakeLensBaseline = hardware.ads ? theads.readADC_SingleEnded(LENS_ADC_PIN) : 0;
   loopState.sleepWakeBaselinesInitialized = true;
 }
 
 void pollSleepWakeEncoder()
 {
-  if (!encoderReady)
+  if (!hardware.encoder)
   {
     return;
-  }
-
-  if (!loopState.sleepWakeBaselinesInitialized)
-  {
-    initializeSleepWakeBaselines();
   }
 
   int currentEncoder = encoder.getEncoderPosition();
@@ -390,14 +358,9 @@ void pollSleepWakeEncoder()
 
 void pollSleepWakeLens()
 {
-  if (!adsReady)
+  if (!hardware.ads)
   {
     return;
-  }
-
-  if (!loopState.sleepWakeBaselinesInitialized)
-  {
-    initializeSleepWakeBaselines();
   }
 
   int currentLensReading = theads.readADC_SingleEnded(LENS_ADC_PIN);
@@ -423,7 +386,7 @@ void resetWakeSchedulerAndActivityBaselines(unsigned long nowMs)
 
 void beginFadeOutMainDisplay(unsigned long nowMs)
 {
-  if (!mainDisplayReady)
+  if (!hardware.mainDisplay)
   {
     return;
   }
@@ -440,7 +403,7 @@ bool isFadeComplete()
 
 void stepFadeOutMainDisplay(unsigned long nowMs)
 {
-  if (!loopState.fade.active || !mainDisplayReady)
+  if (!loopState.fade.active || !hardware.mainDisplay)
   {
     return;
   }
@@ -484,7 +447,7 @@ uint8_t computeTargetBrightnessByte()
 
 void applyDisplayBrightness()
 {
-  if (!mainDisplayReady || loopState.fade.active)
+  if (!hardware.mainDisplay || loopState.fade.active)
   {
     return;
   }
@@ -494,7 +457,7 @@ void applyDisplayBrightness()
 
 void restoreMainDisplayBrightness()
 {
-  if (!mainDisplayReady)
+  if (!hardware.mainDisplay)
   {
     return;
   }
@@ -515,12 +478,12 @@ void beginSleepFade(unsigned long nowMs)
 void finaliseSleepServices()
 {
   // Keep external sleep text visible while turning the main display fully off.
-  if (mainDisplayReady)
+  if (hardware.mainDisplay)
   {
     display.oled_command(OLED_CMD_DISPLAY_OFF);
   }
 
-  if (statusPixelReady)
+  if (hardware.statusPixel)
   {
     sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_OFF_R, NEOPIXEL_OFF_G, NEOPIXEL_OFF_B));
     sspixel.show();
@@ -528,7 +491,7 @@ void finaliseSleepServices()
 
   initializeSleepWakeBaselines();
 
-  if (mpuReady)
+  if (hardware.mpu)
   {
     mpu.enableSleep(true);
   }
@@ -553,13 +516,13 @@ void exitSleepServices()
   gpio_wakeup_disable(static_cast<gpio_num_t>(BUTTON_LEFT_PIN));
   gpio_wakeup_disable(static_cast<gpio_num_t>(BUTTON_RIGHT_PIN));
 
-  if (mainDisplayReady)
+  if (hardware.mainDisplay)
   {
     display.oled_command(OLED_CMD_DISPLAY_ON);
     restoreMainDisplayBrightness();
   }
 
-  if (mpuReady)
+  if (hardware.mpu)
   {
     mpu.enableSleep(false);
   }
@@ -576,7 +539,7 @@ void exitSleepServices()
 
 void updateLidarIdleStandby(unsigned long nowMs)
 {
-  if (!lidarSensorReady)
+  if (!hardware.lidarSensor)
   {
     loopState.lidarIdleStandbyActive = false;
     return;
@@ -639,14 +602,23 @@ void drawPrimaryUiForCurrentMode()
   case UiMode::ConfigFilm:
     drawFilmConfigUI();
     break;
+  case UiMode::ConfigFrameTuning:
+    drawFrameTuningConfigUI();
+    break;
   case UiMode::ConfigLens:
     drawLensConfigUI();
     break;
   case UiMode::ConfigMeter:
     drawMeterConfigUI();
     break;
-  case UiMode::ConfigUi:
-    drawUiConfigUI();
+  case UiMode::ConfigLidar:
+    drawLidarConfigUI();
+    break;
+  case UiMode::ConfigDisplay:
+    drawDisplayConfigUI();
+    break;
+  case UiMode::ConfigHorizonTrim:
+    drawHorizonTrimConfigUI();
     break;
   case UiMode::Calib:
     drawCalibUI();
@@ -761,7 +733,7 @@ void updateLidarTask(unsigned long nowMs)
 
 void updateLensTask(unsigned long nowMs)
 {
-  if (!adsReady)
+  if (!hardware.ads)
   {
     return;
   }
@@ -822,13 +794,13 @@ void updateUiTask(unsigned long nowMs)
   }
 
   bool drewPrimaryUi = false;
-  if (mainDisplayReady && shouldDrawPrimaryUi(nowMs))
+  if (hardware.mainDisplay && shouldDrawPrimaryUi(nowMs))
   {
     drewPrimaryUi = true;
     drawPrimaryUiForCurrentMode();
   }
 
-  if (externalDisplayReady && (drewPrimaryUi || shouldDrawExternalUi()))
+  if (hardware.externalDisplay && (drewPrimaryUi || shouldDrawExternalUi()))
   {
     drawExternalUI();
   }
