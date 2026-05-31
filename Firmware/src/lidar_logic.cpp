@@ -434,6 +434,33 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
   return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
 }
 
+bool updatePlausibilityHold(PlausibilityHoldState &state,
+                            int reading_cm,
+                            int stable_delta_cm,
+                            int stable_release_frames,
+                            int max_hold_frames)
+{
+  state.rejectedFrames++;
+  if (state.lastRejectedCm > 0 && abs(reading_cm - state.lastRejectedCm) <= stable_delta_cm)
+  {
+    state.consistentFrames++;
+  }
+  else
+  {
+    state.consistentFrames = 1;
+  }
+  state.lastRejectedCm = reading_cm;
+
+  bool settled = state.consistentFrames >= stable_release_frames;
+  bool capped = state.rejectedFrames >= max_hold_frames;
+  return settled || capped;
+}
+
+void resetPlausibilityHold(PlausibilityHoldState &state)
+{
+  state = PlausibilityHoldState{};
+}
+
 int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames)
 {
   if (stable_streak_frames < LIDAR_STABLE_MIN_FRAMES)

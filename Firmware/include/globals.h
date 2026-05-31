@@ -64,6 +64,7 @@ extern char distance_cm[16];
 extern int lidar_quality_level;     // 0..4 (none, poor..excellent).
 extern bool lidarEnabled;
 extern bool lidar_high_sunlight;
+extern bool lidar_distance_held;    // True when the plausibility gate is holding a stale reading.
 extern int lidar_distance_offset_mm;
 
 // ---------------------------------------------------------------------------

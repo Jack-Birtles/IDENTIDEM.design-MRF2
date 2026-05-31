@@ -46,7 +46,7 @@ LightMeterSmoothingState lightMeterSmoothing;
 struct LidarRuntimeState
 {
   LidarRecoveryState recovery = {};    // error / timeout backoff for sensor recovery attempts
-  int implausibleFrames = 0;           // count of consecutive plausibility-gate rejections
+  PlausibilityHoldState plausibilityHold = {}; // overshoot-hold tracking (re-aim vs beam-miss)
   int stableStreakFrames = 0;          // count of consecutive readings within stability delta
 };
 LidarRuntimeState lidarRuntime;
@@ -96,6 +96,7 @@ void clearLidarDisplay(const char *placeholder)
 {
   snprintf(distance_cm, sizeof(distance_cm), "%s", placeholder);
   lidar_quality_level = 0;
+  lidar_distance_held = false; // Placeholder shown — nothing is being held.
   prev_distance = 0; // Reset so the next valid reading is not penalised against a stale value.
 }
 
@@ -107,6 +108,7 @@ void setDistance()
   {
     lidarRuntime.recovery = {};
     lidar_high_sunlight = false;
+    lidar_distance_held = false;
     return;
   }
 
@@ -142,24 +144,30 @@ void setDistance()
       return;
     }
 
-    // Plausibility gate: when the lens is focused close, reject LiDAR readings
-    // that significantly overshoot the lens prior — almost certainly a beam-miss
-    // past the framed subject. Hold the previous valid value instead. After a
-    // streak of rejections, fall through so the user can deliberately re-focus
-    // past the previous LiDAR target without being stuck.
+    // Plausibility gate: when the lens is focused within 3m, reject LiDAR
+    // readings that significantly overshoot the lens prior — almost certainly a
+    // beam-miss past the framed subject. Hold the previous valid value instead.
+    // After a short streak of rejections, fall through so the user can
+    // deliberately re-focus past the previous LiDAR target without being stuck.
     if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
     {
-      lidarRuntime.implausibleFrames++;
       lidarRuntime.stableStreakFrames = 0; // Rejection means we are not tracking a stable subject.
-      if (lidarRuntime.implausibleFrames < LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES)
+      bool release = updatePlausibilityHold(lidarRuntime.plausibilityHold,
+                                            chosen.distance_cm,
+                                            LIDAR_PLAUSIBILITY_STABLE_DELTA_CM,
+                                            LIDAR_PLAUSIBILITY_STABLE_RELEASE_FRAMES,
+                                            LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES);
+      lidar_distance_held = !release;
+      if (!release)
       {
-        return;
+        return; // Hold the previous valid reading until the overshoot settles or caps out.
       }
-      // Fall through: streak exceeded, accept the reading.
+      // Released: the user has deliberately re-aimed past the previous target.
     }
     else
     {
-      lidarRuntime.implausibleFrames = 0;
+      resetPlausibilityHold(lidarRuntime.plausibilityHold);
+      lidar_distance_held = false;
     }
 
     // Subject-stable confidence boost: count consecutive readings within the

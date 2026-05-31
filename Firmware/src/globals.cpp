@@ -36,6 +36,7 @@ char distance_cm[16] = "...";
 int lidar_quality_level = 0;
 bool lidarEnabled = true;
 bool lidar_high_sunlight = false;
+bool lidar_distance_held = false;
 int lidar_distance_offset_mm = DEFAULT_LIDAR_DISTANCE_OFFSET_MM;
 
 // ---------------------------------------------------------------------------

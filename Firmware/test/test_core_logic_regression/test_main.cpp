@@ -414,9 +414,11 @@ void test_lidar_plausibility_gate_allows_undershoot_and_far_focus()
   TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500));
   // No lens prior available: gate disabled.
   TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0));
-  // Lens at boundary itself (200cm) still gated; lens just past it (201cm) not gated.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 200));
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 201));
+  // Lens focused at 2.5m is now within the gate's coverage (boundary raised to 3m).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 250));
+  // Lens at boundary itself (300cm) still gated; lens just past it (301cm) not gated.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 300));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 301));
 }
 
 void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
@@ -425,6 +427,37 @@ void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
   TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100));
   // 301cm IS implausible.
   TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
+}
+
+void test_lidar_plausibility_hold_releases_on_stable_far_readings()
+{
+  PlausibilityHoldState state = {};
+  // First implausible reading: held — one frame, neither consistent nor capped.
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 500, 30, 2, 3));
+  // Second reading agrees within the stable delta (510 vs 500): a deliberate
+  // re-aim at a real far subject, so release immediately.
+  TEST_ASSERT_TRUE(updatePlausibilityHold(state, 510, 30, 2, 3));
+}
+
+void test_lidar_plausibility_hold_caps_noisy_beam_miss()
+{
+  PlausibilityHoldState state = {};
+  // Jumpy beam-miss returns never settle within the stable delta...
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 500, 30, 2, 3)); // frame 1
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 800, 30, 2, 3)); // frame 2 (jumped)
+  // ...but the absolute fallthrough cap (3 frames) still releases so the
+  // readout can never be pinned to a stale value forever.
+  TEST_ASSERT_TRUE(updatePlausibilityHold(state, 400, 30, 2, 3));  // frame 3 hits cap
+}
+
+void test_lidar_plausibility_hold_reset_restarts_counts()
+{
+  PlausibilityHoldState state = {};
+  updatePlausibilityHold(state, 500, 30, 2, 3);
+  updatePlausibilityHold(state, 510, 30, 2, 3); // would have released
+  resetPlausibilityHold(state);
+  // After a plausible reading resets the hold, a fresh overshoot is held again.
+  TEST_ASSERT_FALSE(updatePlausibilityHold(state, 500, 30, 2, 3));
 }
 
 void test_lidar_stable_boost_under_min_frames_does_nothing()
@@ -1049,6 +1082,9 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
   RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
   RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
+  RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
+  RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);
+  RUN_TEST(test_lidar_plausibility_hold_reset_restarts_counts);
   RUN_TEST(test_lidar_stable_boost_under_min_frames_does_nothing);
   RUN_TEST(test_lidar_stable_boost_kicks_in_at_min_frames);
   RUN_TEST(test_lidar_stable_boost_clamps_at_max);

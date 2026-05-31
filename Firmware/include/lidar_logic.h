@@ -25,6 +25,32 @@ int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confi
 // the lens is focused beyond the near-range gate threshold.
 bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm);
 
+// Running state for the plausibility-gate hold. The gate rejects readings that
+// overshoot the lens prior and holds the previous value; this tracks how long
+// the current overshoot has persisted and whether the rejected readings are
+// settling on a consistent value (a deliberate re-aim) or are jumpy (a true
+// beam-miss past the subject).
+struct PlausibilityHoldState
+{
+  int rejectedFrames = 0;   // consecutive implausible frames in this hold
+  int consistentFrames = 0; // consecutive implausible frames agreeing with the last
+  int lastRejectedCm = 0;   // distance of the previous implausible reading (0 = none yet)
+};
+
+// Feed one implausible reading into the hold state and decide whether to release
+// (accept) it. Releases when the rejected readings have settled within
+// stable_delta_cm for stable_release_frames in a row (deliberate re-aim at a
+// real far subject), or when max_hold_frames is reached (safety cap so a noisy
+// beam-miss can never pin the readout to a stale value forever).
+bool updatePlausibilityHold(PlausibilityHoldState &state,
+                            int reading_cm,
+                            int stable_delta_cm,
+                            int stable_release_frames,
+                            int max_hold_frames);
+
+// Clear the hold state. Call when a plausible reading arrives.
+void resetPlausibilityHold(PlausibilityHoldState &state);
+
 // Add a confidence boost once the LiDAR has locked onto a stable subject
 // (consecutive frames within LIDAR_STABLE_DELTA_CM of each other). Caller
 // tracks the streak count; this function applies the boost and clamps the
