@@ -348,7 +348,10 @@ void drawMainHeader()
   }
 
   u8g2.setCursor(MAIN_DISTANCE_X, MAIN_DISTANCE_Y);
-  u8g2.print(F("Dist:"));
+  // "Held:" (same 5-char width as "Dist:") flags that the plausibility gate is
+  // showing the previous value, not a live measurement, so the readout reads as
+  // intentionally frozen rather than broken.
+  u8g2.print(lidar_distance_held ? F("Held:") : F("Dist:"));
   u8g2.print(distance_cm);
   drawHighSunlightIndicator();
   drawLidarQualityIndicator();
