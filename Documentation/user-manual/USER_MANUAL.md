@@ -1,6 +1,6 @@
 # MRF2 User Manual
 
-**Firmware version:** 10.4.9
+**Firmware version:** 10.4.10
 
 This manual covers how to operate the MRF2 firmware user interface, including the on-device displays, buttons, calibration flow, and film counter behavior. It is written for everyday use, not just for builders.
 
@@ -115,6 +115,7 @@ You can tune horizon trim offsets independently for **Landscape**, **Portrait+**
   - Displays `...` if the sensor has no valid data for 1 second at close range.
   - Displays `Zzz` when LiDAR is in idle standby (wake by focusing or pressing a button).
   - Displays `<15cm` for near readings below display threshold.
+  - The label changes from `Dist:` to `Held:` when the lens is focused close and the LiDAR briefly reports something much farther away (usually the beam slipping past your subject to the background). The previous reading is held rather than jumping. Aim deliberately at the farther subject for a moment and it releases to the live value.
 - **Lens distance (Lens)**
   - Based on calibration and the lens position sensor.
   - Displays `Inf.` when beyond the calibrated infinity threshold.

@@ -2,6 +2,22 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.4.10 - 2026-05-31
+
+### LiDAR plausibility gate
+
+Field reports of the distance readout appearing to "cap" at short range traced to the lens-prior plausibility gate (added in 10.4.6) holding the previous value too aggressively when the lens is focused close. This release retunes it and makes the hold visible.
+
+- **Faster release on a deliberate re-aim.** The gate no longer waits a blind 8 frames before accepting a far reading. It now releases as soon as two consecutive rejected readings agree (a real far subject the user has aimed at), and keeps an absolute 3-frame cap so a noisy beam-miss can never pin a stale value indefinitely. The release decision is a new pure, unit-tested helper (`updatePlausibilityHold`).
+- **Wider focus coverage.** The gate now applies out to 3m of lens focus (was 2m), so the parallax beam-miss guard also covers portrait and group distances.
+- **"Held:" indicator.** When the gate is showing the previous value instead of a live measurement, the main-screen label changes from `Dist:` to `Held:`, so a held reading reads as intentionally frozen rather than broken.
+
+Verify in the field: with the lens focused near, panning to a farther subject should update within a frame or two, and the label should briefly read `Held:` while it does.
+
+### Tests
+
+- Added coverage for the stable-vs-noisy release logic and the reset path; updated the gate boundary tests for the new 3m focus threshold. Test count: 50 → 53.
+
 ## 10.4.9 - 2026-05-16
 
 Internal refactoring release plus a setup-menu reorganisation. The menu reorg is the one user-visible change; everything else is structural. Pending field testing.
