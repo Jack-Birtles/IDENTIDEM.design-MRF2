@@ -50,6 +50,15 @@ Use an oscilloscope, not a multimeter — a DMM averages out the nanosecond tran
 
 To collect comparable before/after data, use the [LiDAR field test protocol](lidar-field-test.md).
 
-## Planned board respin
+## Board respin (in progress)
 
-The next breakout revision should fix this properly rather than relying on hand-soldered caps. Tracked separately; the headline change is a **dedicated low-noise 3.3 V regulator for the LiDAR on the breakout** (fed from VBAT/VBUS, sized for the laser peak current, placed next to J7), plus designed-in decoupling on both supply pins, a wider/shorter supply path with multiple FPC power/ground conductors and ground stitching vias, and unpopulated UART series-termination footprints.
+The fix is being designed into the board so new units don't need hand-soldered caps. It is staged:
+
+**Stage 1 — decoupling (designed now).** C1 47 µF + C2 1 µF + C3 100 nF added to the breakout schematic across the LiDAR 3.3 V rail, ERC-clean. The board layout (placement at J7, wider copper, ground stitching) is specified in [lidar-breakout-layout.md](lidar-breakout-layout.md) for completion in the KiCad PCB editor. This is needed in every scenario and ships first.
+
+**Stage 2 — dedicated regulator (gated on field data).** If the field test shows decoupling alone is not enough, add a dedicated low-noise 3.3 V regulator for the LiDAR fed from VBAT/USB. Design notes and the decision are tracked on beads issue `IDENTIDEM_design-MRF2-3z5`.
+
+Two facts found while tracing the current board shape the respin:
+
+- **J7 already separates the DTS6012M's two supply pins** — pin 1 (`3V3_LASER`) and pin 2 (`3V3`) — so per-pin decoupling is possible without a connector change.
+- **The 8-pin FPC has no spare conductors** (3.3 V and GND are already doubled up). A dedicated regulator therefore cannot simply add a VBAT line; it must repurpose one of the doubled 3.3 V conductors and have the main board drive it — a two-board change.
