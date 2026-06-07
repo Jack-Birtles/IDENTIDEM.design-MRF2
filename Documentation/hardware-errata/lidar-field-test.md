@@ -12,6 +12,7 @@ Everything you need is on the new **Setup > LiDAR > Diagnostics** screen. Aim th
 | Firmware version (Health screen) | |
 | Sensor FW hex (Health screen) | |
 | Hardware: stock, or which cap mod fitted? (none / P1 caps / P3 source cap / P4 flying wire) | |
+| Unit role: reference (known-good) or test | |
 | Date | |
 
 ## 2. Setup rules (so runs are comparable)
@@ -64,7 +65,19 @@ If you have been given firmware builds at different frame rates, repeat just the
 
 If you fit the cap mod from the [decoupling errata](lidar-decoupling.md): run the full Section 3 matrix once **before** fitting, then again **after**, on the same day with the same targets. Note which mod you fitted in the Section 1 header.
 
-## 6. Free-text observations
+## 6. Reference unit comparison (if you have a known-good camera)
+
+If you have a unit that already ranges well (e.g. one that reads to ~6 m indoors), run it through **Section 3 with the exact same targets, distances and lighting** as a suspect unit, and mark it `reference` in the Section 1 header. Its Diagnostics numbers become the target the others should hit.
+
+What the comparison tells us, reading the two unitsʼ telemetry side by side at the **same target / range / lighting**:
+
+- Reference shows clearly higher **Intensity / Quality** at the same distance → the difference is genuinely in the optics/sensor (a real unit-to-unit or batch difference).
+- Both show similar raw **Intensity** but the suspect still reads short → the loss is downstream of the sensor (supply droop / wiring), not the sensor itself — the case the decoupling and regulator fixes target.
+- Compare the **Sensor FW hex** (Health screen) on both — a different value points at a different sensor firmware/calibration batch.
+
+Keep conditions identical; an indoor 6 m reading is far easier than anything outdoors, so only compare like with like.
+
+## 7. Free-text observations
 
 For each lighting condition, describe what the readout *did*, in your own words — for example: instant lock, climbs slowly, jumps around, sticks on one number, shows `...`, shows `Held`. This often tells us as much as the numbers.
 
