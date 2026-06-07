@@ -81,3 +81,6 @@ CLAUDE.md
 AGENTS.md
 .claude/
 .beads/
+.beads/proxieddb/
+.agents/
+.codex/
