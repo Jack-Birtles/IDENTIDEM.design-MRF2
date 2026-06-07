@@ -19,11 +19,20 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
 
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence);
 
+// SNR in permille: primary intensity relative to the sensor's ambient-light
+// baseline (sunlightBase). Returns -1 when there is no baseline (sunlightBase
+// == 0), signalling the caller to skip SNR-based logic. Exposed for the
+// diagnostics screen and unit tests.
+int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base);
+
 // True when the LiDAR reading is so far beyond the lens focus prior that it is
 // almost certainly a beam-miss (LiDAR found distant background past the framed
-// subject). Asymmetric: only flags overshoot, not undershoot. Returns false if
-// the lens is focused beyond the near-range gate threshold.
-bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm);
+// subject). Asymmetric: only flags overshoot, not undershoot. Returns false
+// when: the lens is focused beyond the near-range gate threshold, no prior is
+// available, or the sensor reports the reading at LIDAR_PLAUSIBILITY_TRUST_
+// QUALITY_LEVEL or better (a confident return is trusted). The allowed overshoot
+// scales with the prior, since parallax beam-miss error grows with distance.
+bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm, int quality_level);
 
 // Running state for the plausibility-gate hold. The gate rejects readings that
 // overshoot the lens prior and holds the previous value; this tracks how long

@@ -398,35 +398,67 @@ void test_lidar_candidate_selection_and_blend()
 
 void test_lidar_plausibility_gate_rejects_overshoot()
 {
-  // Lens at 1.0m, LiDAR returns something far past +overshoot threshold: implausible.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 100));
-  // Lens at 1.5m, LiDAR returns 4.0m: implausible (well past +200cm overshoot).
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(400, 150));
+  // Lens at 1.0m, low-quality LiDAR return far past +overshoot threshold: implausible.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 100, 1));
+  // Lens at 1.5m, LiDAR returns 4.0m: implausible (well past the scaled overshoot).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(400, 150, 1));
 }
 
 void test_lidar_plausibility_gate_allows_undershoot_and_far_focus()
 {
   // Lens at 1.0m, LiDAR returns 1.2m: well within overshoot delta — allowed.
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(120, 100));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(120, 100, 1));
   // Lens at 1.0m, LiDAR returns 0.6m: undershoot is allowed (e.g. something passed in front).
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(60, 100));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(60, 100, 1));
   // Lens focused beyond near-range gate boundary: gate disabled regardless of overshoot.
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500, 1));
   // No lens prior available: gate disabled.
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0));
-  // Lens focused at 2.5m is now within the gate's coverage (boundary raised to 3m).
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 250));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0, 1));
+  // Lens focused at 2.5m is within the gate's coverage (boundary 3m).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 250, 1));
   // Lens at boundary itself (300cm) still gated; lens just past it (301cm) not gated.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 300));
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 301));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 300, 1));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 301, 1));
 }
 
 void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
 {
-  // Lens at 100cm: 100+200=300 is the boundary. Reading 300cm is NOT implausible (strict greater-than).
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100));
+  // Lens at 100cm: allowance is the 200cm floor, so 100+200=300 is the boundary.
+  // Reading 300cm is NOT implausible (strict greater-than).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100, 1));
   // 301cm IS implausible.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100, 1));
+}
+
+void test_lidar_plausibility_gate_trusts_confident_readings()
+{
+  // A GOOD/EXCELLENT reading far past a near prior is the sensor being confident,
+  // not a beam-miss: trust it, never suppress.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(1000, 100, 3)); // GOOD
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(1000, 100, 4)); // EXCELLENT
+  // Same geometry at low quality stays gated.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(1000, 100, 1));  // POOR
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(1000, 100, 2));  // FAIR
+}
+
+void test_lidar_plausibility_overshoot_scales_with_prior()
+{
+  // Parallax beam-miss error scales with distance, so the allowed overshoot grows
+  // with the prior. Prior 100cm: allowance is the 200cm floor -> boundary 300.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(600, 100, 1));
+  // Prior 250cm: allowance scales up (250*1.5=375) -> boundary 625, so 600 is allowed...
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(600, 250, 1));
+  // ...but 700 past the scaled boundary is still rejected.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(700, 250, 1));
+}
+
+void test_lidar_snr_permille_math()
+{
+  // No ambient baseline -> -1 sentinel (caller skips SNR logic).
+  TEST_ASSERT_EQUAL_INT(-1, computeSnrPermille(100, 0));
+  // permille = intensity * 1000 / sunlightBase.
+  TEST_ASSERT_EQUAL_INT(1000, computeSnrPermille(100, 100));
+  TEST_ASSERT_EQUAL_INT(500, computeSnrPermille(50, 100));
 }
 
 void test_lidar_plausibility_hold_releases_on_stable_far_readings()
@@ -519,11 +551,14 @@ void test_lidar_distance_display_formatting_covers_each_band()
   TEST_ASSERT_EQUAL_STRING("<15cm", formattedDistance);
   formatDistanceDisplay(75, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("75cm", formattedDistance);
-  formatDistanceDisplay(1050, formattedDistance, sizeof(formattedDistance));
-  TEST_ASSERT_EQUAL_STRING("10.5m", formattedDistance);
-  formatDistanceDisplay(1051, formattedDistance, sizeof(formattedDistance));
+  // Genuine far readings now display up to the sensor's rated 18m, not "Inf." at 10.5m.
+  formatDistanceDisplay(1200, formattedDistance, sizeof(formattedDistance));
+  TEST_ASSERT_EQUAL_STRING("12.0m", formattedDistance);
+  formatDistanceDisplay(1800, formattedDistance, sizeof(formattedDistance));
+  TEST_ASSERT_EQUAL_STRING("18.0m", formattedDistance);
+  formatDistanceDisplay(1801, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("Inf.", formattedDistance);
-  formatDistanceDisplay(1900, formattedDistance, sizeof(formattedDistance));
+  formatDistanceDisplay(2500, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("Inf.", formattedDistance);
   formatDistanceDisplay(150, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("1.50m", formattedDistance); // near-range precision: 2dp below 2m
@@ -1082,6 +1117,9 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
   RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
   RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
+  RUN_TEST(test_lidar_plausibility_gate_trusts_confident_readings);
+  RUN_TEST(test_lidar_plausibility_overshoot_scales_with_prior);
+  RUN_TEST(test_lidar_snr_permille_math);
   RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
   RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);
   RUN_TEST(test_lidar_plausibility_hold_reset_restarts_counts);

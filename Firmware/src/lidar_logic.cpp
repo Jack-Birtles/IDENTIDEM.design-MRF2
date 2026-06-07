@@ -6,6 +6,20 @@
 
 #include "mrfconstants.h"
 
+// File scope (not the anonymous namespace) so the diagnostics screen and unit
+// tests can call it; the in-namespace helpers below also use it.
+int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
+{
+  if (sunlight_base == 0)
+  {
+    return -1;
+  }
+
+  int sunlight = max(1, static_cast<int>(sunlight_base));
+  return static_cast<int>((static_cast<unsigned long>(intensity) * 1000UL) /
+                          static_cast<unsigned long>(sunlight));
+}
+
 namespace
 {
 int applyLidarCalibrationCm(int raw_cm)
@@ -120,18 +134,6 @@ int snrTargetPermilleForDistanceCm(int raw_cm)
       {0, LIDAR_SNR_PERMILLE_TARGET_MAX_RANGE},
   };
   return lookupByDistance(raw_cm, tiers);
-}
-
-int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
-{
-  if (sunlight_base == 0)
-  {
-    return -1;
-  }
-
-  int sunlight = max(1, static_cast<int>(sunlight_base));
-  return static_cast<int>((static_cast<unsigned long>(intensity) * 1000UL) /
-                          static_cast<unsigned long>(sunlight));
 }
 
 bool shouldRejectBySnrFloor(int raw_cm, uint16_t intensity, uint16_t sunlight_base)
@@ -421,7 +423,7 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
   return selectBestPair(fallbackPrimary, fallbackSecondary);
 }
 
-bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
+bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm, int quality_level)
 {
   if (lens_prior_cm <= 0 || lens_prior_cm > LIDAR_PLAUSIBILITY_LENS_NEAR_CM)
   {
@@ -431,7 +433,17 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
   {
     return false;
   }
-  return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
+  // Trust a confident sensor return even past the prior — a GOOD/EXCELLENT
+  // reading is the sensor locking a real far subject, not a beam-miss.
+  if (quality_level >= LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL)
+  {
+    return false;
+  }
+  // Parallax beam-miss error grows with distance, so scale the allowed overshoot
+  // with the prior, never below the near-focus floor.
+  int allowance_cm = max(LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM,
+                         lens_prior_cm * LIDAR_PLAUSIBILITY_OVERSHOOT_FACTOR_PCT / 100);
+  return lidar_distance_cm > lens_prior_cm + allowance_cm;
 }
 
 bool updatePlausibilityHold(PlausibilityHoldState &state,

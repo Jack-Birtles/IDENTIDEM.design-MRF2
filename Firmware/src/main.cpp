@@ -192,6 +192,14 @@ void initializeLidarSensor()
     }
 
     lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
+    // Read back what the sensor actually latched — surfaced on the LiDAR
+    // diagnostics screen so a tester can confirm whether a requested sub-50fps
+    // rate was accepted. Boot only; never re-issued on the recovery path.
+    uint16_t actual_fps = 0;
+    if (lidar.getFrameRate(actual_fps) == DTSError::NONE)
+    {
+      lidar_frame_rate_actual = actual_fps;
+    }
     applyLidarCalibrationProfile();
   }
 

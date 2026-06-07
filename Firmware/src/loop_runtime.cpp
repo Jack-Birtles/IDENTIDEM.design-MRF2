@@ -182,13 +182,18 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
   bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.menuSignature;
   bool healthRefreshDue = (ui_mode == UiMode::Health) &&
                           ((nowMs - cache.lastHealthDrawMs) >= LOOP_UI_HEALTH_REFRESH_MS);
-  if (!changed && !healthRefreshDue)
+  // The diagnostics telemetry is not part of the menu signature, so force a fast
+  // periodic redraw while it is open (reusing the health timestamp — the two
+  // full-screen live views are never active at the same time).
+  bool diagRefreshDue = (ui_mode == UiMode::LidarDiagnostics) &&
+                        ((nowMs - cache.lastHealthDrawMs) >= LOOP_UI_LIDAR_DIAG_REFRESH_MS);
+  if (!changed && !healthRefreshDue && !diagRefreshDue)
   {
     return false;
   }
 
   cache.menuSignature = signature;
-  if (ui_mode == UiMode::Health)
+  if (ui_mode == UiMode::Health || ui_mode == UiMode::LidarDiagnostics)
   {
     cache.lastHealthDrawMs = nowMs;
   }
@@ -634,6 +639,9 @@ void drawPrimaryUiForCurrentMode()
     break;
   case UiMode::ReticleAdjust:
     drawReticleAdjustUI();
+    break;
+  case UiMode::LidarDiagnostics:
+    drawLidarDiagnosticsUI();
     break;
   }
 }

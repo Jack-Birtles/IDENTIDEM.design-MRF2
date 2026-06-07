@@ -121,6 +121,13 @@ void setDistance()
     DTSMeasurement measurement = lidar.getMeasurement();
     lidar_high_sunlight = updateSunlightWarnState(lidar_high_sunlight, measurement.sunlightBase);
 
+    // Live telemetry for the diagnostics screen — the latest raw sensor frame,
+    // captured before the median filter overwrites the primary distance below.
+    lidar_raw_distance_mm = measurement.primaryDistance_mm;
+    lidar_primary_intensity = measurement.primaryIntensity;
+    lidar_sunlight_base = measurement.sunlightBase;
+    lidar_snr_permille = computeSnrPermille(measurement.primaryIntensity, measurement.sunlightBase);
+
     // Use the library's median-filtered distance to reduce jitter at near/mid range.
     uint16_t filtered_mm = lidar.getFilteredDistance();
     if (filtered_mm != DTS_INVALID_DISTANCE && measurement.primaryDistance_mm != DTS_INVALID_DISTANCE)
@@ -149,7 +156,7 @@ void setDistance()
     // beam-miss past the framed subject. Hold the previous valid value instead.
     // After a short streak of rejections, fall through so the user can
     // deliberately re-focus past the previous LiDAR target without being stuck.
-    if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
+    if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm, chosen.quality_level))
     {
       lidarRuntime.stableStreakFrames = 0; // Rejection means we are not tracking a stable subject.
       bool release = updatePlausibilityHold(lidarRuntime.plausibilityHold,

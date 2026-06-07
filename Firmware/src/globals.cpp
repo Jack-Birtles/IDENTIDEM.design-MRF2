@@ -38,6 +38,11 @@ bool lidarEnabled = true;
 bool lidar_high_sunlight = false;
 bool lidar_distance_held = false;
 int lidar_distance_offset_mm = DEFAULT_LIDAR_DISTANCE_OFFSET_MM;
+uint16_t lidar_raw_distance_mm = 0;
+uint16_t lidar_primary_intensity = 0;
+uint16_t lidar_sunlight_base = 0;
+int lidar_snr_permille = -1;
+uint16_t lidar_frame_rate_actual = 0;
 
 // ---------------------------------------------------------------------------
 // Battery gauge

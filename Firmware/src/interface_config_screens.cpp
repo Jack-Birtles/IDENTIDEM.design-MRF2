@@ -191,8 +191,67 @@ void drawLidarConfigUI()
   u8g2.print(getSleepTimeoutModeLabel(lidar_idle_timeout_mode));
   u8g2.print(F(" "));
 
+  selectConfigMenuRow(CONFIG_LIDAR_STEP_DIAGNOSTICS, config_step == CONFIG_LIDAR_STEP_DIAGNOSTICS);
+  u8g2.print(F(" Diagnostics >> "));
+
   selectConfigMenuRow(CONFIG_LIDAR_STEP_BACK, config_step == CONFIG_LIDAR_STEP_BACK);
   u8g2.print(F(" Back << "));
+
+  display.display();
+}
+
+// Live LiDAR telemetry. Field testers aim at a target and read back exactly what
+// the sensor returns, so range/lock failures can be diagnosed from data instead
+// of guesses. Values are updated each frame in setDistance(); see the field-test
+// protocol in Documentation/hardware-errata/lidar-field-test.md.
+void drawLidarDiagnosticsUI()
+{
+  preparePrimaryDisplayTextMode();
+
+  u8g2.setFont(u8g2_font_6x10_mf);
+  u8g2.setCursor(HEALTH_TITLE_X, HEALTH_TITLE_Y);
+  u8g2.print(F("LiDAR Diagnostics"));
+
+  u8g2.setFont(u8g2_font_4x6_mf);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 0));
+  u8g2.print(F("Raw: "));
+  u8g2.print(lidar_raw_distance_mm);
+  u8g2.print(F("mm  Disp: "));
+  u8g2.print(distance_cm);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 1));
+  u8g2.print(F("Intensity: "));
+  u8g2.print(lidar_primary_intensity);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 2));
+  u8g2.print(F("SunBase: "));
+  u8g2.print(lidar_sunlight_base);
+  u8g2.print(F("  SNR: "));
+  u8g2.print(lidar_snr_permille);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 3));
+  u8g2.print(F("Quality: "));
+  u8g2.print(lidar_quality_level);
+  u8g2.print(F("  Held: "));
+  u8g2.print(lidar_distance_held ? F("Y") : F("N"));
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 4));
+  u8g2.print(F("fps req:"));
+  u8g2.print(LIDAR_FRAME_RATE_FPS);
+  u8g2.print(F(" act:"));
+  u8g2.print(lidar_frame_rate_actual);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 5));
+  u8g2.print(F("err:"));
+  u8g2.print(last_lidar_error_code);
+  u8g2.print(F("  Recov:"));
+  u8g2.print(lidar_recovery_count);
+  u8g2.print(F("  Sun:"));
+  u8g2.print(lidar_high_sunlight ? F("Hi") : F("Ok"));
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_FOOTER_Y);
+  u8g2.print(F(" (L/R) Back"));
 
   display.display();
 }

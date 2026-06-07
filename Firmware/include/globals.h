@@ -26,7 +26,8 @@ enum class UiMode : uint8_t
   ResetConfirm,
   Health,
   FactoryResetConfirm,
-  ReticleAdjust
+  ReticleAdjust,
+  LidarDiagnostics    // Setup > LiDAR > Diagnostics live telemetry screen.
 };
 
 extern Preferences prefs;
@@ -66,6 +67,13 @@ extern bool lidarEnabled;
 extern bool lidar_high_sunlight;
 extern bool lidar_distance_held;    // True when the plausibility gate is holding a stale reading.
 extern int lidar_distance_offset_mm;
+
+// Live LiDAR telemetry for the diagnostics screen (last accepted measurement).
+extern uint16_t lidar_raw_distance_mm;   // Raw primary distance from the sensor (pre-calibration).
+extern uint16_t lidar_primary_intensity; // Primary return intensity.
+extern uint16_t lidar_sunlight_base;     // Ambient-light baseline reported by the sensor.
+extern int lidar_snr_permille;           // computeSnrPermille() of the last measurement (-1 if no baseline).
+extern uint16_t lidar_frame_rate_actual; // Frame rate read back from the sensor at boot (0 if unread).
 
 // ---------------------------------------------------------------------------
 // Battery gauge

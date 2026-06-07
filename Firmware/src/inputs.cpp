@@ -249,6 +249,11 @@ void handleLeftButtonShortPress()
     ui_mode = UiMode::Config;
     config_step = CONFIG_ROOT_STEP_HEALTH;
   }
+  else if (ui_mode == UiMode::LidarDiagnostics)
+  {
+    ui_mode = UiMode::ConfigLidar;
+    config_step = CONFIG_LIDAR_STEP_DIAGNOSTICS;
+  }
   else if (ui_mode == UiMode::FactoryResetConfirm)
   {
     ui_mode = UiMode::Health;
@@ -440,6 +445,9 @@ void handleRightShortConfigLidar()
   else if (config_step == CONFIG_LIDAR_STEP_IDLE_TIMEOUT) {
     cycleLidarIdleTimeoutMode();
   }
+  else if (config_step == CONFIG_LIDAR_STEP_DIAGNOSTICS) {
+    ui_mode = UiMode::LidarDiagnostics;
+  }
   else if (config_step == CONFIG_LIDAR_STEP_BACK) {
     config_step = CONFIG_ROOT_STEP_LIDAR_MENU;
     ui_mode = UiMode::Config;
@@ -552,6 +560,10 @@ void handleRightButtonShortPress()
     break;
   case UiMode::FactoryResetConfirm:
     performFactoryReset();
+    break;
+  case UiMode::LidarDiagnostics:
+    ui_mode = UiMode::ConfigLidar;
+    config_step = CONFIG_LIDAR_STEP_DIAGNOSTICS;
     break;
   }
 }

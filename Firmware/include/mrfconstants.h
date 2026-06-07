@@ -187,7 +187,9 @@ const float LIDAR_PRIOR_RANGE_SCALE_VERY_FAR = 0.2f; // Prior penalty scale at m
 const float LIDAR_LENS_PRIOR_WEIGHT_GOOD = 0.025f;    // Lens-prior pull when confidence is good.
 const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when confidence is excellent.
 const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 300;      // Apply plausibility gate only when lens is focused at or below 3m (parallax matters most close; covers portrait/group range).
-const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Reject LiDAR readings more than this far beyond the lens prior — almost certainly a beam-miss past the subject.
+const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Floor for the allowed overshoot beyond the lens prior. Used directly at near focus; the proportional factor below takes over at longer focus.
+const int LIDAR_PLAUSIBILITY_OVERSHOOT_FACTOR_PCT = 150; // Allowed overshoot scales with the prior (parallax beam-miss error grows with distance): allowance = max(floor, prior * pct/100).
+const int LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL = 3; // Never gate readings at this quality_level or better (3=GOOD, 4=EXCELLENT): a confident sensor return is trusted even past the prior.
 const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 3;  // Absolute cap: accept LiDAR after this many consecutive rejections no matter what, so a noisy beam-miss can never pin a stale value forever.
 const int LIDAR_PLAUSIBILITY_STABLE_DELTA_CM = 30;    // Two consecutive rejected readings within this distance count as "the same far subject" (intentional re-aim) rather than beam-miss jitter.
 const int LIDAR_PLAUSIBILITY_STABLE_RELEASE_FRAMES = 2; // Release the gate after this many consistent rejected readings — a deliberate re-aim past the subject is accepted at once.
@@ -229,7 +231,7 @@ const float LIDAR_CAL_REF_TRUE_CM = 100.0f; // True distance for the correction 
 #define DISTANCE_MIN 5  // Minimum optical distance used by frameline mapping.
 #define DISTANCE_MAX 18 // Maximum optical distance used by frameline mapping.
 const int LIDAR_DISPLAY_MIN_CM = 15;            // Display "<15cm" below this threshold.
-const int LIDAR_DISPLAY_INF_THRESHOLD_CM = 1050; // Display "Inf." above this threshold.
+const int LIDAR_DISPLAY_INF_THRESHOLD_CM = 1800; // Display "Inf." above this threshold (sensor is rated to 18m, so genuine far readings still show).
 
 // ---------------------------------------------------------------------------
 // Battery and readout formatting
@@ -317,6 +319,7 @@ const unsigned long LOOP_BATTERY_INTERVAL_MS = 5000;      // Battery gauge updat
 const unsigned long LOOP_UI_INTERVAL_MS = 50;             // UI redraw cadence (~20 FPS).
 const unsigned long LOOP_UI_MAIN_REFRESH_MS = 100;        // Forced redraw cadence in Main mode when state is stable.
 const unsigned long LOOP_UI_HEALTH_REFRESH_MS = 1000;     // Forced redraw cadence for Health idle timer updates.
+const unsigned long LOOP_UI_LIDAR_DIAG_REFRESH_MS = 150;  // Forced redraw cadence for the live LiDAR diagnostics screen (fast so the readout tracks aiming).
 const unsigned long LOOP_PREFS_FLUSH_INTERVAL_MS = 200;   // Preferences flush check cadence.
 const int CPU_FREQ_ACTIVE_MHZ = 240;                      // CPU frequency while device is awake.
 const int CPU_FREQ_SLEEP_MHZ  = 80;                       // CPU frequency while device is sleeping.
@@ -404,6 +407,7 @@ enum ConfigLidarStep
 {
   CONFIG_LIDAR_STEP_OFFSET = 0,    // LiDAR distance offset (sensor calibration).
   CONFIG_LIDAR_STEP_IDLE_TIMEOUT,  // LiDAR idle-timeout selector.
+  CONFIG_LIDAR_STEP_DIAGNOSTICS,   // Live LiDAR telemetry diagnostics screen.
   CONFIG_LIDAR_STEP_BACK,          // Back to setup root.
   CONFIG_LIDAR_STEP_COUNT
 };
