@@ -166,7 +166,7 @@ The ring radius is based on the difference between the LiDAR distance and the le
 - **Use the LiDAR number first, then fine-tune with the ring.** Glance at the `Dist` readout to get a ballpark, dial the focus ring close, then watch the ring shrink for the last adjustment.
 - **Calibrate your lens** before relying on Lens distance. Without calibration the Lens readout is inactive and the ring defaults to maximum size. See [Lens calibration](#lens-calibration).
 - **In bright sunlight** the LiDAR may occasionally lose signal. The last valid reading is held for 1 second, so brief dropouts are hidden. When the subject is beyond sensor range the display switches to `Inf.` If `...` persists at close range, check wiring or try a different target angle.
-- **At infinity** the Lens readout shows `Inf.` and the LiDAR readout shows `Inf.` above 10.5 m or when far-range signal is lost. The focus ring is irrelevant at infinity — just set the ring to the ∞ mark.
+- **At infinity** the Lens readout shows `Inf.` and the LiDAR readout shows `Inf.` above 18 m (the sensor's rated maximum) or when far-range signal is lost. The focus ring is irrelevant at infinity — just set the ring to the ∞ mark.
 - **Parallax correction** shifts the framelines based on focus distance. Keep it enabled (default) for accurate framing at close range. It has no effect at infinity.
 
 ## Setup menus
@@ -245,7 +245,24 @@ Current frame ranges are format-bound:
 
 1. **Distance offset**: cycles the LiDAR distance correction in `10mm` steps from `0mm` to `800mm` (default `400mm`). Compensates for the physical offset between the LiDAR sensor and the lens plane so the displayed distance matches reality. Tune by aiming at a target a known distance away (e.g. a tape measure at 1.00m) and adjusting until the **Dist** readout on the main screen agrees. Changes take effect immediately — no reboot needed.
 2. **Idle timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m`). Time of no measured-distance change before the LiDAR enters its low-power standby.
-3. **Back <<**: return to setup root menu.
+3. **Diagnostics >>**: opens a live telemetry screen for troubleshooting LiDAR range and lock problems (see below).
+4. **Back <<**: return to setup root menu.
+
+#### LiDAR Diagnostics screen
+
+![LiDAR diagnostics screen](images/config-lidar-diagnostics-ui.svg)
+
+Aim the camera at a target and read back exactly what the sensor reports, frame by frame. Use this when the LiDAR will not lock or seems short-ranged, and when reporting a problem so a maintainer has real numbers to work from. Press either button to return.
+
+- **Raw** — the sensor's raw distance in millimetres, before the camera's calibration/offset. **Disp** is what the main screen would show.
+- **Intensity** — strength of the returned pulse. Low intensity at distance means little light is coming back (dark or distant subject).
+- **SunBase / SNR** — the ambient infrared baseline and the signal-to-noise ratio (in permille). High SunBase with low SNR is bright-light interference.
+- **Quality** — the sensor's own quality grade, 0 (none) to 4 (excellent).
+- **Held** — `Y` when the plausibility gate is holding the reading because it overshot the lens focus distance (see the `Held:` note above).
+- **fps req / act** — the frame rate the firmware requested versus what the sensor reported back. A lower frame rate gives the sensor longer to integrate, which can extend range.
+- **err / Recov / Sun** — last sensor error code, recovery count, and the high-sunlight flag.
+
+If you can read close objects but never distant ones — especially outdoors — see [Troubleshooting](#troubleshooting); this is often a sensor power-supply issue with a documented hardware fix.
 
 ### Display submenu
 
@@ -438,9 +455,13 @@ Wake the device by pressing any button or moving the lens/advance lever (any act
 ## Troubleshooting
 
 - **LiDAR distance shows `Inf.`**
-  - The subject is beyond the sensor's effective range. This is normal for distances above ~8–10 m or targets with very low reflectivity. Use the lens barrel distance markings instead.
+  - The subject is beyond the displayable range (above 18 m, the sensor's rated maximum) or has very low reflectivity. Use the lens barrel distance markings instead.
 - **LiDAR distance shows `...`**
   - At close range, verify LiDAR wiring and power. The UI updates only with valid sensor data.
+- **LiDAR only reads close objects — nothing at distance, worse outdoors or in bright light**
+  - Open **Setup > LiDAR > Diagnostics** and aim at a distant target. If Intensity stays very low and Quality stays at 0–1 while SunBase is high, the sensor is not getting a usable return.
+  - This pattern (close reads fine, distance/bright-light fails) is commonly a sensor power-supply problem: the LiDAR's pulsed laser briefly starves its 3.3 V rail because the board has no local decoupling capacitor at the connector. There is a documented hardware fix — see [LiDAR power decoupling errata](../hardware-errata/lidar-decoupling.md).
+  - To gather data for a maintainer, follow the [LiDAR field test protocol](../hardware-errata/lidar-field-test.md).
 - **LiDAR distance shows `Zzz`**
   - LiDAR is in idle standby. Turn the focus ring or press a button to wake it, or increase/disable **Idle timeout** in **Setup > LiDAR >**.
 - **LiDAR quality stays at 1 square (Poor)**
