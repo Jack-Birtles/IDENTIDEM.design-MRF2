@@ -84,3 +84,9 @@ AGENTS.md
 .beads/proxieddb/
 .agents/
 .codex/
+
+# KiCad generated and local-only artifacts (regenerated from the board files)
+**/production/
+**/_restore_backup_*/
+**/.history/
+**/fabrication-toolkit-options.json
