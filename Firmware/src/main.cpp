@@ -137,17 +137,27 @@ void showBootScreenOnExternalDisplay()
   }
 
   display_ext.clearDisplay();
-  display_ext.setTextSize(DISPLAY_BOOT_TEXT_SIZE);
   display_ext.setTextColor(SSD1306_WHITE);
 
   char bootText[24];
   snprintf(bootText, sizeof(bootText), "MRF %s", FWVERSION);
 
+  // Pick the largest text size (up to the preferred one) that fits the display
+  // width, so a longer version string (e.g. 10.4.10) can't wrap on the narrow
+  // external screen.
   int16_t bootTextX1 = 0;
   int16_t bootTextY1 = 0;
   uint16_t bootTextWidth = 0;
   uint16_t bootTextHeight = 0;
-  display_ext.getTextBounds(bootText, 0, 0, &bootTextX1, &bootTextY1, &bootTextWidth, &bootTextHeight);
+  for (int bootTextSize = DISPLAY_BOOT_TEXT_SIZE; bootTextSize >= 1; bootTextSize--)
+  {
+    display_ext.setTextSize(static_cast<uint8_t>(bootTextSize));
+    display_ext.getTextBounds(bootText, 0, 0, &bootTextX1, &bootTextY1, &bootTextWidth, &bootTextHeight);
+    if (static_cast<int16_t>(bootTextWidth) <= display_ext.width())
+    {
+      break;
+    }
+  }
 
   int16_t bootCursorX = ((display_ext.width() - static_cast<int16_t>(bootTextWidth)) / 2) - bootTextX1;
   int16_t bootCursorY = ((display_ext.height() - static_cast<int16_t>(bootTextHeight)) / 2) - bootTextY1;
