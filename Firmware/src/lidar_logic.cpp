@@ -15,9 +15,8 @@ int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
     return -1;
   }
 
-  int sunlight = max(1, static_cast<int>(sunlight_base));
   return static_cast<int>((static_cast<unsigned long>(intensity) * 1000UL) /
-                          static_cast<unsigned long>(sunlight));
+                          static_cast<unsigned long>(sunlight_base));
 }
 
 namespace
@@ -565,6 +564,11 @@ void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize)
            "%.*fm",
            decimalPlaces,
            static_cast<float>(corrected_cm) / static_cast<float>(CM_PER_METER));
+}
+
+const char *lidarSignalLossPlaceholder(int prev_distance_cm)
+{
+  return prev_distance_cm >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf?" : "...";
 }
 
 void formatLidarTelemetryAge(uint32_t now_ms, uint32_t telemetry_ms, char *buffer, size_t bufferSize)

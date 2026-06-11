@@ -147,7 +147,7 @@ void setDistance()
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
       if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
       {
-        clearLidarDisplay(prev_distance >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf." : "...");
+        clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance));
       }
       return;
     }
@@ -195,7 +195,7 @@ void setDistance()
     lidar_quality_level = chosen.quality_level;
 
     distance = static_cast<int16_t>(blendLidarDistance(prev_distance, chosen.distance_cm, chosen.confidence));
-    if (distance != prev_distance || strcmp(distance_cm, "...") == 0 || strcmp(distance_cm, "Inf.") == 0 || strcmp(distance_cm, "Zzz") == 0)
+    if (distance != prev_distance || strcmp(distance_cm, "...") == 0 || strcmp(distance_cm, "Inf.") == 0 || strcmp(distance_cm, "Inf?") == 0 || strcmp(distance_cm, "Zzz") == 0)
     {
       formatDistanceDisplay(distance, distance_cm, sizeof(distance_cm));
       prev_distance = distance;

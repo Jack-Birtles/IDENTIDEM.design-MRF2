@@ -75,6 +75,13 @@ bool updateSunlightWarnState(bool currently_warning, uint16_t sunlight_base);
 
 void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize);
 
+// Placeholder shown when the sensor stops returning data. "Inf?" when the last
+// accepted reading was at or beyond LIDAR_FAR_SIGNAL_LOSS_CM — no return at
+// that range usually means the user re-aimed at the sky — and "..." otherwise.
+// Deliberately distinct from the "Inf." that formatDistanceDisplay() emits for
+// a genuine measured reading, so a dropout can't be read as a measurement.
+const char *lidarSignalLossPlaceholder(int prev_distance_cm);
+
 // Format the age of the last LiDAR telemetry frame for the diagnostics screen:
 // "--" when no frame has been captured yet (telemetry_ms == 0 sentinel),
 // "NNNms" under one second, "N.Ns" up to 99s, ">99s" beyond. Takes uint32_t so

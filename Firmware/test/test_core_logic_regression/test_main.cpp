@@ -564,6 +564,17 @@ void test_lidar_distance_display_formatting_covers_each_band()
   TEST_ASSERT_EQUAL_STRING("1.50m", formattedDistance); // near-range precision: 2dp below 2m
 }
 
+void test_lidar_signal_loss_placeholder_distinguishes_far_dropout()
+{
+  // Signal lost while tracking a far subject: likely re-aimed at sky, but not a
+  // measurement — show "Inf?" so it cannot be mistaken for a genuine reading.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM));
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(1200));
+  // Signal lost near, or with no previous reading: plain dropout.
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM - 1));
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0));
+}
+
 void test_lidar_telemetry_age_formatting_covers_each_band()
 {
   char ageText[8] = {0};
@@ -1147,6 +1158,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_trusts_confident_readings);
   RUN_TEST(test_lidar_plausibility_overshoot_scales_with_prior);
   RUN_TEST(test_lidar_snr_permille_math);
+  RUN_TEST(test_lidar_signal_loss_placeholder_distinguishes_far_dropout);
   RUN_TEST(test_lidar_telemetry_age_formatting_covers_each_band);
   RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
   RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);
