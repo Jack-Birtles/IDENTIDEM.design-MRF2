@@ -6,7 +6,7 @@
   <text x="4" y="40" font-family="monospace" font-size="6" fill="#ffffff">Intensity: 142</text>
   <text x="4" y="50" font-family="monospace" font-size="6" fill="#ffffff">SunBase: 1200  SNR: 118</text>
   <text x="4" y="60" font-family="monospace" font-size="6" fill="#ffffff">Quality: 3  Held: N</text>
-  <text x="4" y="70" font-family="monospace" font-size="6" fill="#ffffff">fps req:50 act:50</text>
+  <text x="4" y="70" font-family="monospace" font-size="6" fill="#ffffff">fps req:50 act:50 Age:84ms</text>
   <text x="4" y="80" font-family="monospace" font-size="6" fill="#ffffff">err:0  Recov:0  Sun:Ok</text>
 
   <text x="4" y="112" font-family="monospace" font-size="6" fill="#ffffff"> (L/R) Back</text>

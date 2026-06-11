@@ -127,6 +127,7 @@ void setDistance()
     lidar_primary_intensity = measurement.primaryIntensity;
     lidar_sunlight_base = measurement.sunlightBase;
     lidar_snr_permille = computeSnrPermille(measurement.primaryIntensity, measurement.sunlightBase);
+    lidar_telemetry_ms = now;
 
     // Use the library's median-filtered distance to reduce jitter at near/mid range.
     uint16_t filtered_mm = lidar.getFilteredDistance();

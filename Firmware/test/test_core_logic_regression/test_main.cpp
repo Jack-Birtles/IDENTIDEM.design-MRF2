@@ -564,6 +564,33 @@ void test_lidar_distance_display_formatting_covers_each_band()
   TEST_ASSERT_EQUAL_STRING("1.50m", formattedDistance); // near-range precision: 2dp below 2m
 }
 
+void test_lidar_telemetry_age_formatting_covers_each_band()
+{
+  char ageText[8] = {0};
+
+  // No frame captured yet (timestamp 0 is the "never" sentinel).
+  formatLidarTelemetryAge(5000, 0, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("--", ageText);
+  // Fresh frame: millisecond resolution.
+  formatLidarTelemetryAge(5084, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("84ms", ageText);
+  formatLidarTelemetryAge(5999, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("999ms", ageText);
+  // Stale frame: seconds with one decimal.
+  formatLidarTelemetryAge(6000, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("1.0s", ageText);
+  formatLidarTelemetryAge(7500, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("2.5s", ageText);
+  // Very stale: capped so the field never overflows the line.
+  formatLidarTelemetryAge(104000, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("99.0s", ageText);
+  formatLidarTelemetryAge(205000, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING(">99s", ageText);
+  // millis() wrap: 32-bit unsigned subtraction still yields the true age.
+  formatLidarTelemetryAge(84, 0xFFFFFFF0UL, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("100ms", ageText);
+}
+
 void test_lidar_low_confidence_tracks_beyond_previous_distance()
 {
   // 6.0m target with low/harsh-light-like return, but still valid.
@@ -1120,6 +1147,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_trusts_confident_readings);
   RUN_TEST(test_lidar_plausibility_overshoot_scales_with_prior);
   RUN_TEST(test_lidar_snr_permille_math);
+  RUN_TEST(test_lidar_telemetry_age_formatting_covers_each_band);
   RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
   RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);
   RUN_TEST(test_lidar_plausibility_hold_reset_restarts_counts);

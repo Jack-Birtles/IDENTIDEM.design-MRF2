@@ -16,6 +16,7 @@
 #include "interface_menu_helpers.h"
 #include "lenses.h"
 #include "lens_logic.h"
+#include "lidar_logic.h"
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
 
@@ -241,6 +242,15 @@ void drawLidarDiagnosticsUI()
   u8g2.print(LIDAR_FRAME_RATE_FPS);
   u8g2.print(F(" act:"));
   u8g2.print(lidar_frame_rate_actual);
+  // Age of the telemetry above — a climbing value means the sensor has stopped
+  // producing frames and the numbers on this screen are stale.
+  char ageText[8];
+  formatLidarTelemetryAge(static_cast<uint32_t>(millis()),
+                          static_cast<uint32_t>(lidar_telemetry_ms),
+                          ageText,
+                          sizeof(ageText));
+  u8g2.print(F(" Age:"));
+  u8g2.print(ageText);
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 5));
   u8g2.print(F("err:"));

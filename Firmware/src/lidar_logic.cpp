@@ -566,3 +566,30 @@ void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize)
            decimalPlaces,
            static_cast<float>(corrected_cm) / static_cast<float>(CM_PER_METER));
 }
+
+void formatLidarTelemetryAge(uint32_t now_ms, uint32_t telemetry_ms, char *buffer, size_t bufferSize)
+{
+  if (!buffer || bufferSize == 0)
+  {
+    return;
+  }
+
+  if (telemetry_ms == 0)
+  {
+    snprintf(buffer, bufferSize, "--");
+    return;
+  }
+
+  uint32_t age_ms = now_ms - telemetry_ms;
+  if (age_ms < 1000UL)
+  {
+    snprintf(buffer, bufferSize, "%lums", static_cast<unsigned long>(age_ms));
+    return;
+  }
+  if (age_ms > 99000UL)
+  {
+    snprintf(buffer, bufferSize, ">99s");
+    return;
+  }
+  snprintf(buffer, bufferSize, "%.1fs", static_cast<double>(age_ms) / 1000.0);
+}

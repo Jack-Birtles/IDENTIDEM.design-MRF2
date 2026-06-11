@@ -73,6 +73,7 @@ extern uint16_t lidar_raw_distance_mm;   // Raw primary distance from the sensor
 extern uint16_t lidar_primary_intensity; // Primary return intensity.
 extern uint16_t lidar_sunlight_base;     // Ambient-light baseline reported by the sensor.
 extern int lidar_snr_permille;           // computeSnrPermille() of the last measurement (-1 if no baseline).
+extern unsigned long lidar_telemetry_ms; // millis() when the telemetry above was captured (0 = no frame yet).
 extern uint16_t lidar_frame_rate_actual; // Frame rate read back from the sensor at boot (0 if unread).
 
 // ---------------------------------------------------------------------------

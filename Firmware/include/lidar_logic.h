@@ -2,6 +2,7 @@
 #define LIDAR_LOGIC_H
 
 #include <stddef.h>
+#include <stdint.h>
 #include <DTS6012M_UART.h>
 
 struct LidarCandidate
@@ -73,5 +74,11 @@ int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames);
 bool updateSunlightWarnState(bool currently_warning, uint16_t sunlight_base);
 
 void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize);
+
+// Format the age of the last LiDAR telemetry frame for the diagnostics screen:
+// "--" when no frame has been captured yet (telemetry_ms == 0 sentinel),
+// "NNNms" under one second, "N.Ns" up to 99s, ">99s" beyond. Takes uint32_t so
+// the unsigned subtraction survives a millis() wrap on target and host alike.
+void formatLidarTelemetryAge(uint32_t now_ms, uint32_t telemetry_ms, char *buffer, size_t bufferSize);
 
 #endif // LIDAR_LOGIC_H

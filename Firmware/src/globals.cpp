@@ -42,6 +42,7 @@ uint16_t lidar_raw_distance_mm = 0;
 uint16_t lidar_primary_intensity = 0;
 uint16_t lidar_sunlight_base = 0;
 int lidar_snr_permille = -1;
+unsigned long lidar_telemetry_ms = 0;
 uint16_t lidar_frame_rate_actual = 0;
 
 // ---------------------------------------------------------------------------

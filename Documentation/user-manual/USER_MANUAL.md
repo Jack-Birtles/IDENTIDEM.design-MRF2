@@ -254,12 +254,13 @@ Current frame ranges are format-bound:
 
 Aim the camera at a target and read back exactly what the sensor reports, frame by frame. Use this when the LiDAR will not lock or seems short-ranged, and when reporting a problem so a maintainer has real numbers to work from. Press either button to return.
 
-- **Raw** — the sensor's raw distance in millimetres, before the camera's calibration/offset. **Disp** is what the main screen would show.
+- **Raw** — the sensor's reported distance in millimetres. This already includes your **Offset** setting (the sensor library adds it before reporting), but not the camera's near-range correction curve. When comparing Raw values between two cameras, make sure both use the same Offset. **Disp** is what the main screen would show.
 - **Intensity** — strength of the returned pulse. Low intensity at distance means little light is coming back (dark or distant subject).
 - **SunBase / SNR** — the ambient infrared baseline and the signal-to-noise ratio (in permille). High SunBase with low SNR is bright-light interference.
 - **Quality** — the sensor's own quality grade, 0 (none) to 4 (excellent).
 - **Held** — `Y` when the plausibility gate is holding the reading because it overshot the lens focus distance (see the `Held:` note above).
 - **fps req / act** — the frame rate the firmware requested versus what the sensor reported back. A lower frame rate gives the sensor longer to integrate, which can extend range.
+- **Age** — how long ago the values on this screen were captured. Normally a few tens of milliseconds; a climbing Age means the sensor has stopped producing frames and everything above is stale. `--` means no frame has arrived since boot.
 - **err / Recov / Sun** — last sensor error code, recovery count, and the high-sunlight flag.
 
 If you can read close objects but never distant ones — especially outdoors — see [Troubleshooting](#troubleshooting); this is often a sensor power-supply issue with a documented hardware fix.
