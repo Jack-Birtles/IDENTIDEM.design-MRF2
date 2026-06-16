@@ -568,11 +568,28 @@ void test_lidar_signal_loss_placeholder_distinguishes_far_dropout()
 {
   // Signal lost while tracking a far subject: likely re-aimed at sky, but not a
   // measurement — show "Inf?" so it cannot be mistaken for a genuine reading.
-  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM));
-  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(1200));
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM, "5.0m"));
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(1200, "5.0m"));
   // Signal lost near, or with no previous reading: plain dropout.
-  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM - 1));
-  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0));
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM - 1, "75cm"));
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0, "75cm"));
+}
+
+void test_lidar_signal_loss_placeholder_sticks_across_prev_distance_reset()
+{
+  // clearLidarDisplay zeroes prev_distance after the first dropped frame, so the
+  // very next frame would otherwise recompute "..." from prev_distance == 0 and
+  // the brief "Inf?" would never be seen. Once the display already marks a far
+  // dropout, keep marking it regardless of the reset prev_distance.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(0, "Inf?"));
+  // A genuine far measurement (Inf.) that then drops out also stays a far guess.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(0, "Inf."));
+  // A near dropout in progress must not get promoted to a far guess.
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0, "..."));
+  // Standby placeholder is not a far state — wake must start from a clean "...".
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0, "Zzz"));
+  // A null/empty current display falls back to the prev_distance decision.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(1200, nullptr));
 }
 
 void test_lidar_telemetry_age_formatting_covers_each_band()
@@ -1159,6 +1176,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_overshoot_scales_with_prior);
   RUN_TEST(test_lidar_snr_permille_math);
   RUN_TEST(test_lidar_signal_loss_placeholder_distinguishes_far_dropout);
+  RUN_TEST(test_lidar_signal_loss_placeholder_sticks_across_prev_distance_reset);
   RUN_TEST(test_lidar_telemetry_age_formatting_covers_each_band);
   RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
   RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);

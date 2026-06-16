@@ -80,7 +80,11 @@ void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize);
 // that range usually means the user re-aimed at the sky — and "..." otherwise.
 // Deliberately distinct from the "Inf." that formatDistanceDisplay() emits for
 // a genuine measured reading, so a dropout can't be read as a measurement.
-const char *lidarSignalLossPlaceholder(int prev_distance_cm);
+// current_display is the string currently on screen: once it already marks a far
+// dropout ("Inf?"/"Inf."), the placeholder stays "Inf?" so the far state survives
+// clearLidarDisplay() zeroing prev_distance between frames. Pass nullptr to decide
+// purely from prev_distance_cm.
+const char *lidarSignalLossPlaceholder(int prev_distance_cm, const char *current_display);
 
 // Format the age of the last LiDAR telemetry frame for the diagnostics screen:
 // "--" when no frame has been captured yet (telemetry_ms == 0 sentinel),

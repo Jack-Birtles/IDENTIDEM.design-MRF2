@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "mrfconstants.h"
 
@@ -566,8 +567,20 @@ void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize)
            static_cast<float>(corrected_cm) / static_cast<float>(CM_PER_METER));
 }
 
-const char *lidarSignalLossPlaceholder(int prev_distance_cm)
+const char *lidarSignalLossPlaceholder(int prev_distance_cm, const char *current_display)
 {
+  // clearLidarDisplay() resets prev_distance to 0 on the first dropped frame, so
+  // every later frame in a continuing dropout would recompute "..." from a zeroed
+  // prior and the brief "Inf?" would never be seen. The shown string carries the
+  // far state across that reset: once we are already marking a far dropout ("Inf?")
+  // or held a genuine far measurement ("Inf."), keep marking it until a valid
+  // reading replaces the display. Standby ("Zzz") and near dropouts ("...") are
+  // not far states, so a fresh decision is taken from prev_distance.
+  if (current_display &&
+      (strcmp(current_display, "Inf?") == 0 || strcmp(current_display, "Inf.") == 0))
+  {
+    return "Inf?";
+  }
   return prev_distance_cm >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf?" : "...";
 }
 

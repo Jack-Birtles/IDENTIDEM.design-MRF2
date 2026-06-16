@@ -147,7 +147,7 @@ void setDistance()
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
       if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
       {
-        clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance));
+        clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
       }
       return;
     }
@@ -211,7 +211,10 @@ void setDistance()
 
   if (recoveryDecision.clear_display)
   {
-    clearLidarDisplay("...");
+    // Preserve a far dropout across a stray timeout/CRC frame: while aimed at the
+    // sky the sensor mostly streams invalid frames (handled above), but an odd
+    // unparseable frame lands here and must not poison "Inf?" back to "...".
+    clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
   }
 
   if (!recoveryDecision.attempt_recovery)
