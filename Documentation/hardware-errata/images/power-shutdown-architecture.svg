@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <title>MRF2 power distribution and switch-off behaviour</title>
+  <desc>Block diagram. The camera power switch pulls the Feather EN pin low, collapsing the switched 3.3 V rail that feeds the ESP32-S3 MCU and the I2C devices. The LiDAR regulator U1 on the breakout takes always-present VBAT on its input but has its enable slaved to the switched 3.3 V (FPC pin 1), so switching off also kills the LiDAR rail. U1 in shutdown draws about 1 to 2 microamps.</desc>
+  <defs>
+    <marker id="aBlue" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2563eb"/></marker>
+    <marker id="aAmber" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d97706"/></marker>
+    <marker id="aGreen" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#059669"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="620" fill="#ffffff"/>
+  <text x="480" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">MRF2 power distribution and switch-off behaviour</text>
+  <text x="480" y="51" text-anchor="middle" font-size="12.5" fill="#475569">One power switch (Feather EN) cuts the MCU, the I&#178;C devices, and the LiDAR rail.</text>
+
+  <!-- legend -->
+  <g font-size="11.5" fill="#334155">
+    <line x1="40" y1="80" x2="64" y2="80" stroke="#2563eb" stroke-width="3.5"/><text x="69" y="84">switched 3.3 V (off when camera off)</text>
+    <line x1="320" y1="80" x2="344" y2="80" stroke="#d97706" stroke-width="3.5"/><text x="349" y="84">VBAT (always present)</text>
+    <line x1="540" y1="80" x2="564" y2="80" stroke="#059669" stroke-width="3.5"/><text x="569" y="84">3V3_LIDAR</text>
+    <line x1="700" y1="80" x2="724" y2="80" stroke="#475569" stroke-width="2.2" stroke-dasharray="5 4"/><text x="729" y="84">enable / control</text>
+  </g>
+
+  <!-- VBAT lane -->
+  <line x1="164" y1="134" x2="574" y2="134" stroke="#d97706" stroke-width="3.5"/>
+  <circle cx="320" cy="134" r="3.5" fill="#d97706"/>
+  <line x1="320" y1="134" x2="320" y2="180" stroke="#d97706" stroke-width="1.6" stroke-dasharray="3 3"/>
+  <text x="326" y="128" font-size="10.5" fill="#b45309">Feather BAT &#8594; VBAT net</text>
+
+  <!-- battery -->
+  <rect x="24" y="104" width="140" height="60" rx="6" fill="#fff" stroke="#d97706" stroke-width="2.5"/>
+  <text x="94" y="130" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">LiPo battery</text>
+  <text x="94" y="148" text-anchor="middle" font-size="11" fill="#64748b">VBAT 3.0&#8211;4.2 V</text>
+
+  <!-- power switch -->
+  <rect x="24" y="300" width="140" height="56" rx="6" fill="#fff" stroke="#475569" stroke-width="2"/>
+  <text x="94" y="326" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">Power switch</text>
+  <text x="94" y="344" text-anchor="middle" font-size="10.5" fill="#64748b">pulls EN low = off</text>
+  <!-- EN control -->
+  <polyline points="164,328 182,328 182,250 212,250" fill="none" stroke="#475569" stroke-width="2.2" stroke-dasharray="5 4"/>
+  <text x="150" y="232" font-size="11" font-weight="600" fill="#475569">EN</text>
+
+  <!-- Feather / main board -->
+  <rect x="196" y="180" width="258" height="330" rx="10" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+  <text x="206" y="202" font-size="12.5" font-weight="700" fill="#334155">Feather ESP32-S3 &#183; main board</text>
+
+  <rect x="212" y="232" width="96" height="58" rx="5" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="260" y="257" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0f172a">3.3 V</text>
+  <text x="260" y="274" text-anchor="middle" font-size="10.5" fill="#64748b">regulator</text>
+
+  <rect x="338" y="330" width="104" height="58" rx="5" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="390" y="355" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0f172a">ESP32-S3</text>
+  <text x="390" y="372" text-anchor="middle" font-size="10.5" fill="#64748b">MCU</text>
+
+  <rect x="224" y="420" width="200" height="58" rx="5" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="324" y="445" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0f172a">ADS1015 + 2&#215; OLED</text>
+  <text x="324" y="462" text-anchor="middle" font-size="10.5" fill="#64748b">I&#178;C, on 3.3 V</text>
+
+  <!-- 3.3V lane + taps -->
+  <line x1="308" y1="261" x2="490" y2="261" stroke="#2563eb" stroke-width="3.5"/>
+  <polyline points="390,261 390,330" fill="none" stroke="#2563eb" stroke-width="2.6" marker-end="url(#aBlue)"/>
+  <polyline points="320,261 320,420" fill="none" stroke="#2563eb" stroke-width="2.6" marker-end="url(#aBlue)"/>
+
+  <!-- FPC -->
+  <rect x="490" y="110" width="44" height="400" rx="4" fill="#eef2f7" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="512" y="104" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">FPC 8-pin</text>
+  <circle cx="512" cy="134" r="4" fill="#d97706"/><text x="512" y="118" text-anchor="middle" font-size="9.5" font-weight="600" fill="#b45309">6</text>
+  <circle cx="512" cy="261" r="4" fill="#2563eb"/><text x="512" y="249" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1d4ed8">1</text>
+  <g font-size="9" fill="#94a3b8" text-anchor="end">
+    <text x="485" y="306">also: UART</text>
+    <text x="485" y="330">I&#178;C</text>
+    <text x="485" y="354">GND</text>
+  </g>
+
+  <!-- Breakout -->
+  <rect x="560" y="110" width="380" height="400" rx="10" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+  <text x="572" y="132" font-size="12.5" font-weight="700" fill="#334155">Breakout &#183; at the sensor</text>
+
+  <!-- VBAT into U1 IN -->
+  <polyline points="534,134 574,134 574,238 632,238" fill="none" stroke="#d97706" stroke-width="3.5" marker-end="url(#aAmber)"/>
+  <text x="582" y="206" font-size="10" fill="#b45309">Cin 1 &#181;F + 10 &#181;F</text>
+  <line x1="566" y1="300" x2="582" y2="300" stroke="#d97706" stroke-width="2"/>
+  <line x1="569" y1="305" x2="579" y2="305" stroke="#d97706" stroke-width="2"/>
+  <line x1="574" y1="238" x2="574" y2="300" stroke="#d97706" stroke-width="1.4"/>
+
+  <!-- U1 -->
+  <rect x="632" y="214" width="120" height="96" rx="6" fill="#fff" stroke="#475569" stroke-width="2"/>
+  <text x="692" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">U1</text>
+  <text x="692" y="258" text-anchor="middle" font-size="11.5" fill="#0f172a">TLV75533</text>
+  <text x="692" y="274" text-anchor="middle" font-size="10" fill="#64748b">3.3 V LDO</text>
+  <text x="638" y="241" font-size="9.5" fill="#64748b">IN</text>
+  <text x="638" y="290" font-size="9.5" fill="#64748b">EN</text>
+  <text x="746" y="266" font-size="9.5" text-anchor="end" fill="#64748b">OUT</text>
+
+  <!-- 3.3V into breakout: split to Stemma + U1 EN -->
+  <line x1="534" y1="261" x2="588" y2="261" stroke="#2563eb" stroke-width="3.5"/>
+  <circle cx="588" cy="261" r="3.5" fill="#2563eb"/>
+  <polyline points="588,261 588,438 620,438" fill="none" stroke="#2563eb" stroke-width="2.6" marker-end="url(#aBlue)"/>
+  <polyline points="588,261 610,261 610,286 632,286" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#aBlue)"/>
+  <text x="616" y="305" font-size="10" font-weight="600" fill="#1d4ed8">EN slaved to</text>
+  <text x="616" y="318" font-size="10" font-weight="600" fill="#1d4ed8">switched 3.3 V</text>
+
+  <rect x="620" y="412" width="150" height="52" rx="5" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="695" y="442" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">Stemma QT (J6)</text>
+
+  <!-- 3V3_LIDAR out -->
+  <line x1="752" y1="262" x2="812" y2="262" stroke="#059669" stroke-width="3.5"/>
+  <polyline points="790,262 790,318" fill="none" stroke="#059669" stroke-width="1.6"/>
+  <line x1="782" y1="318" x2="798" y2="318" stroke="#059669" stroke-width="2"/>
+  <line x1="785" y1="323" x2="795" y2="323" stroke="#059669" stroke-width="2"/>
+  <text x="744" y="336" font-size="9.5" fill="#047857">47 &#181;F || 1 &#181;F || 100 nF</text>
+
+  <rect x="812" y="230" width="112" height="64" rx="5" fill="#fff" stroke="#059669" stroke-width="2"/>
+  <text x="868" y="256" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0f172a">DTS6012M</text>
+  <text x="868" y="274" text-anchor="middle" font-size="10.5" fill="#64748b">LiDAR (J7)</text>
+
+  <!-- callouts -->
+  <rect x="24" y="524" width="556" height="72" rx="7" fill="#fffbeb" stroke="#d97706" stroke-width="1.3"/>
+  <text x="38" y="546" font-size="11.5" font-weight="700" fill="#92400e">Switch OFF</text>
+  <text x="38" y="564" font-size="11" fill="#334155">EN low &#8594; Feather 3.3 V collapses. MCU and I&#178;C lose power directly;</text>
+  <text x="38" y="580" font-size="11" fill="#334155">FPC pin 1 drops &#8594; U1 disabled &#8594; the LiDAR rail (3V3_LIDAR) goes to 0 V.</text>
+
+  <rect x="596" y="524" width="340" height="72" rx="7" fill="#f0fdf4" stroke="#059669" stroke-width="1.3"/>
+  <text x="610" y="546" font-size="11.5" font-weight="700" fill="#065f46">Off-state drain</text>
+  <text x="610" y="564" font-size="11" fill="#334155">VBAT stays on U1's input, but U1 in</text>
+  <text x="610" y="580" font-size="11" fill="#334155">shutdown draws &#8776; 1&#8211;2 &#181;A &#8212; negligible.</text>
+</svg>

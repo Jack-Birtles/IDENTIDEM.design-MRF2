@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 660" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <title>MRF2 breakout LiDAR LDO subcircuit to capture in KiCad</title>
+  <desc>Schematic of the dedicated LiDAR regulator to add on the breakout. The 8-pin FPC J5 brings always-present VBAT on pin 6 and switched 3.3 V on pin 1. VBAT feeds U1 (TLV75533, SOT-23-5) input through input caps Cin. The switched 3.3 V on pin 1 drives U1 EN so the camera power switch also disables the LDO, and also feeds the Stemma QT J6. U1 output is the new 3V3_LIDAR net, decoupled by C1 47uF, C2 1uF and C3 100nF, going to J7 pins 1 and 2. UART on FPC pins 2 and 3 passes through to J7 pins 3 and 4.</desc>
+  <defs>
+    <marker id="dot" markerWidth="6" markerHeight="6" refX="3" refY="3"><circle cx="3" cy="3" r="3" fill="#334155"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="980" height="660" fill="#ffffff"/>
+  <text x="490" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Breakout LiDAR regulator &#8212; net list to capture in KiCad</text>
+  <text x="490" y="51" text-anchor="middle" font-size="12.5" fill="#475569">New parts U1, Cin. New nets VBAT and 3V3_LIDAR. EN slaved to switched 3.3 V so the power switch cuts the LiDAR too.</text>
+
+  <!-- legend -->
+  <g font-size="11.5" fill="#334155">
+    <line x1="120" y1="76" x2="144" y2="76" stroke="#d97706" stroke-width="3.5"/><text x="149" y="80">VBAT (always present)</text>
+    <line x1="330" y1="76" x2="354" y2="76" stroke="#2563eb" stroke-width="3.5"/><text x="359" y="80">switched 3.3 V (FPC pin 1)</text>
+    <line x1="560" y1="76" x2="584" y2="76" stroke="#059669" stroke-width="3.5"/><text x="589" y="80">3V3_LIDAR (new)</text>
+    <line x1="760" y1="76" x2="784" y2="76" stroke="#64748b" stroke-width="3" stroke-dasharray="2 0"/><text x="789" y="80">GND</text>
+  </g>
+
+  <!-- ===================== J5 FPC connector ===================== -->
+  <rect x="40" y="120" width="150" height="360" rx="8" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+  <text x="115" y="142" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">J5 &#183; 8-pin FPC</text>
+  <text x="115" y="159" text-anchor="middle" font-size="10.5" fill="#64748b">to main board ribbon</text>
+
+  <!-- pin rows: y for pins 1..8 -->
+  <!-- pin 1 -->
+  <g font-size="11" fill="#0f172a">
+    <text x="56" y="190">1</text><text x="74" y="190" font-weight="600">3.3 V</text>
+    <text x="56" y="220">2</text><text x="74" y="220">UART</text>
+    <text x="56" y="250">3</text><text x="74" y="250">UART</text>
+    <text x="56" y="280">4</text><text x="74" y="280">GND</text>
+    <text x="56" y="310">5</text><text x="74" y="310">GND</text>
+    <text x="56" y="340">6</text><text x="74" y="340" font-weight="700" fill="#b45309">VBAT</text>
+    <text x="56" y="370">7</text><text x="74" y="370">I&#178;C</text>
+    <text x="56" y="400">8</text><text x="74" y="400">I&#178;C</text>
+  </g>
+  <text x="115" y="455" text-anchor="middle" font-size="10" fill="#b45309">pin 6 repurposed: was 3.3 V, now VBAT</text>
+  <text x="115" y="470" text-anchor="middle" font-size="10" fill="#64748b">pin 1 stays switched 3.3 V</text>
+
+  <!-- pin stubs -->
+  <line x1="190" y1="186" x2="220" y2="186" stroke="#2563eb" stroke-width="3"/>   <!-- pin1 3.3V -->
+  <line x1="190" y1="216" x2="900" y2="216" stroke="#7c3aed" stroke-width="2.4"/> <!-- pin2 UART -->
+  <line x1="190" y1="246" x2="900" y2="246" stroke="#7c3aed" stroke-width="2.4"/> <!-- pin3 UART -->
+  <line x1="190" y1="336" x2="250" y2="336" stroke="#d97706" stroke-width="3.5"/> <!-- pin6 VBAT -->
+
+  <!-- ===================== switched 3.3 V net (pin1) ===================== -->
+  <!-- run up and across to EN tap and J6 -->
+  <polyline points="220,186 260,186" fill="none" stroke="#2563eb" stroke-width="3"/>
+  <circle cx="260" cy="186" r="3.5" fill="#2563eb"/>
+  <!-- up to J6 -->
+  <polyline points="260,186 260,140 760,140 760,170" fill="none" stroke="#2563eb" stroke-width="2.6" marker-end="url(#dot)"/>
+  <!-- down to U1 EN -->
+  <polyline points="260,186 260,402 430,402" fill="none" stroke="#2563eb" stroke-width="2.6"/>
+  <text x="300" y="178" font-size="10.5" fill="#1d4ed8">net 3.3V also drives U1 EN + J6</text>
+
+  <!-- ===================== VBAT -> Cin -> U1 IN ===================== -->
+  <polyline points="250,336 300,336" fill="none" stroke="#d97706" stroke-width="3.5"/>
+  <circle cx="330" cy="336" r="3.5" fill="#d97706"/>
+  <polyline points="300,336 430,336" fill="none" stroke="#d97706" stroke-width="3.5"/>
+  <text x="345" y="328" font-size="10.5" fill="#b45309">VBAT</text>
+
+  <!-- Cin: two caps to GND at x=330 -->
+  <!-- cap 10uF -->
+  <line x1="330" y1="336" x2="330" y2="500" stroke="#d97706" stroke-width="1.8"/>
+  <line x1="318" y1="470" x2="342" y2="470" stroke="#0f172a" stroke-width="2.2"/>
+  <line x1="318" y1="478" x2="342" y2="478" stroke="#0f172a" stroke-width="2.2"/>
+  <text x="348" y="468" font-size="10.5" fill="#334155">10 &#181;F</text>
+  <text x="348" y="481" font-size="9" fill="#64748b">0805</text>
+  <!-- second cap 1uF, tap further along -->
+  <circle cx="385" cy="336" r="3.5" fill="#d97706"/>
+  <line x1="385" y1="336" x2="385" y2="500" stroke="#d97706" stroke-width="1.8"/>
+  <line x1="373" y1="470" x2="397" y2="470" stroke="#0f172a" stroke-width="2.2"/>
+  <line x1="373" y1="478" x2="397" y2="478" stroke="#0f172a" stroke-width="2.2"/>
+  <text x="403" y="468" font-size="10.5" fill="#334155">1 &#181;F</text>
+  <text x="403" y="481" font-size="9" fill="#64748b">0402</text>
+  <text x="300" y="520" font-size="11" font-weight="600" fill="#334155">Cin</text>
+
+  <!-- ===================== U1 ===================== -->
+  <rect x="430" y="300" width="150" height="120" rx="8" fill="#fff" stroke="#059669" stroke-width="2.5"/>
+  <text x="505" y="345" text-anchor="middle" font-size="14" font-weight="700" fill="#0f172a">U1</text>
+  <text x="505" y="364" text-anchor="middle" font-size="11.5" fill="#334155">TLV75533</text>
+  <text x="505" y="380" text-anchor="middle" font-size="10" fill="#64748b">SOT-23-5 (DBV)</text>
+  <!-- pin labels inside -->
+  <text x="438" y="336" font-size="10" fill="#475569">IN</text>
+  <text x="438" y="406" font-size="10" fill="#475569">EN</text>
+  <text x="560" y="336" font-size="10" text-anchor="end" fill="#475569">OUT</text>
+  <text x="505" y="414" text-anchor="middle" font-size="10" fill="#475569">GND</text>
+  <text x="568" y="406" font-size="9" text-anchor="end" fill="#94a3b8">4=NC</text>
+
+  <!-- U1 GND down -->
+  <line x1="505" y1="420" x2="505" y2="555" stroke="#64748b" stroke-width="2.2"/>
+
+  <!-- ===================== U1 OUT -> 3V3_LIDAR -> Cout -> J7 ===================== -->
+  <polyline points="580,336 640,336" fill="none" stroke="#059669" stroke-width="3.5"/>
+  <circle cx="640" cy="336" r="3.5" fill="#059669"/>
+  <text x="588" y="328" font-size="10.5" fill="#047857">3V3_LIDAR</text>
+  <!-- OUT-side node (3V3_LIDAR): U1 OUT, C2, C3, J7 pin 2 -->
+  <polyline points="640,336 690,336" fill="none" stroke="#059669" stroke-width="3.5"/>
+  <!-- FB1 series element (0 ohm default / ferrite populate-option) -->
+  <rect x="690" y="327" width="44" height="18" rx="3" fill="#fff" stroke="#059669" stroke-width="2"/>
+  <text x="712" y="340" text-anchor="middle" font-size="9" fill="#0f172a">FB1 0&#8486;</text>
+  <!-- LASER-side node (3V3_LASER): C1, J7 pin 1 -->
+  <polyline points="734,336 820,336" fill="none" stroke="#059669" stroke-width="3.5"/>
+  <text x="738" y="322" font-size="10.5" fill="#047857">3V3_LASER</text>
+
+  <!-- C2 1uF (LDO stability, at OUT) -->
+  <circle cx="620" cy="336" r="3.5" fill="#059669"/>
+  <line x1="620" y1="336" x2="620" y2="500" stroke="#059669" stroke-width="1.8"/>
+  <line x1="608" y1="470" x2="632" y2="470" stroke="#0f172a" stroke-width="2.2"/>
+  <line x1="608" y1="478" x2="632" y2="478" stroke="#0f172a" stroke-width="2.2"/>
+  <text x="600" y="492" font-size="10.5" fill="#334155">C2 1 &#181;F</text>
+  <!-- C3 100nF (LDO stability, at OUT) -->
+  <circle cx="662" cy="336" r="3.5" fill="#059669"/>
+  <line x1="662" y1="336" x2="662" y2="500" stroke="#059669" stroke-width="1.8"/>
+  <line x1="650" y1="470" x2="674" y2="470" stroke="#0f172a" stroke-width="2.2"/>
+  <line x1="650" y1="478" x2="674" y2="478" stroke="#0f172a" stroke-width="2.2"/>
+  <text x="648" y="492" font-size="10.5" fill="#334155">C3 100 nF</text>
+  <!-- C1 47uF bulk (laser side, at J7 pin 1) -->
+  <circle cx="766" cy="336" r="3.5" fill="#059669"/>
+  <line x1="766" y1="336" x2="766" y2="500" stroke="#059669" stroke-width="1.8"/>
+  <line x1="754" y1="470" x2="778" y2="470" stroke="#0f172a" stroke-width="2.2"/>
+  <line x1="754" y1="478" x2="778" y2="478" stroke="#0f172a" stroke-width="2.2"/>
+  <text x="784" y="468" font-size="10.5" fill="#334155">C1 47 &#181;F</text>
+  <text x="724" y="492" font-size="9.5" fill="#64748b">bulk at laser pin</text>
+
+  <!-- J7 pin 2 (logic) tapped from 3V3_LIDAR, before FB1 -->
+  <circle cx="680" cy="336" r="3.5" fill="#059669"/>
+  <polyline points="680,336 680,318 806,318 806,360 820,360" fill="none" stroke="#059669" stroke-width="2.2"/>
+
+  <text x="600" y="520" font-size="10.5" font-weight="600" fill="#334155">Cout: C2/C3 at LDO out, FB1 (0&#8486;), C1 bulk at laser pin</text>
+
+  <!-- ===================== GND rail ===================== -->
+  <line x1="330" y1="555" x2="780" y2="555" stroke="#64748b" stroke-width="2.6"/>
+  <line x1="330" y1="500" x2="330" y2="555" stroke="#d97706" stroke-width="1.8"/>
+  <line x1="385" y1="500" x2="385" y2="555" stroke="#d97706" stroke-width="1.8"/>
+  <line x1="620" y1="500" x2="620" y2="555" stroke="#059669" stroke-width="1.8"/>
+  <line x1="662" y1="500" x2="662" y2="555" stroke="#059669" stroke-width="1.8"/>
+  <line x1="766" y1="500" x2="766" y2="555" stroke="#059669" stroke-width="1.8"/>
+  <!-- GND symbol -->
+  <line x1="555" y1="555" x2="555" y2="575" stroke="#64748b" stroke-width="2.2"/>
+  <line x1="540" y1="575" x2="570" y2="575" stroke="#64748b" stroke-width="2.6"/>
+  <line x1="546" y1="582" x2="564" y2="582" stroke="#64748b" stroke-width="2.4"/>
+  <line x1="551" y1="589" x2="559" y2="589" stroke="#64748b" stroke-width="2.2"/>
+  <text x="578" y="580" font-size="10.5" fill="#64748b">GND (FPC pins 4,5)</text>
+
+  <!-- ===================== J6 Stemma QT ===================== -->
+  <rect x="700" y="170" width="130" height="70" rx="6" fill="#fff" stroke="#2563eb" stroke-width="2"/>
+  <text x="765" y="198" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0f172a">J6 Stemma QT</text>
+  <text x="765" y="216" text-anchor="middle" font-size="10.5" fill="#64748b">on switched 3.3 V + I&#178;C</text>
+  <text x="765" y="231" text-anchor="middle" font-size="9.5" fill="#94a3b8">unchanged</text>
+
+  <!-- ===================== J7 LiDAR connector (6-pin, per DTS6012M datasheet) ===================== -->
+  <rect x="820" y="314" width="135" height="150" rx="8" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+  <text x="887" y="332" text-anchor="middle" font-size="12.5" font-weight="700" fill="#334155">J7 &#183; DTS6012M</text>
+  <g font-size="10" fill="#0f172a">
+    <text x="830" y="348">1</text><text x="845" y="348" font-weight="600" fill="#047857">3V3_LASER</text>
+    <text x="830" y="368">2</text><text x="845" y="368" font-weight="600" fill="#047857">3V3</text>
+    <text x="830" y="388">3</text><text x="845" y="388" fill="#6d28d9">UART_TX</text>
+    <text x="830" y="408">4</text><text x="845" y="408" fill="#6d28d9">UART_RX</text>
+    <text x="830" y="428">5</text><text x="845" y="428" fill="#64748b">INT &#8594; GND (UART)</text>
+    <text x="830" y="448">6</text><text x="845" y="448" fill="#64748b">GND</text>
+  </g>
+  <!-- J7 pin 1 (laser) sits on the 3V3_LASER bus (reaches x=820,y=336); pin 2 (logic) fed by the 3V3_LIDAR tap above -->
+
+  <!-- UART into J7 pins 3,4 -->
+  <polyline points="900,216 900,380 820,380" fill="none" stroke="#7c3aed" stroke-width="2.2"/>
+  <polyline points="900,246 884,246 884,400 820,400" fill="none" stroke="#7c3aed" stroke-width="2.2"/>
+  <!-- INT (pin5) + GND (pin6) tied low for UART mode -->
+  <polyline points="820,420 802,420 802,452" fill="none" stroke="#64748b" stroke-width="2"/>
+  <polyline points="820,440 802,440" fill="none" stroke="#64748b" stroke-width="2"/>
+  <line x1="792" y1="452" x2="812" y2="452" stroke="#64748b" stroke-width="2.4"/>
+  <line x1="796" y1="457" x2="808" y2="457" stroke="#64748b" stroke-width="2.2"/>
+  <line x1="800" y1="462" x2="804" y2="462" stroke="#64748b" stroke-width="2"/>
+
+  <!-- detach note -->
+  <text x="945" y="596" text-anchor="end" font-size="10" fill="#b91c1c">J7 pins 1,2 detached from system 3.3 V</text>
+  <text x="945" y="610" text-anchor="end" font-size="10" fill="#b91c1c">&#8594; pin 1 on 3V3_LASER, pin 2 on 3V3_LIDAR</text>
+
+  <!-- footer -->
+  <text x="490" y="630" text-anchor="middle" font-size="10.5" fill="#94a3b8">U1 DBV pinout 1=IN 2=GND 3=EN 4=NC 5=OUT (TI SBVS320D). See lidar-ldo-design.md and lidar-ldo-kicad-guide.md.</text>
+</svg>
