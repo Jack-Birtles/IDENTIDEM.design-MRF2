@@ -464,7 +464,7 @@ Wake the device by pressing any button or moving the lens/advance lever (any act
   - At close range, verify LiDAR wiring and power. The UI updates only with valid sensor data.
 - **LiDAR only reads close objects — nothing at distance, worse outdoors or in bright light**
   - Open **Setup > LiDAR > Diagnostics** and aim at a distant target. If Intensity stays very low and Quality stays at 0–1 while SunBase is high, the sensor is not getting a usable return.
-  - This pattern (close reads fine, distance/bright-light fails) is commonly a sensor power-supply problem: the LiDAR's pulsed laser briefly starves its 3.3 V rail because the board has no local decoupling capacitor at the connector. There is a documented hardware fix — see [LiDAR power decoupling errata](../hardware-errata/lidar-decoupling.md).
+  - This pattern (close reads fine, distance/bright-light fails) is commonly a sensor power-supply problem: the LiDAR's pulsed laser briefly starves its 3.3 V rail because the board has no local decoupling capacitor at the connector. There is a documented hardware fix — see [LiDAR power decoupling errata](../hardware-errata/lidar-stage1-decoupling.md).
   - To gather data for a maintainer, follow the [LiDAR field test protocol](../hardware-errata/lidar-field-test.md).
 - **LiDAR distance shows `Zzz`**
   - LiDAR is in idle standby. Turn the focus ring or press a button to wake it, or increase/disable **Idle timeout** in **Setup > LiDAR >**.

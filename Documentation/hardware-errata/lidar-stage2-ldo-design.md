@@ -1,6 +1,8 @@
 # LiDAR dedicated regulator — design (Stage 2)
 
-**Status: design locked and reviewed against both datasheets (DTS6012M + TLV755P); implementation pending (KiCad capture + layout).** Tracked on beads issue `IDENTIDEM_design-MRF2-3z5`. Background and root cause: [lidar-decoupling.md](lidar-decoupling.md). Datasheets in [datasheets/](datasheets/).
+> **CURRENT — Stage 2 · the plan to follow.** Supersedes the Stage-1 decoupling-only respin ([lidar-stage1-decoupling.md](lidar-stage1-decoupling.md)). Build steps: [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md). Start at the [errata index](README.md).
+
+**Status: design locked and reviewed against both datasheets (DTS6012M + TLV755P); implementation pending (KiCad capture + layout).** Tracked on beads issue `IDENTIDEM_design-MRF2-3z5`. Background and root cause: [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md). Datasheets in [datasheets/](datasheets/).
 
 ## Goal
 
@@ -159,7 +161,7 @@ Confirmed against the design (Table 4-1 and the electrical tables):
 
 Schematic capture (adding U1, Cin, the new nets, and the EN/BAT wiring) is done in the KiCad GUI — `kicad-cli` runs ERC and exports but cannot author a schematic, and both boards model the Feather as generic pins, so net targeting needs the editor plus the Adafruit pinout. PCB layout (placement, routing, pours, DRC, fab outputs) is also GUI work. Validate with `kicad-cli sch erc` after capture (the binary ships inside `KiCad.app/Contents/MacOS/` on macOS).
 
-**Step-by-step capture:** [lidar-ldo-kicad-guide.md](lidar-ldo-kicad-guide.md). The subcircuit to draw is in [images/lidar-ldo-schematic.svg](images/lidar-ldo-schematic.svg).
+**Step-by-step capture:** [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md). The subcircuit to draw is in [images/lidar-ldo-schematic.svg](images/lidar-ldo-schematic.svg).
 
 ![LiDAR LDO subcircuit: FPC J5 brings VBAT on pin 6 and switched 3.3 V on pin 1; VBAT feeds U1 input through Cin; pin 1 drives U1 EN and J6; U1 output 3V3_LIDAR carries C2/C3 and J7 pin 2, then FB1 to 3V3_LASER carrying C1 bulk and J7 pin 1](images/lidar-ldo-schematic.svg)
 

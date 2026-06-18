@@ -1,5 +1,7 @@
 # LiDAR field test protocol
 
+> **Reference · all stages.** Diagnostic protocol for gathering comparable before/after range data for any of the fixes. Start at the [errata index](README.md).
+
 Thank you for helping diagnose the LiDAR range issue. The goal is to get consistent, comparable numbers from every tester so we can tell apart three possible causes (the focus-distance plausibility gate, the sensor's frame rate / integration time, and a board power-supply problem). Please follow the steps exactly and record every value, including "no reading" — a blank tells us nothing, but "no reading" is real data.
 
 Everything you need is on the new **Setup > LiDAR > Diagnostics** screen. Aim the camera, hold steady, and read the live values off that screen.
@@ -98,7 +100,7 @@ If you have been given firmware builds at different frame rates, repeat just the
 
 ## 7. Hardware A/B (only if you can solder)
 
-If you fit the cap mod from the [decoupling errata](lidar-decoupling.md): run the full Section 3 matrix once **before** fitting, then again **after**, on the same day with the same targets. Note which mod you fitted in the Section 1 header.
+If you fit the cap mod from the [decoupling errata](lidar-stage1-decoupling.md): run the full Section 3 matrix once **before** fitting, then again **after**, on the same day with the same targets. Note which mod you fitted in the Section 1 header.
 
 ## 8. Reference unit comparison (if you have a known-good camera)
 

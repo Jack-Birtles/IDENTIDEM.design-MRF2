@@ -1,6 +1,8 @@
 # Updating the boards in KiCad — LiDAR LDO (Stage 2)
 
-Step-by-step capture of the dedicated LiDAR regulator design. The design itself is locked in [lidar-ldo-design.md](lidar-ldo-design.md); this is the click-by-click for the KiCad GUI. The target circuit is drawn in [images/lidar-ldo-schematic.svg](images/lidar-ldo-schematic.svg) — keep it open while you work.
+> **CURRENT — Stage 2 · implementation guide.** KiCad capture steps for the design in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md). Start at the [errata index](README.md).
+
+Step-by-step capture of the dedicated LiDAR regulator design. The design itself is locked in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md); this is the click-by-click for the KiCad GUI. The target circuit is drawn in [images/lidar-ldo-schematic.svg](images/lidar-ldo-schematic.svg) — keep it open while you work.
 
 Two projects change:
 
@@ -122,7 +124,7 @@ Open each `.kicad_pcb`, **Tools → Update PCB from Schematic** to pull in U1 + 
 - Pour/route `3V3_LIDAR` and `GND` generously near the sensor; stitch GND vias.
 - Run **DRC**, then regenerate fab outputs.
 
-Full layout intent is in [lidar-breakout-layout.md](lidar-breakout-layout.md).
+Full layout intent is in [lidar-stage1-breakout-layout.md](lidar-stage1-breakout-layout.md).
 
 ---
 
@@ -131,4 +133,4 @@ Full layout intent is in [lidar-breakout-layout.md](lidar-breakout-layout.md).
 - ERC clean on both boards (only intentional `PWR_FLAG`-resolved power warnings).
 - Netlist matches section C.
 - DRC clean after layout.
-- Field verification per [lidar-ldo-design.md](lidar-ldo-design.md#verification): scope J7 VCC under laser load, confirm cold-start boot, off-state battery current ~µA.
+- Field verification per [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md#verification): scope J7 VCC under laser load, confirm cold-start boot, off-state battery current ~µA.

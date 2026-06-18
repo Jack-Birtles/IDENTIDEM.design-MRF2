@@ -1,12 +1,14 @@
 # Breakout respin: LiDAR decoupling layout spec
 
+> **Stage 1 · decoupling layout spec.** Covers the C1–C3 decoupling placement only. The Stage-2 LDO adds U1/Cin/FB1 — its layout notes live in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md) until a dedicated Stage-2 layout doc exists. Start at the [errata index](README.md).
+
 This is the PCB-layout half of the LiDAR power fix. The schematic
 (`PCBs/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_sch`) already has the
 decoupling capacitors C1–C3 added and ERC-clean. This document is the
 step-by-step for finishing the board in the KiCad PCB editor, since layout
 (placement, routing, pours, DRC, fab outputs) is GUI work.
 
-Background and the "why" are in [lidar-decoupling.md](lidar-decoupling.md).
+Background and the "why" are in [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md).
 
 ## What changed in the schematic
 

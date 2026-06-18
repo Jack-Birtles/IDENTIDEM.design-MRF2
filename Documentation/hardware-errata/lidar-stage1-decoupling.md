@@ -1,5 +1,7 @@
 # Errata: LiDAR power decoupling (breakout board)
 
+> **Stage 1 · root cause + hand-solder fix.** Still valid as the background and the solder-in stopgap, but the board respin now follows **Stage 2** → [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md). Start at the [errata index](README.md).
+
 **Applies to:** MRF-Pro v7.5 breakout board (and earlier), DTS6012M LiDAR on connector J7.
 
 **Status:** Hand-solder fix available now. A board respin is planned (see the end of this document).
@@ -54,9 +56,9 @@ To collect comparable before/after data, use the [LiDAR field test protocol](lid
 
 The fix is being designed into the board so new units don't need hand-soldered caps. It is staged:
 
-**Stage 1 — decoupling (designed now).** C1 47 µF + C2 1 µF + C3 100 nF added to the breakout schematic across the LiDAR 3.3 V rail, ERC-clean. The board layout (placement at J7, wider copper, ground stitching) is specified in [lidar-breakout-layout.md](lidar-breakout-layout.md) for completion in the KiCad PCB editor. This is needed in every scenario and ships first.
+**Stage 1 — decoupling (designed now).** C1 47 µF + C2 1 µF + C3 100 nF added to the breakout schematic across the LiDAR 3.3 V rail, ERC-clean. The board layout (placement at J7, wider copper, ground stitching) is specified in [lidar-stage1-breakout-layout.md](lidar-stage1-breakout-layout.md) for completion in the KiCad PCB editor. This is needed in every scenario and ships first.
 
-**Stage 2 — dedicated regulator (gated on field data).** If the field test shows decoupling alone is not enough, add a dedicated low-noise 3.3 V regulator (TLV75533) for the LiDAR fed from VBAT. The full design is in [lidar-ldo-design.md](lidar-ldo-design.md); the decision is tracked on beads issue `IDENTIDEM_design-MRF2-3z5`.
+**Stage 2 — dedicated regulator (gated on field data).** If the field test shows decoupling alone is not enough, add a dedicated low-noise 3.3 V regulator (TLV75533) for the LiDAR fed from VBAT. The full design is in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md); the decision is tracked on beads issue `IDENTIDEM_design-MRF2-3z5`.
 
 Two facts found while tracing the current board shape the respin:
 

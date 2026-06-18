@@ -1,6 +1,6 @@
 # Datasheets
 
-Reference datasheets for the LiDAR LDO errata ([../lidar-ldo-design.md](../lidar-ldo-design.md)).
+Reference datasheets for the LiDAR LDO errata ([../lidar-stage2-ldo-design.md](../lidar-stage2-ldo-design.md)).
 
 | File | Part | In repo? |
 |------|------|----------|
