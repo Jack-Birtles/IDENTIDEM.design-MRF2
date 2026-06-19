@@ -3,14 +3,14 @@
     "GenerationSoftware": {
       "Vendor": "KiCad",
       "Application": "Pcbnew",
-      "Version": "9.0.4"
+      "Version": "10.0.3"
     },
-    "CreationDate": "2025-11-17T08:27:00+00:00"
+    "CreationDate": "2026-06-19T22:45:07+01:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
       "Name": "MRF-Pro-v8-breakout",
-      "GUID": "4d52462d-5072-46f2-9d76-372d62726561",
+      "GUID": "4d52462d-5072-46f2-9d76-382d62726561",
       "Revision": "rev?"
     },
     "Size": {
