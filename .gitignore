@@ -13,6 +13,9 @@ venv/
 # Node/Yarn (if used for tooling)
 node_modules/
 
+# Local-only MCP server config (hard-codes a machine-specific server path)
+.mcp.json
+
 # Build/output from PlatformIO
 .pio/
 .pioenvs/
@@ -90,3 +93,5 @@ AGENTS.md
 **/_restore_backup_*/
 **/.history/
 **/fabrication-toolkit-options.json
+*-erc.rpt
+*-drc.rpt
