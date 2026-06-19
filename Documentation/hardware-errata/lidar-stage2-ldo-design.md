@@ -2,7 +2,7 @@
 
 > **CURRENT — Stage 2 · the plan to follow.** Supersedes the Stage-1 decoupling-only respin ([lidar-stage1-decoupling.md](lidar-stage1-decoupling.md)). Build steps: [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md). Start at the [errata index](README.md).
 
-**Status: design locked and reviewed against both datasheets (DTS6012M + TLV755P); implementation pending (KiCad capture + layout).** Tracked on beads issue `IDENTIDEM_design-MRF2-3z5`. Background and root cause: [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md). Datasheets in [datasheets/](datasheets/).
+**Status: design locked; schematic capture complete on both boards (ERC clean); PCB layout done in the GUI; fab outputs pending.** Tracked on beads issue `IDENTIDEM_design-MRF2-3z5`. Background and root cause: [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md). Datasheets in [datasheets/](datasheets/).
 
 ## Goal
 
@@ -34,31 +34,21 @@ Moving that bulk off the Feather rail and behind U1 onto `3V3_LIDAR` returns the
 
 ## Architecture — regulate at the point of load
 
-![Power distribution: the power switch pulls Feather EN low, collapsing the switched 3.3 V rail that feeds the MCU and I2C devices; U1 takes always-present VBAT but its enable is slaved to the switched 3.3 V on FPC pin 1, so the LiDAR rail is cut too](images/power-shutdown-architecture.svg)
+![Power distribution: a DPDT power switch on J4 gates Feather 3.3 V onto the switched rail (FPC pin 1) and pulls Feather EN low in the off position; that switched 3.3 V feeds the MCU and I2C devices, and U1 takes always-present VBAT but slaves its enable to the switched rail, so the LiDAR rail is cut too](images/power-shutdown-architecture.svg)
 
-```text
-Feather BAT pin ──(main board, new VBAT net)──> FPC pin 6 ──ribbon──> Breakout VBAT
-                                                                       │ (always present)
-                                                                 [Cin] │
-                                                                  ┌────┴────┐
-                                                                  │ IN      │
-                                                                  │   U1    │ TLV75533, 3.3V
-                                          FPC pin 1 ───────> EN ──│         │
-                                          (switched 3V3)          │     OUT │
-                                                                  └────┬────┘
-                                              3V3_LIDAR ──[FB1 0Ω]── 3V3_LASER
-                                          C2 1µF ‖ C3 100nF        C1 47µF (bulk)
-                                          (LDO stability, at OUT)  (at laser pin)
-                                                  │                       │
-                                            J7 pin 2 = 3V3 (logic)   J7 pin 1 = 3V3_LASER
+> The diagram above shows the high-level outcome (one switch kills MCU, I²C, and LiDAR); the J4 DPDT pole detail is in [Power switch](#power-switch--full-shutdown) below.
 
-Feather 3V3 (switched by power switch / EN) ──> FPC pin 1 ──┬──> Stemma QT (J6)
-                                                            └──> U1 EN
-```
+![LiDAR LDO subcircuit: FPC J5 brings VBAT on pin 6 and switched 3.3 V on pin 1; VBAT feeds U1 input through Cin; pin 1 drives U1 EN and J6; U1 output 3V3_LIDAR carries C2/C3 and J7 pin 2, then FB1 to 3V3_LASER carrying C1 bulk and J7 pin 1](images/lidar-ldo-schematic.svg)
+
+The breakout subcircuit above; the main-board power switch that gates it below.
+
+![J4 DPDT power switch shown in the off position: pole A has opened the link from Feather 3.3 V to the switched 3V3_SW rail on FPC pin 1, so the ADS1015 lens ADC, both OLEDs, the MPU, the seesaw rotary encoder, and the LiDAR LDO enable all lose power; pole B has closed Feather EN to GND, holding the ESP32-S3 in reset](images/j4-dpdt-power-switch.svg)
 
 The regulator sits on the **breakout**, next to J7, so the clean rail is created at the sensor. The rough VBAT travels the lossy FPC/ribbon — voltage drop on a regulator *input* is harmless as long as it stays above dropout.
 
-U1's **EN is slaved to the switched Feather 3.3 V** (already on the breakout via FPC pin 1), not tied to IN. That makes the camera power switch cut the LiDAR rail too — see [Power switch](#power-switch--full-shutdown).
+U1's **EN is slaved to the switched 3.3 V on FPC pin 1** (`3V3_SW`), not tied to IN. That switched rail is gated on the main board by a DPDT power switch wired to **J4** — see [Power switch](#power-switch--full-shutdown). So the camera power switch cuts the LiDAR rail too.
+
+> **Net naming across the ribbon:** the one FPC pin-1 conductor is labeled `3V3_SW` on the main schematic (it is the switched output of the J4 DPDT) and `3.3V` on the breakout schematic (where it feeds J6 and U1 EN). Same wire, two local names — the boards are separate sheets joined only by the FPC. It is *not* an always-on rail on the breakout.
 
 ## Sensor side — DTS6012M connector and limits
 
@@ -93,15 +83,24 @@ If low-battery LiDAR range later proves to matter in the field, the fallback is 
 
 ## Power switch — full shutdown
 
-The camera power switch turns the system off by pulling the Feather **EN** (regulator-enable) pin low, which collapses the Feather 3.3 V rail. Anything that must die on power-off has to hang off a rail this kills:
+The camera power switch is an off-board **DPDT** switch wired to the main-board 8-pin header **J4**. It does two things at once:
 
-- **MCU (ESP32-S3)** — on the Feather 3.3 V. Cut directly.
-- **I²C devices** — the ADS1015 lens ADC and both OLEDs (SH1107, SSD1306) are on the main-board Feather 3.3 V; the breakout Stemma QT (J6) is on FPC pin 1 (also Feather 3.3 V). All cut directly.
+- **Pole A — gate the switched 3.3 V.** Bridges Feather 3.3 V (`3.3V`, J4.8) to `3V3_SW` (J4.7), which leaves the main board on **FPC pin 1**. On = the breakout (Stemma QT J6 + U1 EN) sees 3.3 V; off = open, `3V3_SW` collapses.
+- **Pole B — hold the MCU off.** In the *off* position, ties Feather **EN** (J4.4 → J2.11) to **GND** (J4.1–3), which keeps the ESP32-S3 regulator disabled so the Feather 3.3 V rail (`3.3V`) stays down. On = EN released, the Feather's internal pull-up enables it.
+
+The two poles are redundant by design and reinforce each other: pole B collapses `3.3V`, which is also pole A's *source* (J4.8), so `3V3_SW` would drop even if pole A's contacts welded shut — and pole A's open contacts drop `3V3_SW` even if EN somehow floated high. Either failure still kills the LiDAR rail.
+
+Anything that must die on power-off has to hang off a rail this kills:
+
+- **MCU (ESP32-S3)** — on the Feather 3.3 V (`3.3V`). Cut by pole B holding EN low.
+- **I²C devices** — the ADS1015 lens ADC, both OLEDs (SH1107, SSD1306), the MPU (IMU), and the seesaw rotary encoder all share the breakout I²C bus and run from the FPC's 3.3 V (`3V3_SW`, pin 1), I²C, and GND pins (the seesaw plugs into the Stemma QT, J6). Cut by pole A opening.
 - **LiDAR (DTS6012M)** — fed by U1, whose input VBAT is **always present**. So U1 must be *disabled* by the switch, not left always-on. An always-on LiDAR rail would both drain the battery and back-feed its UART lines into the powered-down MCU pins.
 
-This is why U1 **EN is slaved to the switched Feather 3.3 V (FPC pin 1)** instead of tied to IN. Switch off → EN low → Feather 3.3 V collapses → FPC pin 1 drops → U1 shuts down → `3V3_LIDAR` collapses. One switch kills MCU, I²C, and LiDAR.
+This is why U1 **EN is slaved to `3V3_SW` (FPC pin 1)** instead of tied to IN. Switch off → pole A opens and pole B pulls Feather EN low → `3V3_SW` drops → U1 EN low → U1 shuts down → `3V3_LIDAR` collapses. One switch kills MCU, I²C, and LiDAR.
 
-**Soft disconnect (chosen).** VBAT still sits on U1's input through Cin, but U1 in shutdown draws ~1–2 µA — negligible against LiPo self-discharge. A hard disconnect (P-FET load switch in the VBAT → FPC-pin-6 path) was considered and rejected as overkill for a camera.
+> **Shutdown determinism — explicit EN pulldown (R1).** The TLV75533 has **no internal EN pulldown** (EN pin current ≈ 10 nA; the part's only internal pulldown is the 120 Ω *output* active-discharge). When pole A opens, `3V3_SW` is isolated from its source, so EN would fall only as the I²C peripherals bleed the node down — and those modules carry their own VDD decoupling on that rail, so that discharge is slow and indeterminate (and slower still, or stuck high, if little is plugged into the Stemma QT). To make shutdown deterministic, the design adds **R1 = 100 kΩ from `3.3V` (EN / FPC pin 1) to GND on the breakout**. It costs ~33 µA when on, but gives EN a defined path to 0 V so the LDO disables regardless of what sits on the I²C bus, making the ≤1 µA off-state guaranteed. Recommended for the respin; flagged rather than silently added because it is a board change.
+
+**Soft disconnect (chosen).** VBAT still sits on U1's input through Cin, but U1 in shutdown draws **≤ 1 µA** (TI spec; the earlier 1–2 µA estimate was conservative) — negligible against LiPo self-discharge, *once EN is actually low* (see the determinism note above). A hard disconnect (P-FET load switch in the VBAT → FPC-pin-6 path) was considered and rejected as overkill for a camera.
 
 **Sequencing bonus.** Because U1 enables only after the Feather 3.3 V rail is up, the 48 µF of LiDAR output bulk never loads the MCU's power-on-reset rail — which is exactly what fixes the cold-start boot regression noted above.
 
@@ -114,6 +113,7 @@ This is why U1 **EN is slaved to the switched Feather 3.3 V (FPC pin 1)** instea
 | C2, C3 | 1 µF (0402) + 100 nF (0402) | existing | **LDO stability cap — at U1 OUT.** TLV75533 needs ≥1 µF effective at OUT; keep these on the near side of FB1 so the regulator always sees its Cout (this is what keeps bead `-3z5` R4 satisfied). |
 | C1 | 47 µF bulk | existing | **At J7 pin 1 (3V3_LASER)** — the pulsed load. Absorbs the laser current spike locally, on the far side of FB1. |
 | FB1 | 0 Ω jumper (default) / ferrite bead (populate-option) | `0402`/`0603` | Sits between the LDO output node (C2/C3, logic pin 2) and the laser bulk (C1, pin 1). **Default 0 Ω → both pins are one clean rail** (the locked plan). If scoping later shows the laser pulse coupling into the logic supply, fit a ferrite to isolate the laser without a second regulator or a dual-rail differential. Low-regret hedge; do not omit the footprint. |
+| R1 | 100 kΩ | `Resistor_SMD:R_0402_1005Metric` | **EN pulldown — `3.3V` (FPC pin 1 / U1 EN) to GND.** Forces EN low at power-off so the LDO shuts down deterministically (the TLV75533 has no internal EN pulldown). ~33 µA when on. LCSC: a JLCPCB-basic 100 kΩ 0402 (e.g. C25741 — confirm before fab). See [Power switch](#power-switch--full-shutdown). |
 
 Total Cout (47 + 1 + 0.1 µF ≈ 48 µF) stays inside the TLV75533's 1–200 µF stable window with FB1 at 0 Ω. Thermal is a non-issue: worst case ≈ 0.9 V × ~80 mA ≈ 70 mW in a SOT-23-5.
 
@@ -130,8 +130,8 @@ Confirmed against the design (Table 4-1 and the electrical tables):
 - **I_OUT 500 mA**, internal foldback current limit (~720 mA typ) — well above the LiDAR's draw.
 - **C_IN ≥ 1 µF, C_OUT 1–200 µF**, stable with ceramic. Our Cout (47 + 1 + 0.1 µF ≈ 48 µF) is inside the stable window.
 - **Shutdown current ≤ 1 µA** (V_EN ≤ 0.4 V) — confirms the soft-disconnect leakage is negligible (the earlier "1–2 µA" estimate was conservative).
-- **EN high threshold V_HI = 1 V (min)**, internal pulldown ~120 kΩ — the switched 3.3 V on FPC pin 1 drives EN well past threshold, and EN defaults off when that rail collapses.
-- **Dropout ≈ 230 mV typ at 3.3 V / 500 mA**; far lower at the camera's ~80 mA load, so dropout onset is near V_BAT ≈ 3.35–3.5 V, matching the [accepted low-battery limitation](#accepted-limitation-low-battery).
+- **EN thresholds V_HI = 1 V (min), V_LO = 0.3 V (max); EN pin current ≈ 10 nA.** The switched 3.3 V on FPC pin 1 drives EN well past threshold for essentially no current. **There is no internal EN pulldown** — TI's "120 Ω pulldown" is the *output* active-discharge resistor (the "P" suffix), engaged only when the part is disabled, not on EN. EN therefore must be *driven*, not floated; see the [shutdown-determinism note](#power-switch--full-shutdown) on guaranteeing it goes low at power-off.
+- **Dropout ≈ 150 mV typ (215 mV max at 85 °C) at 3.3 V / 500 mA**; far lower at the camera's ~80 mA load (tens of mV), so dropout onset sits just above V_BAT ≈ 3.33 V, matching the [accepted low-battery limitation](#accepted-limitation-low-battery).
 - **PSRR 46 dB @ 100 kHz, 52 dB @ 1 MHz** — the noise-rejection basis for choosing this part over an AP2112K.
 
 ## Net and connector changes
@@ -140,7 +140,7 @@ Confirmed against the design (Table 4-1 and the electrical tables):
 - `VBAT` — FPC J5 pin 6 → U1 IN (+ Cin).
 - `3V3_LIDAR` — U1 OUT → C2/C3 → J7 pin 2 (logic) → FB1 input. Detach J7 pin 2 from the system `3.3V`.
 - `3V3_LASER` — FB1 output → C1 (47 µF bulk) → J7 pin 1 (laser). Detach J7 pin 1 from the system `3.3V`. (FB1 = 0 Ω by default, so this is one net with `3V3_LIDAR` until a ferrite is fitted.)
-- `3.3V` (existing, FPC pin 1) — now also drives **U1 EN** in addition to the Stemma QT.
+- `3.3V` (existing, FPC pin 1) — now also drives **U1 EN** and **R1** (the 100 kΩ EN pulldown to GND) in addition to the Stemma QT.
 
 **FPC (J5, 8-pin) reallocation** — no spare conductors, so repurpose one:
 
@@ -155,19 +155,31 @@ Confirmed against the design (Table 4-1 and the electrical tables):
 | 7 | I²C | I²C | J6 |
 | 8 | I²C | I²C | J6 |
 
-**Main board:** wire the Feather **BAT** header pin to a new `VBAT` net → FPC pin 6. The Feather is modeled as generic header connectors with the BAT pin currently unconnected, so this is additive (no new connector). Match the exact header position to the Adafruit Feather ESP32-S3 pinout when implementing. FPC pin 1 stays on the Feather 3.3 V (now feeding both the Stemma QT and U1 EN). No change to how the power switch drives the Feather EN pin — the LiDAR shutdown rides on the 3.3 V rail it already collapses.
+**Main board:** wire the Feather **BAT** header pin (J2 pin 12) to a new `VBAT` net → FPC pin 6 (J3 pin 6). The Feather is modeled as generic header connectors with the BAT pin previously unconnected, so this is additive (no new connector). Match the exact header position to the Adafruit Feather ESP32-S3 pinout.
+
+The power switch is reworked onto the existing 8-pin header **J4** as a DPDT interface (this is the change that the LDO needs and that fixes the topology the prior board got wrong — see note below):
+
+| J4 pin | Net | Role |
+|--------|-----|------|
+| 8 | `3.3V` (J1.2) | Pole A in — Feather 3.3 V source |
+| 7 | `3V3_SW` (→ J3.1 = FPC pin 1) | Pole A out — switched 3.3 V to breakout (U1 EN + J6 + I²C bus) |
+| 4 | `EN` (→ J2.11) | Pole B — Feather enable; off position ties to GND |
+| 1, 2, 3 | `GND` | Pole B return / switch common |
+| 5, 6 | Feather D10 (J2.6), D9 (J2.5) | Expansion GPIOs broken out on the same header — **not** part of the power switch; leave unswitched |
+
+So `3V3_SW` (FPC pin 1) is no longer assumed to be a free-running Feather rail — it is the gated output of pole A, and pole B independently holds the MCU off. J4 doubles as a small expansion header (pins 5,6 = D10/D9), which is why it is an 8-pin part rather than a 6-pin. See [Power switch](#power-switch--full-shutdown).
+
+> **Reconciliation with the as-built MRF-Pro-v8 (why this section changed).** Earlier revisions of this errata assumed the Feather 3.3 V reached the breakout directly on the FPC. Schematic capture showed it did not: on the prior board FPC pin 1 was driven from a Feather **GPIO (D11)** and pin 6 was a private net to J4 pin 8, so the Feather LDO's 3.3 V never reached the FPC at all — the LiDAR's supply came through a GPIO and/or the J4 expansion header, a weak path that likely worsened the laser-pulse brownout this errata fixes. (The breakout end labels both pins `3.3V` — the J5 table above — so the two boards' nets *named* the same thing while the main board actually fed them from D11 and J4.8. That end-to-end mismatch is exactly the defect.) The respin corrects it: FPC pin 1 now carries a real switched 3.3 V (`3V3_SW`) gated by the J4 DPDT, pin 6 carries `VBAT`, and D11 is freed.
 
 ## Execution split
 
 Schematic capture (adding U1, Cin, the new nets, and the EN/BAT wiring) is done in the KiCad GUI — `kicad-cli` runs ERC and exports but cannot author a schematic, and both boards model the Feather as generic pins, so net targeting needs the editor plus the Adafruit pinout. PCB layout (placement, routing, pours, DRC, fab outputs) is also GUI work. Validate with `kicad-cli sch erc` after capture (the binary ships inside `KiCad.app/Contents/MacOS/` on macOS).
 
-**Step-by-step capture:** [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md). The subcircuit to draw is in [images/lidar-ldo-schematic.svg](images/lidar-ldo-schematic.svg).
-
-![LiDAR LDO subcircuit: FPC J5 brings VBAT on pin 6 and switched 3.3 V on pin 1; VBAT feeds U1 input through Cin; pin 1 drives U1 EN and J6; U1 output 3V3_LIDAR carries C2/C3 and J7 pin 2, then FB1 to 3V3_LASER carrying C1 bulk and J7 pin 1](images/lidar-ldo-schematic.svg)
+**Step-by-step capture:** [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md). The subcircuit to draw is the breakout diagram in [Architecture](#architecture--regulate-at-the-point-of-load) above ([images/lidar-ldo-schematic.svg](images/lidar-ldo-schematic.svg)).
 
 ## Verification
 
-- ERC both boards; netlist shows U1 IN on `VBAT`; U1 OUT + C2/C3 + J7 pin 2 on `3V3_LIDAR`; FB1 → C1 + J7 pin 1 on `3V3_LASER`; U1 EN on `3.3V` (FPC pin 1); J6 still on `3.3V`.
+- ERC both boards; netlist shows U1 IN on `VBAT`; U1 OUT + C2/C3 + J7 pin 2 on `3V3_LIDAR`; FB1 → C1 + J7 pin 1 on `3V3_LASER`; U1 EN + R1 on the FPC pin-1 switched rail (`3.3V` on the breakout sheet = `3V3_SW` on the main sheet), R1's other end on `GND`; J6 still on that same rail. Main board: Feather BAT (J2.12) on `VBAT` → FPC pin 6; J4 DPDT wired `3.3V`(J4.8)/`3V3_SW`(J4.7)/`EN`(J4.4)/`GND`(J4.1-3).
 - **J7 pin 5 (INT) still tied low** and pins 3,4 (UART) unchanged — the mode select must read UART at power-on.
 - Scope J7 VCC under laser load: ripple to tens of mV; confirm it holds clean until VBAT approaches ~3.5 V (dropout onset). Confirm the rail never exceeds the sensor's 3.6 V abs-max.
 - **Power switch off:** confirm `3V3_LIDAR` drops to 0 V and off-state battery current is ~µA (no always-on LiDAR draw).

@@ -12,10 +12,10 @@ Everything else is background, supporting detail, or a superseded earlier stage 
 
 | Document | Stage | Status | Purpose |
 |----------|-------|--------|---------|
-| [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md) | 2 | **CURRENT** | The design to build: dedicated LDO, net/connector changes, components, verification. |
-| [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md) | 2 | **CURRENT** | KiCad GUI click-by-click to capture the Stage-2 schematic. |
+| [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md) | 2 | **CURRENT** · captured (ERC clean), layout done, fab pending | The design to build: dedicated LDO, J4 DPDT power switch, net/connector changes, components, verification. |
+| [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md) | 2 | **CURRENT** · as-built | KiCad GUI click-by-click to capture the Stage-2 schematic, matching the as-built MRF-Pro-v8. |
 | [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md) | 1 | Superseded for the respin; still valid as **background + hand-solder stopgap** | Root-cause analysis and the solder-in decoupling fix that shipped first. |
-| [lidar-stage1-breakout-layout.md](lidar-stage1-breakout-layout.md) | 1 | Partial | PCB layout for the Stage-1 decoupling caps only (see note below). |
+| [lidar-stage2-breakout-layout.md](lidar-stage2-breakout-layout.md) | 2 | **CURRENT** | Breakout PCB layout for the full LDO (U1, Cin, FB1, R1, the two output rails) — placement, routing, GND stitching, test points. |
 | [lidar-field-test.md](lidar-field-test.md) | all | Reference | Tester protocol for comparable before/after range data. Unprefixed because it spans every stage; also linked from the firmware and the user manual. |
 
 Supporting assets: [datasheets/](datasheets/) (TI TLV755P committed; vendor-confidential DTS6012M kept local), [images/](images/) (schematic + diagrams).
@@ -33,6 +33,6 @@ Supporting assets: [datasheets/](datasheets/) (TI TLV755P committed; vendor-conf
 3. [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md) — how to capture it in KiCad.
 4. [lidar-field-test.md](lidar-field-test.md) — how to verify range before/after.
 
-## Known gap
+## Layout
 
-[lidar-stage1-breakout-layout.md](lidar-stage1-breakout-layout.md) predates the LDO and covers only the C1–C3 decoupling placement. The Stage-2 LDO adds U1, Cin, and FB1; interim placement guidance lives in the Layout notes of [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md). A dedicated Stage-2 layout doc is not yet written.
+Breakout PCB layout for the full LDO is in [lidar-stage2-breakout-layout.md](lidar-stage2-breakout-layout.md) (promoted from the old Stage-1 decoupling-only spec). The condensed Layout notes in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md) remain the quick reference; the main-board side has no dedicated layout doc (the J4 DPDT rework is a few connector nets, covered in the design doc).

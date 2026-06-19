@@ -56,7 +56,7 @@ To collect comparable before/after data, use the [LiDAR field test protocol](lid
 
 The fix is being designed into the board so new units don't need hand-soldered caps. It is staged:
 
-**Stage 1 — decoupling (designed now).** C1 47 µF + C2 1 µF + C3 100 nF added to the breakout schematic across the LiDAR 3.3 V rail, ERC-clean. The board layout (placement at J7, wider copper, ground stitching) is specified in [lidar-stage1-breakout-layout.md](lidar-stage1-breakout-layout.md) for completion in the KiCad PCB editor. This is needed in every scenario and ships first.
+**Stage 1 — decoupling (designed now).** C1 47 µF + C2 1 µF + C3 100 nF added to the breakout schematic across the LiDAR 3.3 V rail, ERC-clean. The board layout (placement at J7, wider copper, ground stitching) is specified in [lidar-stage2-breakout-layout.md](lidar-stage2-breakout-layout.md) for completion in the KiCad PCB editor. This is needed in every scenario and ships first.
 
 **Stage 2 — dedicated regulator (gated on field data).** If the field test shows decoupling alone is not enough, add a dedicated low-noise 3.3 V regulator (TLV75533) for the LiDAR fed from VBAT. The full design is in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md); the decision is tracked on beads issue `IDENTIDEM_design-MRF2-3z5`.
 
