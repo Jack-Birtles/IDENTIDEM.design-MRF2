@@ -1794,7 +1794,7 @@
 			(uuid "97193133-559b-4d15-b803-52f30bae57ca")
 		)
 		(instances
-			(project "MRF-Pro-v7.5-breakout"
+			(project "MRF-Pro-v8-breakout"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "C2")
 					(unit 1)
@@ -1875,7 +1875,7 @@
 			(uuid "22a5c009-622a-4331-9a3b-11a221ebb364")
 		)
 		(instances
-			(project "MRF-Pro-v7.5-breakout"
+			(project "MRF-Pro-v8-breakout"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "C3")
 					(unit 1)
@@ -1982,7 +1982,7 @@
 			(uuid "54f2be58-c0a5-4370-8164-fb023d8e6062")
 		)
 		(instances
-			(project "MRF-Pro-v7.5-breakout"
+			(project "MRF-Pro-v8-breakout"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "J5")
 					(unit 1)
@@ -2063,7 +2063,7 @@
 			(uuid "5f5ad460-b506-40d3-8854-bc1ca0129cfb")
 		)
 		(instances
-			(project "MRF-Pro-v7.5-breakout"
+			(project "MRF-Pro-v8-breakout"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "C1")
 					(unit 1)
@@ -2148,7 +2148,7 @@
 			(uuid "038fc463-25fc-4464-9805-438e992f53af")
 		)
 		(instances
-			(project "MRF-Pro-v7.5-breakout"
+			(project "MRF-Pro-v8-breakout"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "J6")
 					(unit 1)
@@ -2239,7 +2239,7 @@
 			(uuid "05864927-80e9-4026-9a4f-0bfec743d5ac")
 		)
 		(instances
-			(project "MRF-Pro-v7.5-breakout"
+			(project "MRF-Pro-v8-breakout"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "J7")
 					(unit 1)
