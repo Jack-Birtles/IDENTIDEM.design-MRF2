@@ -6,8 +6,8 @@ Step-by-step capture of the dedicated LiDAR regulator design. The design itself 
 
 Two projects change:
 
-- **Breakout** — `PCBs/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_sch` (the real work: U1, Cin, two new nets).
-- **Main board** — `PCBs/Main PCB/KiCAD/MRF-Pro-v7.5.kicad_sch` (one wire: Feather BAT → FPC pin 6).
+- **Breakout** — `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_sch` (the real work: U1, Cin, two new nets).
+- **Main board** — `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_sch` (one wire: Feather BAT → FPC pin 6).
 
 `kicad-cli` cannot author a schematic — it only runs ERC and exports. So every step below is in the GUI. Use `kicad-cli sch erc` afterwards to check.
 
@@ -17,7 +17,7 @@ Two projects change:
 
 ## A. Breakout schematic
 
-Open `MRF-Pro-v7.5-breakout.kicad_sch` in the KiCad Schematic Editor (Eeschema).
+Open `MRF-Pro-v8-breakout.kicad_sch` in the KiCad Schematic Editor (Eeschema).
 
 ### A1. Place U1 (the LDO)
 
@@ -85,7 +85,7 @@ Run **Inspect → Electrical Rules Checker**. Expect a few "power pin not driven
 
 ## B. Main board schematic
 
-Open `MRF-Pro-v7.5.kicad_sch`.
+Open `MRF-Pro-v8.kicad_sch`.
 
 1. The Feather ESP32-S3 is modeled as **generic header connectors**, and its **BAT** pin is currently unconnected. This change is additive — no new connector.
 2. Find the header pin that corresponds to **BAT** on the Adafruit Feather ESP32-S3 pinout. Match the exact position from Adafruit's pinout diagram — don't assume, the generic symbol won't label it BAT for you.
@@ -102,8 +102,8 @@ Run ERC on the main board too.
 From each project's KiCad dir (the macOS binary lives inside `KiCad.app/Contents/MacOS/`):
 
 ```bash
-kicad-cli sch erc MRF-Pro-v7.5-breakout.kicad_sch
-kicad-cli sch erc "MRF-Pro-v7.5.kicad_sch"
+kicad-cli sch erc MRF-Pro-v8-breakout.kicad_sch
+kicad-cli sch erc "MRF-Pro-v8.kicad_sch"
 ```
 
 Netlist must show:

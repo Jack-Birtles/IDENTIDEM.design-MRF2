@@ -13,8 +13,10 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 ## 📦 Repo at a Glance
 
 - `Firmware/` – ESP32-S3 Arduino firmware (full details in `Firmware/README.md`)
-- `PCBs/Main PCB/` – KiCad project + production Gerbers for the main board
-- `PCBs/Breakout/` – KiCad project + Gerbers for the sensor breakout board
+- `PCBs/` – KiCad projects + production Gerbers, organized by board revision:
+  - `PCBs/v2.0/` – current respin (LiDAR power decoupling on the breakout). See the LiDAR power errata before ordering.
+  - `PCBs/v1.0/` – original shipped boards, kept for reference.
+  - Each revision holds `Main PCB/` (main board) and `Breakout/` (sensor breakout) sub-folders.
 - `3MF/` – Print-ready 3MF files organized by part type (body, accessories, masks, fine parts)
 - `STEP & F3D/` – Full assembly CAD (`MRF2-complete.f3d`) and shared STEP export (`MRF2-complete.step`)
 - `OrcaSlicer/` – Slicer project files/profiles for printing
@@ -37,7 +39,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 
 ## 🛠 Build Path (high level)
 
-1. **Order PCBs**: Use the Gerbers in `PCBs/Main PCB/Gerber` and `PCBs/Breakout/Gerber`. The `.gbrjob` files can be uploaded directly to most fabs.
+1. **Order PCBs**: Use the Gerbers in `PCBs/v2.0/Main PCB/Gerber` and `PCBs/v2.0/Breakout/Gerber`. The `.gbrjob` files can be uploaded directly to most fabs. v2.0 is the current respin and adds LiDAR power decoupling to the breakout; the Stage-2 LDO respin is still in progress, so read `Documentation/hardware-errata/README.md` before committing to a batch.
 2. **Assemble electronics**: Populate the main and breakout boards with the BoM below (through-hole and SMT mix), attach the Feather ESP32-S3, and wire the displays/sensors via STEMMA QT/Qwiic where applicable.
 3. **Print the body**: Slice/print the 3MF models (see `3MF/` and any profiles in `OrcaSlicer/`). Fit tolerances may depend on your printer and material.
 4. **Load firmware**: Use `Documentation/flash-firmware/README.md` (VS Code) or `Firmware/README.md` (CLI), then run first-time calibration.
@@ -52,8 +54,8 @@ Marketplace listings (Amazon/AliExpress) change frequently. Treat those links as
 | Item | Qty | Notes | Example sources |
 | --- | --- | --- | --- |
 | Feather ESP32-S3 (Adafruit 5477) | 1 | Main MCU, MAX17048 fuel gauge, 4MB flash / 2MB PSRAM | [Adafruit](https://www.adafruit.com/product/5477) |
-| MRF2 Main PCB | 1 | Use Gerbers in `PCBs/Main PCB/Gerber` | Any fab |
-| MRF2 Breakout PCB | 1 | Use Gerbers in `PCBs/Breakout/Gerber` | Any fab |
+| MRF2 Main PCB | 1 | Use Gerbers in `PCBs/v2.0/Main PCB/Gerber` | Any fab |
+| MRF2 Breakout PCB | 1 | Use Gerbers in `PCBs/v2.0/Breakout/Gerber` | Any fab |
 | B-type 8-pin FPC ribbon cable | 1 | Links main PCB to breakout | [Amazon](https://www.amazon.co.uk/sourcing-map-Ribbon-Flexible-Printer/dp/B0F4K1KMKR/) |
 | 8-pin JST-SH cable | 1 | For power switch and buttons, 10cm should be plenty | [AliExpress Search](https://www.aliexpress.com/w/wholesale-8-pin-jst%252525252dsh-cable.html) |
 | 6-pin JST-SH cable | 1 | Connect the LiDAR sensor to the breakout board - some cutting and soldering needed on the connector supplied with the sensor | [AliExpress Search](https://www.aliexpress.com/w/wholesale-6-pin-jst%252525252dsh-cable.html) |
@@ -119,9 +121,9 @@ Assumes single-quantity retail buys (Adafruit/Amazon/AliExpress), optics from Ed
 
 ## 🤖 PCB Notes
 
-- Open the KiCad projects: `PCBs/Main PCB/KiCAD/MRF-Pro-v7.5.kicad_pro` and `PCBs/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_pro`.
+- Open the KiCad projects: `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_pro` and `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_pro`.
 - Fabrication: the provided Gerber sets include copper, mask, paste, silkscreen, drills, and a `.gbrjob` for auto-detection at most PCB fabs.
-- Rev: current files are labeled v7.5. Check for updates before ordering.
+- Revs: `PCBs/v2.0/` is the current respin (LiDAR power decoupling on the breakout), with project files named `MRF-Pro-v8`; `PCBs/v1.0/` is the original shipped `MRF-Pro-v7.5` design. The v2.0 board silkscreen still prints v7.5 until the Gerbers are re-plotted in KiCad. Check the LiDAR power errata and look for updates before ordering.
 
 ## 💾 Firmware
 
