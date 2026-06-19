@@ -2753,7 +2753,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2889442"
+		(property "LCSC" "C17477"
 			(at 180.34 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -3284,7 +3284,7 @@
 				)
 			)
 		)
-    (property "LCSC" "C160404" (at 160.02 77.47 0)
+    (property "LCSC" "C7430446" (at 160.02 77.47 0)
       (effects (font (size 1.27 1.27)) (hide yes))
     )
 		(pin "1"
@@ -3552,7 +3552,7 @@
 				)
 			)
 		)
-    (property "LCSC" "C160405" (at 139.7 77.47 0)
+    (property "LCSC" "C7430448" (at 139.7 77.47 0)
       (effects (font (size 1.27 1.27)) (hide yes))
     )
 		(pin "1"
