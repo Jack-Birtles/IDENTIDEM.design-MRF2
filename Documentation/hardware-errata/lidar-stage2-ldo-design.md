@@ -90,6 +90,8 @@ The camera power switch is an off-board **DPDT** switch wired to the main-board 
 
 The two poles are redundant by design and reinforce each other: pole B collapses `3.3V`, which is also pole A's *source* (J4.8), so `3V3_SW` would drop even if pole A's contacts welded shut — and pole A's open contacts drop `3V3_SW` even if EN somehow floated high. Either failure still kills the LiDAR rail.
 
+> **Harness failure mode.** J4 carries `EN`, `3.3V`, `3V3_SW`, and `GND` out to the off-board switch, so that harness is a critical connection. If J4 is unplugged or intermittent, the Feather's onboard 100 kΩ EN pull-up holds EN high, so the **MCU boots normally while `3V3_SW` stays dead** — meaning the I²C peripherals (displays, lens ADC, IMU, encoder) and the LiDAR LDO enable all lose power even though the camera appears "on." It is a defined, safe state, not a short, but a confusing one. Use a latching/keyed J4 connector, and read "MCU runs but the displays and LiDAR are dark" as the signature of a loose or disconnected J4.
+
 Anything that must die on power-off has to hang off a rail this kills:
 
 - **MCU (ESP32-S3)** — on the Feather 3.3 V (`3.3V`). Cut by pole B holding EN low.
