@@ -7,7 +7,7 @@ Step-by-step capture of the dedicated LiDAR regulator design. The design itself 
 Two projects change:
 
 - **Breakout** — `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_sch` (the real work: U1, Cin, two new nets).
-- **Main board** — `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_sch` (Feather BAT → FPC pin 6, plus the J4 DPDT power-switch rework: `3.3V`/`3V3_SW`/`EN`/`GND`).
+- **Main board** — `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_sch` (Feather BAT → FPC pin 1, plus the J4 DPDT power-switch rework: `3.3V`/`3V3_SW`/`EN`/`GND`).
 
 `kicad-cli` cannot author a schematic — it only runs ERC and exports. So every step below is in the GUI. Use `kicad-cli sch erc` afterwards to check.
 
@@ -37,19 +37,19 @@ Open `MRF-Pro-v8-breakout.kicad_sch` in the KiCad Schematic Editor (Eeschema).
 
 > The existing C1/C2/C3 stay as-is in the netlist — you are **re-targeting** them onto the output net, not adding new ones. See A5.
 
-### A3. New net: VBAT (FPC pin 6 → U1 IN)
+### A3. New net: VBAT (FPC pin 1 → U1 IN)
 
-1. The 8-pin FPC is **J5** (`Connector:Conn_01x08_Pin`). Today pin 6 is on the `3.3V` net.
-2. **Detach pin 6 from 3.3V:** delete the wire/label tying J5 pin 6 to the `3.3V` net.
-3. Draw a wire from J5 pin 6 and attach a **net label `VBAT`** (press `L`).
+1. The 8-pin FPC is **J5** (`Connector:Conn_01x08_Pin`). Today pin 1 is on the `3.3V` net.
+2. **Detach pin 1 from 3.3V:** delete the wire/label tying J5 pin 1 to the `3.3V` net.
+3. Draw a wire from J5 pin 1 and attach a **net label `VBAT`** (press `L`).
 4. Label U1's **IN** pin `VBAT` as well, and tie both Cin caps' top plates to `VBAT`, bottoms to `GND`.
 
-Result: `J5 pin 6 — Cin — U1 IN`, all on `VBAT`.
+Result: `J5 pin 1 — Cin — U1 IN`, all on `VBAT`.
 
-### A4. EN slaved to switched 3.3 V (FPC pin 1)
+### A4. EN slaved to switched 3.3 V (FPC pin 6)
 
-1. J5 pin 1 stays on the existing `3.3V` net (switched Feather rail). Do **not** change pin 1.
-2. Draw a wire from U1's **EN** pin and label it `3.3V` (same net name as pin 1 — KiCad joins same-named labels, no wire needed across the sheet).
+1. J5 pin 6 stays on the existing `3.3V` net (switched Feather rail). Do **not** change pin 6.
+2. Draw a wire from U1's **EN** pin and label it `3.3V` (same net name as pin 6 — KiCad joins same-named labels, no wire needed across the sheet).
 3. This is what makes the camera power switch also cut the LDO. Do **not** tie EN to IN/VBAT.
 4. **Add R1 (`Device:R`, 100 kΩ, `Resistor_SMD:R_0402_1005Metric`): top on `3.3V`, bottom on `GND`.** This pulls EN to 0 V at power-off — the TLV75533 has no internal EN pulldown, so without R1 EN floats on the isolated rail and shutdown is not guaranteed. Assign a JLCPCB-basic 100 kΩ 0402 LCSC part (e.g. C25741 — confirm).
 
@@ -75,8 +75,8 @@ Result: `U1 OUT — C2‖C3 — [3V3_LIDAR] — FB1 — [3V3_LASER] — C1`, wit
 
 Confirm on the canvas (matches the SVG):
 
-- U1 IN → `VBAT`; J5 pin 6 → `VBAT`; Cin on `VBAT`/`GND`.
-- U1 EN → `3.3V`; J5 pin 1 still → `3.3V`; J6 (Stemma QT) still → `3.3V`; R1 across `3.3V`→`GND`.
+- U1 IN → `VBAT`; J5 pin 1 → `VBAT`; Cin on `VBAT`/`GND`.
+- U1 EN → `3.3V`; J5 pin 6 still → `3.3V`; J6 (Stemma QT) still → `3.3V`; R1 across `3.3V`→`GND`.
 - U1 OUT → `3V3_LIDAR`; C2/C3 → `3V3_LIDAR`; J7 pin 2 → `3V3_LIDAR`; FB1 between `3V3_LIDAR` and `3V3_LASER`; C1 + J7 pin 1 → `3V3_LASER`.
 - J7 pins 3,4 still UART (from J5 pins 2,3); J7 pin 5 (INT) still tied low; J7 pin 6 + J5 pins 4,5 still `GND`; J5 pins 7,8 still I²C → J6.
 
@@ -90,15 +90,15 @@ Open `MRF-Pro-v8.kicad_sch`.
 
 The Feather ESP32-S3 is modeled as **generic header connectors** (J1/J2); the FPC to the breakout is **J3**; the power switch lands on the 8-pin header **J4**. Match Feather pin positions to the Adafruit Feather ESP32-S3 pinout — the generic symbol won't label BAT/EN for you.
 
-**BAT → FPC pin 6:**
+**BAT → FPC pin 1:**
 
 1. Find the header pin for **BAT** (it is **J2 pin 12**). Draw a wire and label it **`VBAT`**.
-2. Label the FPC **pin 6** conductor (J3 pin 6) **`VBAT`**. On this board pin 6 was a private net to J4 pin 8, not `3.3V` — see the topology note in the design doc.
+2. Label the FPC **pin 1** conductor (J3 pin 1) **`VBAT`**. On the prior board pin 1 was driven from a Feather GPIO (D11), not `3.3V` — see the topology note in the design doc.
 
 **J4 DPDT power switch** (the prior board sent FPC pin 1 from a GPIO and never routed Feather 3.3 V to the FPC; this rework fixes that):
 
 1. `3.3V` (Feather, J1 pin 2) → **J4 pin 8** — pole A input.
-2. **J4 pin 7** → FPC **pin 1** (J3 pin 1), labeled **`3V3_SW`** — pole A output, the switched 3.3 V the breakout uses for U1 EN + J6.
+2. **J4 pin 7** → FPC **pin 6** (J3 pin 6), labeled **`3V3_SW`** — pole A output, the switched 3.3 V the breakout uses for U1 EN + J6.
 3. Feather **EN** (J2 pin 11) → **J4 pin 4**, labeled **`EN`** — pole B; the off position ties this to GND.
 4. **J4 pins 1, 2, 3** → `GND` — pole B return / switch common.
 
@@ -121,13 +121,13 @@ Breakout:
 
 - U1 IN on `VBAT`
 - U1 OUT + C2 + C3 + J7 pin 2 on `3V3_LIDAR`; FB1 → C1 + J7 pin 1 on `3V3_LASER`
-- U1 EN on the FPC pin-1 switched rail (labeled `3.3V` on the breakout sheet)
+- U1 EN on the FPC pin-6 switched rail (labeled `3.3V` on the breakout sheet)
 - J6 still on that same rail
 
 Main board:
 
-- Feather BAT (J2.12) on `VBAT` → FPC pin 6 (J3.6)
-- J4 DPDT: `3.3V`={J1.2, J4.8}; `3V3_SW`={J4.7, J3.1=FPC pin 1}; `EN`={J2.11, J4.4}; `GND`={J4.1, J4.2, J4.3, …}
+- Feather BAT (J2.12) on `VBAT` → FPC pin 1 (J3.1)
+- J4 DPDT: `3.3V`={J1.2, J4.8}; `3V3_SW`={J4.7, J3.6=FPC pin 6}; `EN`={J2.11, J4.4}; `GND`={J4.1, J4.2, J4.3, …}
 
 ---
 

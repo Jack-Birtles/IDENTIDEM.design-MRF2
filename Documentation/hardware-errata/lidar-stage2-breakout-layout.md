@@ -27,7 +27,7 @@ output rails split by a 0 Ω bead, and an EN pulldown:
 | R1 | 100 kΩ | `Resistor_SMD:R_0402_1005Metric` | `3.3V`/GND | EN pulldown — deterministic shutdown |
 
 Rails: `VBAT` (battery in, always present) → U1 → `3V3_LIDAR` (logic, J7 pin 2)
-→ FB1 → `3V3_LASER` (laser, J7 pin 1). The switched `3.3V` on FPC pin 1 drives
+→ FB1 → `3V3_LASER` (laser, J7 pin 1). The switched `3.3V` on FPC pin 6 drives
 U1 EN, the Stemma QT (J6), and R1.
 
 ## Connector facts that drive placement
@@ -37,8 +37,9 @@ From the as-built netlist:
 - **J7 (DTS6012M, 6-pin):** pin 1 = `3V3_LASER`, pin 2 = `3V3_LIDAR` (logic) —
   two separate post-LDO rails split by FB1. Pins 3/4 = UART (to FPC pins 2/3).
   **Pin 5 = INT mode-select tied to GND** (low = UART; do not disturb). Pin 6 = GND.
-- **J5 (FPC, 8-pin):** pin 1 = switched `3.3V` (U1 EN + J6 + R1), pin 6 = `VBAT`
-  (U1 IN), pins 4/5 = GND, pins 2/3 = UART → J7, pins 7/8 = I²C → J6.
+- **J5 (FPC, 8-pin):** pin 1 = `VBAT` (U1 IN), pin 6 = switched `3.3V`
+  (U1 EN + J6 + R1), pins 4/5 = GND, pins 2/3 = UART → J7, pins 7/8 = I²C → J6.
+  VBAT sits next to the UART pins, the switched 3.3 V next to the I²C pins.
 - **J6 (Stemma QT):** on the switched `3.3V` / I²C; carries the I²C bus to the
   rotary encoder and the rest of the peripherals.
 
