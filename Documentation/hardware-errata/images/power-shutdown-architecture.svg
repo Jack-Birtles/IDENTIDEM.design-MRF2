@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
   <title>MRF2 power distribution and switch-off behaviour</title>
-  <desc>Block diagram. The camera power switch pulls the Feather EN pin low, collapsing the switched 3.3 V rail that feeds the ESP32-S3 MCU and the I2C devices. The LiDAR regulator U1 on the breakout takes always-present VBAT on its input but has its enable slaved to the switched 3.3 V (FPC pin 6), so switching off also kills the LiDAR rail. U1 in shutdown draws about 1 to 2 microamps.</desc>
+  <desc>Block diagram. The camera power switch pulls the Feather EN pin low, collapsing the switched 3.3 V rail that feeds the ESP32-S3 MCU and the I2C devices. The LiDAR regulator U1 on the breakout takes always-present VBAT on its input but has its enable slaved to the switched 3.3 V (FPC pin 6), held low by the R1 100k pulldown when off, so switching off also kills the LiDAR rail. U1 in shutdown draws about 1 microamp.</desc>
   <defs>
     <marker id="aBlue" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2563eb"/></marker>
     <marker id="aAmber" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d97706"/></marker>
@@ -97,6 +97,7 @@
   <polyline points="588,261 610,261 610,286 632,286" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#aBlue)"/>
   <text x="616" y="305" font-size="10" font-weight="600" fill="#1d4ed8">EN slaved to</text>
   <text x="616" y="318" font-size="10" font-weight="600" fill="#1d4ed8">switched 3.3 V</text>
+  <text x="616" y="331" font-size="9" fill="#64748b">+ R1 100k pulldown</text>
 
   <rect x="620" y="412" width="150" height="52" rx="5" fill="#fff" stroke="#2563eb" stroke-width="2"/>
   <text x="695" y="442" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">Stemma QT (J6)</text>
@@ -121,5 +122,5 @@
   <rect x="596" y="524" width="340" height="72" rx="7" fill="#f0fdf4" stroke="#059669" stroke-width="1.3"/>
   <text x="610" y="546" font-size="11.5" font-weight="700" fill="#065f46">Off-state drain</text>
   <text x="610" y="564" font-size="11" fill="#334155">VBAT stays on U1's input, but U1 in</text>
-  <text x="610" y="580" font-size="11" fill="#334155">shutdown draws &#8776; 1&#8211;2 &#181;A &#8212; negligible.</text>
+  <text x="610" y="580" font-size="11" fill="#334155">shutdown draws &#8804; 1 &#181;A &#8212; negligible.</text>
 </svg>

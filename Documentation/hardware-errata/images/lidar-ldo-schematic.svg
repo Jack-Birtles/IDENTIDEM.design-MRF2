@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 660" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
   <title>MRF2 breakout LiDAR LDO subcircuit to capture in KiCad</title>
-  <desc>Schematic of the dedicated LiDAR regulator to add on the breakout. The 8-pin FPC J5 brings always-present VBAT on pin 1 and switched 3.3 V on pin 6. VBAT feeds U1 (TLV75533, SOT-23-5) input through input caps Cin. The switched 3.3 V on pin 6 drives U1 EN so the camera power switch also disables the LDO, and also feeds the Stemma QT J6. U1 output is the new 3V3_LIDAR net, decoupled by C1 47uF, C2 1uF and C3 100nF, going to J7 pins 1 and 2. UART on FPC pins 2 and 3 passes through to J7 pins 3 and 4.</desc>
+  <desc>Schematic of the dedicated LiDAR regulator to add on the breakout. The 8-pin FPC J5 brings always-present VBAT on pin 1 and switched 3.3 V on pin 6. VBAT feeds U1 (TLV75533, SOT-23-5) input through input caps Cin. The switched 3.3 V on pin 6 drives U1 EN so the camera power switch also disables the LDO, and also feeds the Stemma QT J6. R1 (100k) pulls U1 EN to GND for a deterministic shutdown at power-off. U1 output is the new 3V3_LIDAR net, decoupled by C1 47uF, C2 1uF and C3 100nF, going to J7 pins 1 and 2. UART on FPC pins 2 and 3 passes through to J7 pins 3 and 4.</desc>
   <defs>
     <marker id="dot" markerWidth="6" markerHeight="6" refX="3" refY="3"><circle cx="3" cy="3" r="3" fill="#334155"/></marker>
   </defs>
 
   <rect x="0" y="0" width="980" height="660" fill="#ffffff"/>
   <text x="490" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">Breakout LiDAR regulator &#8212; net list to capture in KiCad</text>
-  <text x="490" y="51" text-anchor="middle" font-size="12.5" fill="#475569">New parts U1, Cin. New nets VBAT and 3V3_LIDAR. EN slaved to switched 3.3 V so the power switch cuts the LiDAR too.</text>
+  <text x="490" y="51" text-anchor="middle" font-size="12.5" fill="#475569">New parts U1, Cin, FB1, R1. New nets VBAT and 3V3_LIDAR. EN slaved to switched 3.3 V (with R1 pulldown) so the power switch cuts the LiDAR too.</text>
 
   <!-- legend -->
   <g font-size="11.5" fill="#334155">
@@ -50,7 +50,19 @@
   <polyline points="215,336 215,140 760,140 760,170" fill="none" stroke="#2563eb" stroke-width="2.6" marker-end="url(#dot)"/>
   <!-- down to U1 EN -->
   <polyline points="215,336 215,402 430,402" fill="none" stroke="#2563eb" stroke-width="2.6"/>
-  <text x="262" y="424" font-size="10.5" fill="#1d4ed8">net 3.3V also drives U1 EN + J6</text>
+  <text x="222" y="392" font-size="10.5" fill="#1d4ed8">net 3.3V drives U1 EN, J6 + R1</text>
+
+  <!-- ===================== R1 100k EN pulldown (switched 3.3V -> GND) ===================== -->
+  <circle cx="270" cy="402" r="3.5" fill="#2563eb"/>
+  <line x1="270" y1="402" x2="270" y2="442" stroke="#2563eb" stroke-width="2.2"/>
+  <rect x="260" y="442" width="20" height="48" rx="2" fill="#fff" stroke="#1d4ed8" stroke-width="1.8"/>
+  <line x1="270" y1="490" x2="270" y2="512" stroke="#64748b" stroke-width="2.2"/>
+  <line x1="258" y1="512" x2="282" y2="512" stroke="#64748b" stroke-width="2.4"/>
+  <line x1="262" y1="518" x2="278" y2="518" stroke="#64748b" stroke-width="2.2"/>
+  <line x1="266" y1="524" x2="274" y2="524" stroke="#64748b" stroke-width="2"/>
+  <text x="288" y="461" font-size="10.5" font-weight="600" fill="#1d4ed8">R1</text>
+  <text x="288" y="474" font-size="9.5" fill="#334155">100k</text>
+  <text x="238" y="540" font-size="9" fill="#64748b">EN pulldown</text>
 
   <!-- ===================== VBAT (pin1) -> Cin -> U1 IN ===================== -->
   <polyline points="220,186 240,186 240,336 300,336" fill="none" stroke="#d97706" stroke-width="3.5"/>

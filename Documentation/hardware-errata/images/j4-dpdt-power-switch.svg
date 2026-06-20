@@ -80,7 +80,7 @@
   <!-- load box: LiDAR LDO enable -->
   <rect x="620" y="258" width="276" height="52" rx="6" fill="#fff" stroke="#2563eb" stroke-width="2"/>
   <text x="758" y="280" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0f172a">U1 EN &#8212; LiDAR LDO (breakout)</text>
-  <text x="758" y="298" text-anchor="middle" font-size="10.5" fill="#64748b">EN low &#8594; 3V3_LIDAR collapses</text>
+  <text x="758" y="298" text-anchor="middle" font-size="10.5" fill="#64748b">EN low via R1 100k &#8594; 3V3_LIDAR collapses</text>
 
   <!-- pole B to EN -->
   <line x1="510" y1="348" x2="620" y2="348" stroke="#475569" stroke-width="2.4" stroke-dasharray="5 4" marker-end="url(#aSlate)"/>

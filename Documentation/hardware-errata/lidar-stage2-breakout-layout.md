@@ -20,7 +20,7 @@ output rails split by a 0 Ω bead, and an EN pulldown:
 | U1 | TLV75533 (3.3 V, 500 mA) | `Package_TO_SOT_SMD:SOT-23-5` | IN=`VBAT`, EN=`3.3V`, OUT=`3V3_LIDAR`, GND | The regulator |
 | Cin1 | 1 µF | `Capacitor_SMD:C_0402_1005Metric` | `VBAT`/GND | Input decoupling at U1 IN |
 | Cin2 | 10 µF | `Capacitor_SMD:C_0805_2012Metric` | `VBAT`/GND | Input bulk at U1 IN |
-| C2 | 1 µF | `Capacitor_SMD:C_0402_1005Metric` | `3V3_LIDAR`/GND | LDO stability cap at U1 OUT |
+| C2 | 1 µF | `Capacitor_SMD:C_0603_1608Metric` | `3V3_LIDAR`/GND | LDO stability cap at U1 OUT |
 | C3 | 100 nF | `Capacitor_SMD:C_0402_1005Metric` | `3V3_LIDAR`/GND | HF bypass at U1 OUT |
 | C1 | 47 µF | bulk | `3V3_LASER`/GND | Laser-pulse reservoir at J7 pin 1 |
 | FB1 | 0 Ω (ferrite option) | `0805` | `3V3_LIDAR`↔`3V3_LASER` | Splits the two output rails |
