@@ -2138,6 +2138,105 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Mechanical:MountingHole"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "H"
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "MountingHole"
+				(at 0 3.175 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Mounting Hole without connection"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "mounting hole"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "MountingHole*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "MountingHole_0_1"
+				(circle
+					(center 0 0)
+					(radius 1.27)
+					(stroke
+						(width 1.27)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(text "RX"
 		(exclude_from_sim no)
@@ -2194,7 +2293,7 @@
 		)
 		(uuid "7d663b6e-8d44-47c5-933a-21d24b89a6c6")
 	)
-	(text "PWM"
+	(text "3.3V"
 		(exclude_from_sim no)
 		(at 93.218 166.37 90)
 		(effects
@@ -2205,7 +2304,7 @@
 		)
 		(uuid "931c85b4-e9e0-42fb-af89-3808c9c7f0f3")
 	)
-	(text "3.3v"
+	(text "VBAT"
 		(exclude_from_sim no)
 		(at 105.918 166.37 90)
 		(effects
@@ -2744,6 +2843,16 @@
 		)
 		(uuid "fbb4a163-92fd-44b9-8347-b6bc6f5a71de")
 	)
+	(label "3V3_SW"
+		(at 105.41 156.21 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "156e9632-211f-4f52-922d-e63f42184236")
+	)
 	(label "GND"
 		(at 77.47 114.3 0)
 		(fields_autoplaced yes)
@@ -2756,6 +2865,7 @@
 		(uuid "170597ee-6f34-4de4-b44a-61bca5f0e8b8")
 		(property "Net Class" "GND"
 			(at 77.47 115.57 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2767,38 +2877,28 @@
 			)
 		)
 	)
-	(label "VBAT"
-		(at 105.41 156.21 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "17339a97-e282-44a3-a520-60d77724d196")
-	)
-	(label "3V3_SW"
-		(at 92.71 156.21 270)
+	(label "3.3V"
+		(at 72.39 99.06 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "498f4185-ab77-4046-a8ee-4b0244681e5b")
+		(uuid "52ab3b15-5e63-49b9-8edf-695878d0e08c")
 	)
-	(label "3.3V"
-		(at 72.39 99.06 90)
+	(label "VBAT"
+		(at 92.71 156.21 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-		(uuid "52ab3b15-5e63-49b9-8edf-695878d0e08c")
+		(uuid "59a9410e-1472-4750-a3fd-b18265f7d690")
 	)
 	(label "VBAT"
-		(at 80.01 72.39 0)
+		(at 80.01 72.39 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2808,44 +2908,120 @@
 		(uuid "7c89c356-c88e-4241-ae9d-91bc410cbadd")
 	)
 	(label "EN"
-		(at 104.14 54.61 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "9788a7b6-7724-4f38-aa3a-89ab4870d7e2")
-	)
-	(label "EN"
-		(at 82.55 72.39 270)
+		(at 104.14 54.61 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "bb811604-4ebd-4d2d-b2e2-c9c0fd5b9076")
+		(uuid "9788a7b6-7724-4f38-aa3a-89ab4870d7e2")
 	)
-	(label "3V3_SW"
-		(at 111.76 54.61 90)
+	(label "EN"
+		(at 82.55 72.39 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
+		)
+		(uuid "bb811604-4ebd-4d2d-b2e2-c9c0fd5b9076")
+	)
+	(label "3V3_SW"
+		(at 111.76 54.61 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
 		)
 		(uuid "c2fba651-aa5a-46c1-96cd-82f2fb939376")
 	)
 	(label "3.3V"
-		(at 114.3 54.61 90)
+		(at 114.3 54.61 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "e1e533d4-8318-472d-8cac-b322e2c6e8f3")
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 147.32 113.03 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "092c1204-ada8-4aa5-9cb9-d0adabd9cdde")
+		(property "Reference" "H1"
+			(at 149.86 111.7599 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 149.86 114.2999 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2"
+			(at 147.32 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 147.32 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 147.32 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "MRF-Pro-v8"
+				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
+					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Connector:Conn_01x12_Socket")
@@ -2966,25 +3142,28 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "1c7541c1-db14-4f46-94d1-7d22277a5be4")
 		(property "Reference" "J3"
-			(at 101.6 168.91 90)
+			(at 111.76 159.3849 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "FPC 8P Connector"
-			(at 101.6 171.45 90)
+			(at 111.76 161.9249 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Connector_FFC-FPC:TE_0-1734839-8_1x08-1MP_P0.5mm_Horizontal"
@@ -3076,23 +3255,25 @@
 		(fields_autoplaced yes)
 		(uuid "ad55fb86-6bfe-4f80-86ec-e5288f1931b2")
 		(property "Reference" "J4"
-			(at 105.41 43.18 90)
+			(at 116.84 48.2599 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "Conn_01x08"
-			(at 105.41 45.72 90)
+			(at 116.84 50.7999 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Connector_JST:JST_SH_BM08B-SRSS-TB_1x08-1MP_P1.00mm_Vertical"
@@ -3288,6 +3469,82 @@
 			(project "MRF-Pro-v8"
 				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
 					(reference "J1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 147.32 121.92 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ffffac54-a597-4795-b24f-3f71730ee913")
+		(property "Reference" "H2"
+			(at 149.86 120.6499 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 149.86 123.1899 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2"
+			(at 147.32 121.92 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 147.32 121.92 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 147.32 121.92 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "MRF-Pro-v8"
+				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
+					(reference "H2")
 					(unit 1)
 				)
 			)

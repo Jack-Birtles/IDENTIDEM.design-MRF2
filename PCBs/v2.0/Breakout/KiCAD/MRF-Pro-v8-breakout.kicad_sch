@@ -1382,6 +1382,105 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Mechanical:MountingHole"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "H"
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "MountingHole"
+				(at 0 3.175 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Mounting Hole without connection"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "mounting hole"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "MountingHole*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "MountingHole_0_1"
+				(circle
+					(center 0 0)
+					(radius 1.27)
+					(stroke
+						(width 1.27)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Regulator_Linear:TLV75533PDBV"
 			(pin_names
 				(offset 0.254)
@@ -1703,7 +1802,7 @@
 		)
 		(uuid "17a4097d-8d32-430a-af00-a89ac66f39b3")
 	)
-	(text "3.3v"
+	(text "VBAT"
 		(exclude_from_sim no)
 		(at 144.78 113.03 90)
 		(effects
@@ -1808,10 +1907,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "f62a8302-5dfe-4b0c-ac8d-06fbd0a58f24")
-	)
-	(no_connect
-		(at 185.42 90.17)
-		(uuid "c5d57fdc-1114-4480-ba4f-37d17e266202")
 	)
 	(wire
 		(pts
@@ -2084,94 +2179,94 @@
 		(uuid "f37b25b9-3405-466a-bdee-b7e79e6105d4")
 	)
 	(label "GND"
-		(at 185.42 100.33 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "081102ee-2597-4d7b-b9aa-6ed40ac19dda")
-	)
-	(label "3V3_LASER"
-		(at 180.34 80.01 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "147254c4-fcbd-4937-b24f-5717a1f7de30")
-	)
-	(label "3.3V"
-		(at 160.02 82.55 90)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "14f881dd-ec71-4006-b539-58f62aca9a02")
-	)
-	(label "VBAT"
-		(at 191.77 83.82 270)
+		(at 209.55 102.87 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "4fa450c4-a236-408c-888a-f5a77ff569bc")
+		(uuid "081102ee-2597-4d7b-b9aa-6ed40ac19dda")
 	)
-	(label "GND"
-		(at 191.77 91.44 90)
+	(label "3V3_LASER"
+		(at 184.15 73.66 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "147254c4-fcbd-4937-b24f-5717a1f7de30")
+	)
+	(label "3.3V"
+		(at 160.02 82.55 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "14f881dd-ec71-4006-b539-58f62aca9a02")
+	)
+	(label "VBAT"
+		(at 208.28 83.82 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
+		)
+		(uuid "4fa450c4-a236-408c-888a-f5a77ff569bc")
+	)
+	(label "GND"
+		(at 208.28 91.44 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
 		)
 		(uuid "551a0ab3-e1a6-4438-93e8-ceacec51e8f3")
 	)
 	(label "GND"
-		(at 199.39 91.44 90)
+		(at 215.9 91.44 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5de29e79-9a7c-4a0d-9448-cc48de8f4a08")
+	)
+	(label "VBAT"
+		(at 144.78 102.87 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-		(uuid "5de29e79-9a7c-4a0d-9448-cc48de8f4a08")
+		(uuid "5ec6c196-8235-49e6-a19a-ec8776d4afe4")
 	)
 	(label "GND"
-		(at 129.54 100.33 0)
+		(at 129.54 100.33 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "61c21826-9a51-40a7-9e7b-1464847c2fd6")
 	)
 	(label "3V3_LASER"
-		(at 198.12 100.33 90)
+		(at 224.79 102.87 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "69bea972-6235-4ac9-94c0-621ec0e68856")
-	)
-	(label "3.3V"
-		(at 144.78 102.87 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "6d85004b-2b50-4328-8953-bd1a9b54edc8")
 	)
 	(label "GND"
 		(at 146.05 90.17 0)
@@ -2197,18 +2292,28 @@
 			)
 		)
 	)
-	(label "3V3_LIDAR"
-		(at 121.92 90.17 270)
+	(label "3.3V"
+		(at 157.48 102.87 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify right bottom)
+			(justify left bottom)
+		)
+		(uuid "862914c3-8555-467a-840f-11fc85658205")
+	)
+	(label "3V3_LIDAR"
+		(at 121.92 90.17 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
 		)
 		(uuid "86baed04-fee9-4618-88fb-6e0e354f5765")
 	)
 	(label "VBAT"
-		(at 172.72 87.63 180)
+		(at 177.8 86.36 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2218,57 +2323,57 @@
 		(uuid "8dfa9624-b0a2-427e-b1ea-dad898f860af")
 	)
 	(label "3V3_LASER"
-		(at 134.62 82.55 90)
+		(at 134.62 82.55 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "9452200a-0b87-4922-a5d8-cd83ccdcebce")
 	)
 	(label "VBAT"
-		(at 199.39 83.82 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "a13e0e19-49f9-48ba-a17a-d6b48a15d457")
-	)
-	(label "3V3_LIDAR"
-		(at 180.34 72.39 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "ac19ac38-a3b0-400f-b481-5b106277ce77")
-	)
-	(label "GND"
-		(at 121.92 100.33 0)
+		(at 215.9 83.82 90)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left bottom)
 		)
-		(uuid "b8e01b18-f3eb-408c-bc05-03864544101e")
+		(uuid "a13e0e19-49f9-48ba-a17a-d6b48a15d457")
 	)
-	(label "3V3_LASER"
-		(at 114.3 90.17 270)
+	(label "3V3_LIDAR"
+		(at 191.77 73.66 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ac19ac38-a3b0-400f-b481-5b106277ce77")
+	)
+	(label "GND"
+		(at 121.92 100.33 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
+		(uuid "b8e01b18-f3eb-408c-bc05-03864544101e")
+	)
+	(label "3V3_LASER"
+		(at 114.3 90.17 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
 		(uuid "bccbea77-5afa-4f92-bfee-2ec6f1eceae3")
 	)
 	(label "3.3V"
-		(at 172.72 90.17 180)
+		(at 177.8 88.9 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2278,47 +2383,47 @@
 		(uuid "c4e1d397-e03f-4fba-916c-998f4b22458f")
 	)
 	(label "VBAT"
-		(at 173.99 100.33 90)
+		(at 193.04 102.87 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "cdcd7fba-17a2-49c2-83a3-a006bf905af4")
 	)
 	(label "GND"
-		(at 210.82 92.71 0)
+		(at 171.45 97.79 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "cfe5abff-d44d-4dd4-8355-fedd8a2ca147")
 	)
 	(label "GND"
-		(at 180.34 97.79 90)
+		(at 185.42 96.52 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "d1a906de-e2bd-4b62-99d1-3d8aeb786fcc")
 	)
 	(label "3V3_LIDAR"
-		(at 137.16 82.55 90)
+		(at 137.16 82.55 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "d68bef4d-324f-4436-886d-401e49fcd068")
 	)
 	(label "3V3_LIDAR"
-		(at 187.96 87.63 0)
+		(at 193.04 86.36 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2328,7 +2433,7 @@
 		(uuid "e4cae7c7-e9e5-4208-86c0-1898a194ad11")
 	)
 	(label "3.3V"
-		(at 210.82 85.09 0)
+		(at 171.45 90.17 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2338,24 +2443,14 @@
 		(uuid "f0b28ad1-e665-4c5e-8878-bfab18400c26")
 	)
 	(label "GND"
-		(at 114.3 100.33 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "f1f3eb59-afef-415f-9d72-27adbac83d45")
-	)
-	(label "VBAT"
-		(at 157.48 102.87 270)
+		(at 114.3 100.33 270)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right bottom)
 		)
-		(uuid "f9518d53-94de-4e88-8336-493ea742aca6")
+		(uuid "f1f3eb59-afef-415f-9d72-27adbac83d45")
 	)
 	(symbol
 		(lib_id "Device:C")
@@ -2369,7 +2464,7 @@
 		(dnp no)
 		(uuid "05d44080-62ba-4e1d-9573-fd0ab316ae72")
 		(property "Reference" "C2"
-			(at 124.46 92.71 0)
+			(at 122.682 96.52 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2380,7 +2475,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 124.46 95.25 0)
+			(at 122.682 99.06 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2423,9 +2518,17 @@
 				)
 			)
 		)
-    (property "LCSC" "C15849" (at 121.92 93.98 0)
-      (effects (font (size 1.27 1.27)) (hide yes))
-    )
+		(property "LCSC" "C15849"
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "35f18108-2346-48c5-888a-7479612cafda")
 		)
@@ -2443,7 +2546,7 @@
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
-		(at 185.42 100.33 0)
+		(at 209.55 102.87 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2451,29 +2554,32 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "0e5b15fc-80bb-4959-99b0-d16a2c6c1a96")
 		(property "Reference" "#FLG2"
-			(at 185.42 97.79 0)
+			(at 212.09 100.3299 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "PWR_FLAG"
-			(at 185.42 102.87 0)
+			(at 212.09 102.8699 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
-			(at 186 100 0)
+			(at 210.13 102.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2484,7 +2590,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 186 100 0)
+			(at 210.13 102.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2495,7 +2601,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 185.42 100.33 0)
+			(at 209.55 102.87 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2518,7 +2624,7 @@
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
-		(at 198.12 100.33 0)
+		(at 224.79 102.87 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2526,29 +2632,32 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "3d9971ed-50c3-4da8-90da-f1c5ce03d657")
 		(property "Reference" "#FLG3"
-			(at 198.12 97.79 0)
+			(at 227.33 100.3299 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "PWR_FLAG"
-			(at 198.12 102.87 0)
+			(at 227.33 102.8699 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
-			(at 198 100 0)
+			(at 224.67 102.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2559,7 +2668,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 198 100 0)
+			(at 224.67 102.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2570,7 +2679,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 198.12 100.33 0)
+			(at 224.79 102.87 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2593,7 +2702,7 @@
 	)
 	(symbol
 		(lib_id "Regulator_Linear:TLV75533PDBV")
-		(at 180.34 90.17 0)
+		(at 185.42 88.9 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2603,7 +2712,7 @@
 		(dnp no)
 		(uuid "3e809cd9-2142-453c-86e5-7c18ee0fc134")
 		(property "Reference" "U1"
-			(at 180.34 84.92 0)
+			(at 185.42 88.138 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2613,18 +2722,17 @@
 			)
 		)
 		(property "Value" "TLV75533"
-			(at 180.34 100.16 0)
+			(at 185.42 82.55 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
 			)
 		)
 		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
-			(at 180 98.255 0)
+			(at 185.08 96.985 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2635,7 +2743,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 180 91.27 0)
+			(at 185.08 90 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2646,7 +2754,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 180.34 90.17 0)
+			(at 185.42 88.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2656,7 +2764,7 @@
 			)
 		)
 		(property "LCSC" "C404027"
-			(at 180.34 90.17 0)
+			(at 185.42 88.9 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2691,8 +2799,84 @@
 		)
 	)
 	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 118.11 130.81 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "5b28cb42-9cd9-4c3f-b23a-ee8b7ad36e98")
+		(property "Reference" "H2"
+			(at 120.65 129.5399 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 120.65 132.0799 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2"
+			(at 118.11 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 118.11 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 118.11 130.81 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "MRF-Pro-v8-breakout"
+				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
+					(reference "H2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:FerriteBead")
-		(at 180.34 76.2 0)
+		(at 187.96 73.66 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2702,27 +2886,29 @@
 		(dnp no)
 		(uuid "61340181-4b56-43ae-a5a6-c8459ea0e0e3")
 		(property "Reference" "FB1"
-			(at 180.34 73.66 0)
+			(at 190.246 77.724 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "0"
-			(at 180.34 78.74 0)
+			(at 190.246 75.184 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Inductor_SMD:L_0805_2012Metric"
-			(at 178.222 76 0)
+			(at 188.16 71.542 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2733,7 +2919,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 180 76 0)
+			(at 188.16 73.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2744,7 +2930,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 180.34 76.2 0)
+			(at 187.96 73.66 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2754,7 +2940,7 @@
 			)
 		)
 		(property "LCSC" "C17477"
-			(at 180.34 76.2 0)
+			(at 187.96 73.66 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2781,7 +2967,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 199.39 87.63 0)
+		(at 215.9 87.63 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2791,7 +2977,7 @@
 		(dnp no)
 		(uuid "a2c721bc-b3fd-4a0b-8fe7-74e3101f000b")
 		(property "Reference" "Cin2"
-			(at 199.39 85.09 0)
+			(at 217.678 89.916 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2802,7 +2988,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 199.39 90.17 0)
+			(at 217.678 92.456 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2813,7 +2999,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 200.965 84.19 0)
+			(at 217.475 84.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2824,7 +3010,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 200 88 0)
+			(at 216.51 88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2835,7 +3021,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 199.39 87.63 0)
+			(at 215.9 87.63 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2845,7 +3031,7 @@
 			)
 		)
 		(property "LCSC" "C15850"
-			(at 199.39 87.63 0)
+			(at 215.9 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2882,7 +3068,7 @@
 		(dnp no)
 		(uuid "a5e8af56-841e-4f1c-a64a-13e52aa9304b")
 		(property "Reference" "C3"
-			(at 132.08 92.71 0)
+			(at 130.302 96.52 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2893,7 +3079,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 132.08 95.25 0)
+			(at 130.302 99.06 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2936,9 +3122,17 @@
 				)
 			)
 		)
-    (property "LCSC" "C1525" (at 129.54 93.98 0)
-      (effects (font (size 1.27 1.27)) (hide yes))
-    )
+		(property "LCSC" "C1525"
+			(at 129.54 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "c5d8db7b-1708-4ca4-a541-cc119bba9499")
 		)
@@ -2955,6 +3149,82 @@
 		)
 	)
 	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 118.11 123.19 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "abbe04dc-8307-4725-841c-2f446f90179b")
+		(property "Reference" "H1"
+			(at 120.65 121.9199 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 120.65 124.4599 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2"
+			(at 118.11 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 118.11 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 118.11 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "MRF-Pro-v8-breakout"
+				(path "/896eaae8-6acf-41d9-a1f7-3a80349c3bd9"
+					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Connector:Conn_01x08_Pin")
 		(at 152.4 107.95 90)
 		(unit 1)
@@ -2964,25 +3234,28 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "b5ce2702-1425-49fe-ad2f-8e92b31e78f0")
 		(property "Reference" "J5"
-			(at 153.67 115.57 90)
+			(at 163.83 106.0449 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "FPC 8P Connector"
-			(at 153.67 118.11 90)
+			(at 163.83 108.5849 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Connector_FFC-FPC:TE_0-1734839-8_1x08-1MP_P0.5mm_Horizontal"
@@ -3071,27 +3344,28 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "ba1bc814-dc15-486d-8a5f-5e1af5c73f9f")
 		(property "Reference" "C1"
-			(at 116.84 92.71 0)
+			(at 110.49 92.7099 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Value" "47uF"
-			(at 116.84 95.25 0)
+			(at 110.49 95.2499 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
@@ -3127,9 +3401,17 @@
 				)
 			)
 		)
-    (property "LCSC" "C96123" (at 114.3 93.98 0)
-      (effects (font (size 1.27 1.27)) (hide yes))
-    )
+		(property "LCSC" "C96123"
+			(at 114.3 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "0df3a613-4c4f-4598-b78a-d0910097a9d9")
 		)
@@ -3147,7 +3429,7 @@
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
-		(at 173.99 100.33 0)
+		(at 193.04 102.87 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3155,29 +3437,32 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "d5f25b5c-7e48-43d1-b153-a4d52bb4fc58")
 		(property "Reference" "#FLG1"
-			(at 173.99 97.46 0)
+			(at 195.58 100.3299 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "PWR_FLAG"
-			(at 173.99 102.54 0)
+			(at 195.58 102.8699 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
-			(at 174 100 0)
+			(at 193.05 102.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3188,7 +3473,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 174 100 0)
+			(at 193.05 102.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3199,7 +3484,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 173.99 100.33 0)
+			(at 193.04 102.87 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3284,9 +3569,17 @@
 				)
 			)
 		)
-    (property "LCSC" "C7430446" (at 160.02 77.47 0)
-      (effects (font (size 1.27 1.27)) (hide yes))
-    )
+		(property "LCSC" "C7430446"
+			(at 160.02 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "82b12af4-7e9f-4c6a-9dba-4c6a023c4f4f")
 		)
@@ -3310,7 +3603,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 210.82 88.9 0)
+		(at 171.45 93.98 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3318,29 +3611,32 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+		(fields_autoplaced yes)
 		(uuid "ddf57e7a-11c9-4ef9-9689-8e87d86a4870")
 		(property "Reference" "R1"
-			(at 208.28 88.9 0)
+			(at 173.99 92.7099 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "100k"
-			(at 213.36 88.9 0)
+			(at 173.99 95.2499 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 209.042 88.9 0)
+			(at 169.672 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3351,7 +3647,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 210.82 88.9 0)
+			(at 171.45 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3362,7 +3658,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 210.82 88.9 0)
+			(at 171.45 93.98 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3372,7 +3668,7 @@
 			)
 		)
 		(property "LCSC" "C25741"
-			(at 210.82 88.9 0)
+			(at 171.45 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3399,7 +3695,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 191.77 87.63 0)
+		(at 208.28 87.63 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -3409,7 +3705,7 @@
 		(dnp no)
 		(uuid "e359ca87-ce32-4214-9e58-3620092655d1")
 		(property "Reference" "Cin1"
-			(at 191.77 85.09 0)
+			(at 202.184 89.916 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3420,7 +3716,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 191.77 90.17 0)
+			(at 202.184 92.456 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3431,7 +3727,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 192.965 84.19 0)
+			(at 209.475 84.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3442,7 +3738,7 @@
 			)
 		)
 		(property "Datasheet" "~"
-			(at 192 88 0)
+			(at 208.51 88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3453,7 +3749,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 191.77 87.63 0)
+			(at 208.28 87.63 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -3463,7 +3759,7 @@
 			)
 		)
 		(property "LCSC" "C52923"
-			(at 191.77 87.63 0)
+			(at 208.28 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3552,9 +3848,17 @@
 				)
 			)
 		)
-    (property "LCSC" "C7430448" (at 139.7 77.47 0)
-      (effects (font (size 1.27 1.27)) (hide yes))
-    )
+		(property "LCSC" "C7430448"
+			(at 139.7 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "4ec03421-f870-4b00-8cec-d2a3d908dafd")
 		)
