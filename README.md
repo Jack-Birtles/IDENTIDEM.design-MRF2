@@ -23,7 +23,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 
 ## 📚 Documentation Index
 
-- `Documentation/flash-firmware/README.md` – Flashing the firmware with VS Code + PlatformIO
+- `Documentation/flash-firmware/README.md` – Building and flashing the firmware on macOS, Linux, and Windows (VS Code or CLI)
 - `Documentation/web-updater/README.md` – GitHub Pages browser updater architecture and deployment
 - `Documentation/user-manual/USER_MANUAL.md` – On-device UI and calibration user manual
 - `Firmware/README.md` – Firmware architecture, configuration, and CLI build commands
@@ -51,7 +51,7 @@ Everything else — the main board layout, connectors, sensors, displays, optics
 1. **Order PCBs**: Pick your version (see [Which board version?](#-which-board-version-v1-or-v2)), then upload the Gerbers from that revision's `Main PCB/Gerber` and `Breakout/Gerber` folders — the `.gbrjob` files go straight to most fabs. For v2, the breakout is also an assembly job (the LDO SMD parts); its JLCPCB BOM/CPL live in `PCBs/v2.0/Breakout/JLCPCB/`.
 2. **Assemble electronics**: Populate the main and breakout boards with the BoM below (through-hole and SMT mix), attach the Feather ESP32-S3, and wire the displays/sensors via STEMMA QT/Qwiic where applicable.
 3. **Print the body**: Slice/print the 3MF models (see `3MF/` and any profiles in `OrcaSlicer/`). Fit tolerances may depend on your printer and material.
-4. **Load firmware**: Use `Documentation/flash-firmware/README.md` (VS Code) or `Firmware/README.md` (CLI), then run first-time calibration.
+4. **Load firmware**: Follow `Documentation/flash-firmware/README.md` (macOS/Linux/Windows, VS Code or CLI), then run first-time calibration.
 5. **Integrate**: Install the PCBs and displays into the printed parts, route wiring, and verify focus/meters on the bench before loading film.
 
 ## 🧱 Bill of Materials
