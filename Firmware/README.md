@@ -157,7 +157,7 @@ Firmware/
 
 ## Building and Flashing
 
-For the step-by-step VS Code + PlatformIO workflow, see `Documentation/flash-firmware/README.md`.
+For the step-by-step build and flash workflow on macOS, Linux, and Windows (VS Code or CLI), see `Documentation/flash-firmware/README.md`.
 
 ### CLI Build Commands
 ```bash
