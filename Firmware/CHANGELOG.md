@@ -2,6 +2,33 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.5.0 - 2026-06-21
+
+Long-range LiDAR work: trust confident far returns, show the sensor's full rated range, and add a diagnostics screen so field testers can read back exactly what the sensor reports. Pairs with the v2 (MRF-Pro-v8) breakout's dedicated LiDAR regulator.
+
+### LiDAR long-range behaviour
+
+- **Confident far readings are no longer suppressed.** A GOOD/EXCELLENT return past the lens-focus prior is the sensor locking a real far subject, not a parallax beam miss, so the plausibility gate now trusts it. The allowed overshoot scales with the prior instead of a flat 2m, because beam-miss error grows with distance.
+- **Display ceiling raised to the sensor's rated 18m** (was 10.5m), so genuine far subjects read out instead of collapsing to infinity early.
+
+### LiDAR Diagnostics screen
+
+- New **Setup > LiDAR > Diagnostics** screen showing live raw distance, intensity, sunlight base, SNR, quality, held state, requested vs actual frame rate, and error/recovery counts. It lets a tester read back exactly what the sensor returns while aiming at a target.
+- The screen shows the **telemetry frame age** next to the frame rate (milliseconds when fresh, seconds when stale, `>99s` cap, `--` before the first frame) so stale values can't be mistaken for live ones.
+- The sensor's actual frame rate is read back at boot so a future frame-rate experiment can confirm what was latched.
+
+### Signal-loss readout
+
+- A far-range dropout now shows **`Inf?`** instead of `Inf.`, so a lost signal above 3m is marked as a guess rather than passing for a real 18m measurement. The placeholder persists across a continuing dropout (e.g. aimed at the sky) instead of flickering for a single frame. Standby (`Zzz`) and near dropouts still resolve to `...` so wake starts clean.
+
+### Boot screen
+
+- The boot version text on the external display now shrinks to fit the screen width instead of wrapping, so three-part versions render cleanly.
+
+### Tests
+
+- Added coverage for the gate (confident far reads not suppressed, overshoot scales with prior), the display ceiling, the `Inf?` placeholder helper, and the telemetry-age formatter including `millis()` wrap. Test count: 53 → 66.
+
 ## 10.4.10 - 2026-05-31
 
 ### LiDAR plausibility gate
