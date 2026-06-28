@@ -7,7 +7,7 @@ Step-by-step capture of the dedicated LiDAR regulator design. The design itself 
 Two projects change:
 
 - **Breakout** — `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_sch` (the real work: U1, Cin, two new nets).
-- **Main board** — `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_sch` (Feather BAT → FPC pin 1, plus the J4 DPDT power-switch rework: `3.3V`/`3V3_SW`/`EN`/`GND`).
+- **Main board** — `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_sch` (Feather BAT → FPC pin 1, plus the J4 DPDT power-switch rework: `3.3IN`/`3.3OUT`/`EN`/`GND`).
 
 `kicad-cli` cannot author a schematic — it only runs ERC and exports. So every step below is in the GUI. Use `kicad-cli sch erc` afterwards to check.
 
@@ -97,8 +97,8 @@ The Feather ESP32-S3 is modeled as **generic header connectors** (J1/J2); the FP
 
 **J4 DPDT power switch** (the prior board sent FPC pin 1 from a GPIO and never routed Feather 3.3 V to the FPC; this rework fixes that):
 
-1. `3.3V` (Feather, J1 pin 2) → **J4 pin 8** — pole A input.
-2. **J4 pin 7** → FPC **pin 6** (J3 pin 6), labeled **`3V3_SW`** — pole A output, the switched 3.3 V the breakout uses for U1 EN + J6.
+1. `3.3IN` (Feather, J1 pin 2) → **J4 pin 8** — pole A input.
+2. **J4 pin 7** → FPC **pin 6** (J3 pin 6), labeled **`3.3OUT`** — pole A output, the switched 3.3 V the breakout uses for U1 EN + J6.
 3. Feather **EN** (J2 pin 11) → **J4 pin 4**, labeled **`EN`** — pole B; the off position ties this to GND.
 4. **J4 pins 1, 2, 3** → `GND` — pole B return / switch common.
 
@@ -127,7 +127,7 @@ Breakout:
 Main board:
 
 - Feather BAT (J2.12) on `VBAT` → FPC pin 1 (J3.1)
-- J4 DPDT: `3.3V`={J1.2, J4.8}; `3V3_SW`={J4.7, J3.6=FPC pin 6}; `EN`={J2.11, J4.4}; `GND`={J4.1, J4.2, J4.3, …}
+- J4 DPDT: `3.3IN`={J1.2, J4.8}; `3.3OUT`={J4.7, J3.6=FPC pin 6}; `EN`={J2.11, J4.4}; `GND`={J4.1, J4.2, J4.3, …}
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Applies to:** MRF-Pro v7.5 breakout board (and earlier), DTS6012M LiDAR on connector J7.
 
-**Status:** Hand-solder fix available now. A board respin is planned (see the end of this document).
+**Status:** Closed avenue for the board respin. The decoupling-only design was built and the boards were ordered, but the bulk cap on the Feather 3.3 V rail caused a cold-start boot regression (see [Board respin](#board-respin-closed)), so the respin moved to the dedicated LDO in **Stage 2** ([lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md)), which ships on MRF-Pro-v8 (`PCBs/v2.0/`). This document stays valid as the **root-cause background and the hand-solder stopgap** for v1 (MRF-Pro-v7.5) boards.
 
 ## Symptom
 
@@ -52,13 +52,13 @@ Use an oscilloscope, not a multimeter — a DMM averages out the nanosecond tran
 
 To collect comparable before/after data, use the [LiDAR field test protocol](lidar-field-test.md).
 
-## Board respin (in progress)
+## Board respin (closed)
 
-The fix is being designed into the board so new units don't need hand-soldered caps. It is staged:
+The fix was designed into the board so new units don't need hand-soldered caps. It was staged, and the staging is now settled — **Stage 2 is what shipped on MRF-Pro-v8** (`PCBs/v2.0/`):
 
-**Stage 1 — decoupling (designed now).** C1 47 µF + C2 1 µF + C3 100 nF added to the breakout schematic across the LiDAR 3.3 V rail, ERC-clean. The board layout (placement at J7, wider copper, ground stitching) is specified in [lidar-stage2-breakout-layout.md](lidar-stage2-breakout-layout.md) for completion in the KiCad PCB editor. This is needed in every scenario and ships first.
+**Stage 1 — decoupling only (closed, superseded).** C1 47 µF + C2 1 µF + C3 100 nF across the LiDAR 3.3 V rail. The decoupling-only board was built and ordered, but the 47 µF bulk on the Feather 3.3 V rail slowed the cold-start voltage ramp and broke the ESP32-S3 power-on reset: after a long time switched off, a single switch-on failed to boot. That regression closed this avenue as a standalone fix. The decoupling itself is correct and is retained behind the regulator in Stage 2.
 
-**Stage 2 — dedicated regulator (gated on field data).** If the field test shows decoupling alone is not enough, add a dedicated low-noise 3.3 V regulator (TLV75533) for the LiDAR fed from VBAT. The full design is in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md); the decision is tracked on beads issue `IDENTIDEM_design-MRF2-3z5`.
+**Stage 2 — dedicated regulator (shipped).** A dedicated low-noise 3.3 V regulator (TLV75533) for the LiDAR fed from VBAT, with the bulk relocated to the regulator output (`3V3_LIDAR`) so it no longer loads the MCU's reset rail. This delivers the original LiDAR power-integrity goal and fixes the cold-start regression in one change. Full design in [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md); the decision was tracked on beads issue `IDENTIDEM_design-MRF2-3z5`.
 
 Two facts found while tracing the current board shape the respin:
 

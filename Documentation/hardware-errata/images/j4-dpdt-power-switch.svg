@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 500" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
   <title>J4 DPDT power switch</title>
-  <desc>The off-board DPDT power switch wired to header J4, shown in the OFF (camera off) position. Pole A connects Feather 3.3 V (J4 pin 8) to the switched rail 3V3_SW (J4 pin 7), which leaves the board on FPC pin 6 and feeds the breakout I2C bus (ADS1015 lens ADC, both OLEDs, the MPU IMU, and the seesaw rotary encoder) plus the LiDAR LDO enable; in the OFF position pole A is open so that rail floats to 0 V. Pole B connects Feather EN (J4 pin 4) to GND (J4 pins 1 to 3); in the OFF position pole B is closed, pulling EN low and holding the ESP32-S3 in reset. The two poles are mechanically ganged so one makes as the other breaks.</desc>
+  <desc>The off-board DPDT power switch wired to header J4, shown in the OFF (camera off) position. Pole A connects Feather 3.3 V (J4 pin 8) to the switched rail 3.3OUT (J4 pin 7), which leaves the board on FPC pin 6 and feeds the breakout I2C bus (ADS1015 lens ADC, both OLEDs, the MPU IMU, and the seesaw rotary encoder) plus the LiDAR LDO enable; in the OFF position pole A is open so that rail floats to 0 V. Pole B connects Feather EN (J4 pin 4) to GND (J4 pins 1 to 3); in the OFF position pole B is closed, pulling EN low and holding the ESP32-S3 in reset. The two poles are mechanically ganged so one makes as the other breaks.</desc>
   <defs>
     <marker id="aBlue" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2563eb"/></marker>
     <marker id="aSlate" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#475569"/></marker>
@@ -13,7 +13,7 @@
 
   <!-- legend -->
   <g font-size="11.5" fill="#334155">
-    <line x1="120" y1="74" x2="144" y2="74" stroke="#2563eb" stroke-width="3.5"/><text x="149" y="78">switched 3.3 V (3V3_SW)</text>
+    <line x1="120" y1="74" x2="144" y2="74" stroke="#2563eb" stroke-width="3.5"/><text x="149" y="78">switched 3.3 V (3.3OUT)</text>
     <line x1="360" y1="74" x2="384" y2="74" stroke="#475569" stroke-width="2.2" stroke-dasharray="5 4"/><text x="389" y="78">enable / control</text>
     <line x1="560" y1="74" x2="584" y2="74" stroke="#64748b" stroke-width="2.6"/><text x="589" y="78">GND</text>
   </g>
@@ -22,7 +22,7 @@
   <!-- Feather 3.3 V -->
   <rect x="24" y="150" width="176" height="52" rx="6" fill="#fff" stroke="#2563eb" stroke-width="2.5"/>
   <text x="112" y="172" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">Feather 3.3 V rail</text>
-  <text x="112" y="190" text-anchor="middle" font-size="10.5" fill="#64748b">J1.2 &#8594; J4 pin 8</text>
+  <text x="112" y="190" text-anchor="middle" font-size="10.5" fill="#64748b">J1.2 &#8594; J4.8 &#183; 3.3IN</text>
 
   <!-- GND -->
   <rect x="24" y="322" width="176" height="52" rx="6" fill="#fff" stroke="#64748b" stroke-width="2.5"/>
@@ -62,10 +62,10 @@
   <text x="405" y="340" text-anchor="middle" font-size="9.5" fill="#047857">closed</text>
 
   <!-- ============ right: switched rail + loads ============ -->
-  <!-- 3V3_SW output, dead when off: faded dashed -->
+  <!-- 3.3OUT output, dead when off: faded dashed -->
   <line x1="510" y1="232" x2="600" y2="232" stroke="#93c5fd" stroke-width="3" stroke-dasharray="6 4"/>
   <circle cx="600" cy="232" r="3.5" fill="#93c5fd"/>
-  <text x="556" y="223" text-anchor="middle" font-size="10.5" fill="#1d4ed8">3V3_SW &#8594; FPC pin 6</text>
+  <text x="556" y="223" text-anchor="middle" font-size="10.5" fill="#1d4ed8">3.3OUT &#8594; FPC pin 6</text>
   <text x="556" y="248" text-anchor="middle" font-size="9.5" fill="#b91c1c">0 V when off</text>
   <line x1="600" y1="232" x2="600" y2="180" stroke="#93c5fd" stroke-width="3" stroke-dasharray="6 4"/>
   <line x1="600" y1="180" x2="620" y2="180" stroke="#93c5fd" stroke-width="3" stroke-dasharray="6 4"/>
@@ -90,7 +90,7 @@
 
   <!-- ============ bottom notes ============ -->
   <line x1="24" y1="416" x2="896" y2="416" stroke="#e2e8f0" stroke-width="1.5"/>
-  <text x="24" y="440" font-size="11.5" fill="#334155"><tspan font-weight="700" fill="#b91c1c">OFF (shown):</tspan> pole A open &#8594; 3V3_SW floats, so the I&#178;C devices and the LiDAR LDO lose power; pole B closed &#8594; EN to GND holds the MCU off.</text>
-  <text x="24" y="462" font-size="11.5" fill="#334155"><tspan font-weight="700" fill="#047857">ON:</tspan> pole A makes (3.3 V &#8594; 3V3_SW); pole B breaks (EN released, the Feather&#8217;s internal pull-up enables the ESP32-S3).</text>
-  <text x="24" y="484" font-size="11" fill="#64748b">Redundant by design: EN low also collapses the Feather 3.3 V that is pole A&#8217;s own source, so 3V3_SW dies even if pole A&#8217;s contacts stick.</text>
+  <text x="24" y="440" font-size="11.5" fill="#334155"><tspan font-weight="700" fill="#b91c1c">OFF (shown):</tspan> pole A open &#8594; 3.3OUT floats, so the I&#178;C devices and the LiDAR LDO lose power; pole B closed &#8594; EN to GND holds the MCU off.</text>
+  <text x="24" y="462" font-size="11.5" fill="#334155"><tspan font-weight="700" fill="#047857">ON:</tspan> pole A makes (3.3 V &#8594; 3.3OUT); pole B breaks (EN released, the Feather&#8217;s internal pull-up enables the ESP32-S3).</text>
+  <text x="24" y="484" font-size="11" fill="#64748b">Redundant by design: EN low also collapses the Feather 3.3 V that is pole A&#8217;s own source, so 3.3OUT dies even if pole A&#8217;s contacts stick.</text>
 </svg>

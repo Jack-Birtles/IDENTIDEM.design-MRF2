@@ -12,9 +12,9 @@ Everything else is background, supporting detail, or a superseded earlier stage 
 
 | Document | Stage | Status | Purpose |
 |----------|-------|--------|---------|
-| [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md) | 2 | **CURRENT** · captured (ERC clean), layout done, fab pending | The design to build: dedicated LDO, J4 DPDT power switch, net/connector changes, components, verification. |
+| [lidar-stage2-ldo-design.md](lidar-stage2-ldo-design.md) | 2 | **CURRENT** · captured (ERC clean), layout done (DRC clean), fab plotted | The design to build: dedicated LDO, J4 DPDT power switch, net/connector changes, components, verification. |
 | [lidar-stage2-ldo-kicad-guide.md](lidar-stage2-ldo-kicad-guide.md) | 2 | **CURRENT** · as-built | KiCad GUI click-by-click to capture the Stage-2 schematic, matching the as-built MRF-Pro-v8. |
-| [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md) | 1 | Superseded for the respin; still valid as **background + hand-solder stopgap** | Root-cause analysis and the solder-in decoupling fix that shipped first. |
+| [lidar-stage1-decoupling.md](lidar-stage1-decoupling.md) | 1 | **Closed avenue** (decoupling-only board caused a cold-start regression; superseded by Stage 2). Still valid as **background + hand-solder stopgap** for v1. | Root-cause analysis and the solder-in decoupling fix. |
 | [lidar-stage2-breakout-layout.md](lidar-stage2-breakout-layout.md) | 2 | **CURRENT** | Breakout PCB layout for the full LDO (U1, Cin, FB1, R1, the two output rails) — placement, routing, GND stitching, test points. |
 | [lidar-field-test.md](lidar-field-test.md) | all | Reference | Tester protocol for comparable before/after range data. Unprefixed because it spans every stage; also linked from the firmware and the user manual. |
 
