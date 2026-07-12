@@ -77,6 +77,16 @@ bool computeStableCalibrationReading(
   return true;
 }
 
+bool isAscendingCalibration(const int *readings, int reading_count)
+{
+  if (!readings || reading_count <= 1)
+  {
+    return true;
+  }
+  // Monotonicity is validated separately, so the endpoints determine direction.
+  return readings[reading_count - 1] > readings[0];
+}
+
 bool validateMonotonicCalibration(const int *readings, int reading_count, int min_step)
 {
   if (!readings || reading_count <= 1)

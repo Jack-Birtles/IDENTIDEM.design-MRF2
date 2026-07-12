@@ -134,6 +134,11 @@ void drawLensConfigUI()
   u8g2.print(parallaxEnabled ? F("On") : F("Off"));
   u8g2.print(F(" "));
 
+  selectConfigMenuRow(CONFIG_LENS_STEP_FOCUS_OFFSET, config_step == CONFIG_LENS_STEP_FOCUS_OFFSET);
+  u8g2.print(F(" Focus offset: "));
+  printSignedInt(lens_focus_offset);
+  u8g2.print(F(" "));
+
   selectConfigMenuRow(CONFIG_LENS_STEP_CALIB, config_step == CONFIG_LENS_STEP_CALIB);
   u8g2.print(F(" Lens Calibration > "));
 
@@ -216,6 +221,10 @@ void drawLidarDiagnosticsUI()
   u8g2.setFont(u8g2_font_4x6_mf);
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 0));
+  // Library-calibrated primary distance (raw sensor * scale + geometry offset),
+  // before the pipeline's near-range correction. Shown in the same domain the
+  // correction consumes, so a near-range calibration table (bd 4p9) built from
+  // this line stays coherent with applyLidarCalibrationCm().
   u8g2.print(F("Raw: "));
   u8g2.print(lidar_raw_distance_mm);
   u8g2.print(F("mm  Disp: "));
@@ -495,6 +504,13 @@ void drawCalibUI()
         u8g2.print(F(" Out of sequence"));
         u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
         u8g2.print(F(" Increase focus distance"));
+      }
+      else if (calib_capture_status == CALIB_CAPTURE_STATUS_WRONG_DIRECTION)
+      {
+        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+        u8g2.print(F(" Readings decreasing"));
+        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+        u8g2.print(F(" Sensor wired backward?"));
       }
     }
   }

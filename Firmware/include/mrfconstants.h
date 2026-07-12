@@ -107,6 +107,9 @@ const int LENS_ADC_SAMPLE_COUNT = 3;            // ADC samples averaged per read
 const int LENS_ADC_SAMPLE_DELAY_US = 200;       // Delay between ADC sub-samples.
 const int LENS_ADC_QUIET_DELAY_MS = 1;          // Quiet time before ADC sampling.
 const int LENS_ADC_MAIN_OFFSET = 4;             // UI-mode compensation offset for lens ADC.
+const int DEFAULT_LENS_FOCUS_OFFSET = 0;        // Default user focus fine-tune (ADC counts, Main mode only).
+const int LENS_FOCUS_OFFSET_MIN = -25;          // Minimum user focus fine-tune (ADC counts).
+const int LENS_FOCUS_OFFSET_MAX = 25;           // Maximum user focus fine-tune (ADC counts).
 const int LENS_SPIKE_DELTA_THRESHOLD = 8;       // Delta treated as potential ADC spike.
 const int LENS_SPIKE_CONFIRMATION_COUNT = 2;    // Consecutive spike readings required for accept.
 const int FOCUS_RADIUS_MIN = 3;                 // Minimum focus-ring radius in pixels.
@@ -189,7 +192,8 @@ const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when 
 const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 300;      // Apply plausibility gate only when lens is focused at or below 3m (parallax matters most close; covers portrait/group range).
 const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Floor for the allowed overshoot beyond the lens prior. Used directly at near focus; the proportional factor below takes over at longer focus.
 const int LIDAR_PLAUSIBILITY_OVERSHOOT_FACTOR_PCT = 150; // Allowed overshoot scales with the prior (parallax beam-miss error grows with distance): allowance = max(floor, prior * pct/100).
-const int LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL = 3; // Never gate readings at this quality_level or better (3=GOOD, 4=EXCELLENT): a confident sensor return is trusted even past the prior.
+const int LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL = 3; // At this quality_level or better (3=GOOD, 4=EXCELLENT) a confident sensor return earns the wider trusted overshoot allowance below.
+const int LIDAR_PLAUSIBILITY_TRUST_OVERSHOOT_FACTOR_PCT = 300; // Confident returns get this wider overshoot allowance (prior * pct/100), but still finite: sensor quality is distance-normalized, so a far beam-miss onto a bright background can read GOOD — a gross overshoot must still be gated.
 const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 3;  // Absolute cap: accept LiDAR after this many consecutive rejections no matter what, so a noisy beam-miss can never pin a stale value forever.
 const int LIDAR_PLAUSIBILITY_STABLE_DELTA_CM = 30;    // Two consecutive rejected readings within this distance count as "the same far subject" (intentional re-aim) rather than beam-miss jitter.
 const int LIDAR_PLAUSIBILITY_STABLE_RELEASE_FRAMES = 2; // Release the gate after this many consistent rejected readings — a deliberate re-aim past the subject is accepted at once.
@@ -216,6 +220,7 @@ const unsigned long FILM_COUNTER_REWIND_DEBOUNCE_MS = 120; // Rewind debounce.
 const float LIDAR_CAL_CUTOFF_CM = 150.0f; // Upper bound where near-range correction is applied.
 const float LIDAR_CAL_REF_RAW_CM = 130.0f; // Raw reference distance used for correction.
 const float LIDAR_CAL_REF_TRUE_CM = 100.0f; // True distance for the correction reference.
+const int LIDAR_CAL_MIN_OUTPUT_PCT = 60; // Interim floor (bd 4p9): the single-reference power law over-corrects below the anchor, so never let the correction return less than this percent of the raw distance. The measured anchor (130->100, 77%) sits above the floor.
 
 // ---------------------------------------------------------------------------
 // Frameline and parallax correction model
@@ -380,6 +385,7 @@ enum ConfigLensStep
 {
   CONFIG_LENS_STEP_LENS = 0,      // Lens selector.
   CONFIG_LENS_STEP_PARALLAX,      // Parallax toggle.
+  CONFIG_LENS_STEP_FOCUS_OFFSET,  // Focus distance fine-tune.
   CONFIG_LENS_STEP_CALIB,         // Enter lens calibration.
   CONFIG_LENS_STEP_BACK,          // Back to setup root.
   CONFIG_LENS_STEP_COUNT
@@ -482,6 +488,7 @@ const int CALIB_MONOTONIC_MIN_STEP = 1;      // Minimum monotonic step between c
 const int CALIB_CAPTURE_STATUS_NONE = 0;     // Calibration capture status: no error.
 const int CALIB_CAPTURE_STATUS_UNSTABLE = 1; // Calibration capture status: unstable reading.
 const int CALIB_CAPTURE_STATUS_NON_MONOTONIC = 2; // Calibration capture status: invalid sequence.
+const int CALIB_CAPTURE_STATUS_WRONG_DIRECTION = 3; // Calibration capture status: readings decreasing (sensor reads backwards; must ascend with distance).
 const unsigned long CALIB_ERROR_HOLD_MS = 2000; // Minimum display time for calibration errors.
 const int CALIB_COMPLETE_LED_PULSES = 3;     // Number of green LED pulses on calibration complete.
 const unsigned long CALIB_COMPLETE_LED_ON_MS = 80;  // LED on duration per pulse.

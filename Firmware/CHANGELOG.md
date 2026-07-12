@@ -13,6 +13,25 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 
 - The frame-rate line now shows a **measured** frames-per-second count (accepted frames over a rolling one-second window) instead of the sensor's boot-time self-report. The self-report reads 0 on current hardware because the DTS6012M does not answer the frame-rate query, so the old `act:` value was always misleading. The measured count is what confirmed, during the outdoor-range field investigation, that a lower frame rate is genuinely delivered yet does not extend range.
 
+### Focus distance and LiDAR accuracy fixes
+
+- **Lens focus readout fixed for the default 65mm lens.** The focus-distance table stored its sensor readings in descending order while the interpolation expects ascending, so between the calibrated marks the readout snapped to 1m (or `Inf.` at the near stop) instead of interpolating. The default table is now stored ascending, matching the convention the rest of the pipeline assumes, and a regression test guards that every calibrated lens table ascends. Verify against the marked distances on a calibrated 65mm lens.
+- **Near-range correction no longer over-shrinks close subjects.** The single-reference power law pulled sub-metre readings far too low (a raw 65cm read out as 14cm and dropped below the display floor). The correction is now bounded so it can never remove more than 40% of the raw distance — an interim guard until the measured near-range table lands.
+- **Confident far returns get a wide but finite trust margin.** A GOOD/EXCELLENT return past a near focus prior is still trusted, but only out to three times the prior. The sensor grades quality after normalising for distance, so a beam miss onto a bright far background can still read GOOD; a gross overshoot is now rejected regardless of grade.
+- **Dual-peak fusion keeps the stronger reading's confidence.** When the primary and secondary returns agree, the fused confidence now takes the higher of the two (plus the agreement bonus) rather than the average, so a weak secondary can no longer demote a confident primary.
+- **Focus distance interpolates in reciprocal-distance space.** Helicoid extension (what the linear sensor measures) tracks 1/distance, so the old linear-in-distance interpolation over-read across the sparse far marks. The between-mark readout is now physically correct and the far-mark stepping is softer.
+
+### Lens calibration and focus robustness
+
+- **Calibration requires readings that rise with distance.** A backwards-wired focus sensor captured a descending sequence the estimator reads inverted (the same class as the 65mm default bug, but reachable through the UI). Calibration now rejects it with a clear "readings decreasing — sensor wired backward?" prompt instead of silently storing an inverted table.
+- **Uncalibrated lenses show `--` instead of `Inf.`** Selecting a lens with no calibration data previously displayed a believable `Lens: Inf.`; it now shows a neutral placeholder.
+- **New Setup > Lens > Focus offset.** A per-camera focus fine-tune (ADC counts, applied in Main mode only) aligns the readout without a full recalibration and absorbs any Main-vs-calibration bias. Calibration still captures clean, so the stored table is unchanged.
+
+### LiDAR recovery and responsiveness
+
+- **The distance offset survives a partial recovery.** A recovery that reset the sensor but failed to re-enable it left the library distance offset zeroed — a silent ~40 cm short bias until the next fully successful recovery. The calibration profile (scale + offset) is now re-applied unconditionally after every reset.
+- **Faster lens ADC sampling.** The lens-position ADC ran at 128 SPS, so a 3-sample read blocked the cooperative loop for ~24 ms and could delay buttons and the encoder. At 920 SPS the same read blocks ~3 ms; the averaging and spike filters absorb the slightly wider per-sample noise.
+
 ## 10.5.0 - 2026-06-21
 
 Long-range LiDAR work: trust confident far returns, show the sensor's full rated range, and add a diagnostics screen so field testers can read back exactly what the sensor reports. Pairs with the v2 (MRF-Pro-v8) breakout's dedicated LiDAR regulator.

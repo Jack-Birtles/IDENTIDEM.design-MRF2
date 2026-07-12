@@ -20,8 +20,6 @@ int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
                           static_cast<unsigned long>(sunlight_base));
 }
 
-namespace
-{
 int applyLidarCalibrationCm(int raw_cm)
 {
   if (raw_cm <= 0)
@@ -50,9 +48,19 @@ int applyLidarCalibrationCm(int raw_cm)
 
   float raw_cm_f = static_cast<float>(raw_cm);
   float scaled = raw_cm_f * powf(raw_cm_f / LIDAR_CAL_CUTOFF_CM, exponent);
-  return static_cast<int>(roundf(scaled));
+  int corrected_cm = static_cast<int>(roundf(scaled));
+
+  // Interim guard until the measured piecewise table lands (bd 4p9): the single
+  // reference-point power law over-corrects below the anchor (raw 65cm -> 14cm),
+  // dropping real sub-metre subjects below the display floor. Never remove more
+  // than (100 - LIDAR_CAL_MIN_OUTPUT_PCT)% of the raw distance. The measured
+  // anchor (130 -> 100, 77%) sits well above the floor and is unaffected.
+  int floor_cm = raw_cm * LIDAR_CAL_MIN_OUTPUT_PCT / 100;
+  return max(corrected_cm, floor_cm);
 }
 
+namespace
+{
 struct QualityProfile
 {
   int base_score;
@@ -330,7 +338,10 @@ LidarCandidate fuseLidarCandidates(const LidarCandidate &primary, const LidarCan
                               (secondary.distance_cm * secondary.confidence);
   int fused_distance_cm = static_cast<int>(roundf(static_cast<float>(weighted_distance_sum) /
                                                   static_cast<float>(weight_sum)));
-  int fused_confidence = constrain(((primary.confidence + secondary.confidence) / 2) +
+  // Take the stronger candidate's confidence (not the average) so a weak but
+  // agreeing secondary can only add the agreement bonus, never demote a confident
+  // primary. Mirrors the max() used for the fused quality level just below.
+  int fused_confidence = constrain(max(primary.confidence, secondary.confidence) +
                                        LIDAR_FUSION_CONF_BONUS,
                                    0,
                                    100);
@@ -433,16 +444,20 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm, int qua
   {
     return false;
   }
-  // Trust a confident sensor return even past the prior — a GOOD/EXCELLENT
-  // reading is the sensor locking a real far subject, not a beam-miss.
-  if (quality_level >= LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL)
-  {
-    return false;
-  }
   // Parallax beam-miss error grows with distance, so scale the allowed overshoot
   // with the prior, never below the near-focus floor.
   int allowance_cm = max(LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM,
                          lens_prior_cm * LIDAR_PLAUSIBILITY_OVERSHOOT_FACTOR_PCT / 100);
+  // A confident (GOOD/EXCELLENT) return earns a wider allowance — it is more
+  // likely locking a real far subject than missing the framed one. But the sensor
+  // grades quality AFTER distance-normalization, so a far beam-miss onto a bright
+  // background can still read GOOD; keep the allowance finite so a gross overshoot
+  // is rejected regardless of grade.
+  if (quality_level >= LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL)
+  {
+    allowance_cm = max(allowance_cm,
+                       lens_prior_cm * LIDAR_PLAUSIBILITY_TRUST_OVERSHOOT_FACTOR_PCT / 100);
+  }
   return lidar_distance_cm > lens_prior_cm + allowance_cm;
 }
 

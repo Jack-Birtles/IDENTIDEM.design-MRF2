@@ -66,6 +66,7 @@ int brightness_manual_pct = DEFAULT_BRIGHTNESS_MANUAL_PCT;
 int brightness_auto_top_pct = DEFAULT_BRIGHTNESS_AUTO_TOP_PCT;
 bool show_horizon_line = DEFAULT_SHOW_HORIZON_LINE;
 bool parallaxEnabled = true;
+int lens_focus_offset = DEFAULT_LENS_FOCUS_OFFSET;
 
 // ---------------------------------------------------------------------------
 // UI mode / navigation state

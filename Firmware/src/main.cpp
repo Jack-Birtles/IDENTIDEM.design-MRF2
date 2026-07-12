@@ -101,7 +101,13 @@ void initializeInputHardware()
 
   if (hardware.ads)
   {
-    theads.setDataRate(RATE_ADS1015_128SPS);
+    // readADC_SingleEnded() busy-waits one conversion period, so the data rate
+    // sets how long each lens read blocks the cooperative loop. 128 SPS meant
+    // ~8 ms per conversion (~24 ms for the 3-sample average) stalling buttons and
+    // the encoder; 920 SPS drops that to ~1.1 ms each. The lens pot signal is
+    // large and slow, and the 3-sample average plus moving-average/spike filters
+    // absorb the slightly wider per-sample noise at the higher rate.
+    theads.setDataRate(RATE_ADS1015_920SPS);
     theads.setGain(GAIN_TWOTHIRDS);
   }
 

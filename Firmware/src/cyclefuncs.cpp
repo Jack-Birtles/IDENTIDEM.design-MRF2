@@ -218,6 +218,12 @@ void cycleFrameSpacingOffset()
   savePrefs(false, PREFS_DIRTY_FILM);
 }
 
+void cycleLensFocusOffset()
+{
+  lens_focus_offset = cycleValueWrapping(lens_focus_offset, 1, LENS_FOCUS_OFFSET_MIN, LENS_FOCUS_OFFSET_MAX);
+  savePrefs(false, PREFS_DIRTY_SETTINGS);
+}
+
 void cycleExposureCompensation(CycleDirection direction)
 {
   int step = (direction == CycleDirection::Up) ? 1 : -1;

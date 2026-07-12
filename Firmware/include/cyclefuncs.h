@@ -16,6 +16,7 @@ void cycleCalibLenses();
 void cycleFormats();
 void cycleCurrentFrame();
 void cycleFrameOneOffset();
+void cycleLensFocusOffset();
 void cycleFrameSpacingOffset();
 void cycleExposureCompensation(CycleDirection direction);
 void cycleMeterSmoothing();

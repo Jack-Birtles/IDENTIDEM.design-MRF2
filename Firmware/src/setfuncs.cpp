@@ -248,11 +248,13 @@ void setDistance()
   lidar.clearError();
   DTSError resetStatus = lidar.resetState();
   DTSError enableStatus = static_cast<DTSError>(lidar.enableSensor());
+  // resetState() clears the library scale + distance offset. Re-apply the
+  // calibration profile unconditionally (it is idempotent) so a partial recovery
+  // where enableSensor() fails transiently while the sensor keeps streaming can
+  // never leave the offset zeroed — otherwise every later reading is short by the
+  // configured offset (default 40 cm) until a fully successful recovery happens.
+  applyLidarCalibrationProfile();
   bool recovered = (resetStatus == DTSError::NONE && enableStatus == DTSError::NONE);
-  if (recovered)
-  {
-    applyLidarCalibrationProfile();
-  }
   noteLidarRecoveryAttemptResult(lidarRuntime.recovery, recovered, now);
 }
 
@@ -283,7 +285,9 @@ int getLensSensorReading()
   int sensorVal = static_cast<int>(adcSampleTotal / LENS_ADC_SAMPLE_COUNT);
   if (ui_mode == UiMode::Main)
   {
-    sensorVal += LENS_ADC_MAIN_OFFSET;
+    // Fixed Main-vs-Calib compensation plus the user's focus fine-tune. Calib
+    // mode captures without either, so the stored table stays reference-clean.
+    sensorVal += LENS_ADC_MAIN_OFFSET + lens_focus_offset;
   }
 
   int smoothedReading = calcMovingAvg(sensorVal);
@@ -333,6 +337,16 @@ void setLensDistance()
   if (lens.calibrated && snapIndex >= 0)
   {
     setLensDistanceFromCm(static_cast<int>(lens.distance[snapIndex] * CM_PER_METER));
+    return;
+  }
+
+  // An uncalibrated lens has no sensor->distance mapping, so estimating would
+  // return a bogus "Inf." for any real reading. Show a neutral placeholder
+  // instead of a believable-looking distance.
+  if (!lens.calibrated)
+  {
+    lens_distance_raw = 0;
+    snprintf(lens_distance_cm, sizeof(lens_distance_cm), "--");
     return;
   }
 

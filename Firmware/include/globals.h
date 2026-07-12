@@ -69,7 +69,7 @@ extern bool lidar_distance_held;    // True when the plausibility gate is holdin
 extern int lidar_distance_offset_mm;
 
 // Live LiDAR telemetry for the diagnostics screen (last accepted measurement).
-extern uint16_t lidar_raw_distance_mm;   // Raw primary distance from the sensor (pre-calibration).
+extern uint16_t lidar_raw_distance_mm;   // Primary distance after the library scale+offset, before the pipeline near-range correction and median filter.
 extern uint16_t lidar_primary_intensity; // Primary return intensity.
 extern uint16_t lidar_sunlight_base;     // Ambient-light baseline reported by the sensor.
 extern int lidar_snr_permille;           // computeSnrPermille() of the last measurement (-1 if no baseline).
@@ -97,6 +97,7 @@ extern int brightness_manual_pct;
 extern int brightness_auto_top_pct;
 extern bool show_horizon_line;
 extern bool parallaxEnabled;
+extern int lens_focus_offset; // User focus fine-tune in ADC counts (Main mode).
 
 // ---------------------------------------------------------------------------
 // UI mode / navigation state

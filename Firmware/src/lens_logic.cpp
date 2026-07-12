@@ -74,8 +74,15 @@ LensDistanceEstimate estimateLensDistance(const Lens &lens, int sensor_reading)
     {
       const float left_distance = lens.distance[i];
       const float right_distance = lens.distance[i + 1];
-      float interpolated = left_distance +
-                           (sensor_reading - left_sensor) * (right_distance - left_distance) / (right_sensor - left_sensor);
+      // Interpolate in reciprocal-distance space. The focus helicoid extension
+      // (what the linear sensor measures) is ~proportional to 1/distance, so
+      // 1/distance is ~linear in the sensor reading between marks. Linear-in-
+      // distance interpolation over-reads across the sparse far marks.
+      const float t = static_cast<float>(sensor_reading - left_sensor) /
+                      static_cast<float>(right_sensor - left_sensor);
+      const float inv_left = 1.0f / left_distance;
+      const float inv_right = 1.0f / right_distance;
+      const float interpolated = 1.0f / (inv_left + t * (inv_right - inv_left));
       result.valid = true;
       result.distance_cm = static_cast<int>(interpolated * CM_PER_METER);
       return result;

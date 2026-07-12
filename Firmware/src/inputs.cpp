@@ -87,6 +87,25 @@ bool isMonotonicCalibSequenceWithCandidate(int candidateReading)
   return validateMonotonicCalibration(readings, readingCount, CALIB_MONOTONIC_MIN_STEP);
 }
 
+bool isAscendingCalibSequenceWithCandidate(int candidateReading)
+{
+  const int calibrationPointCount = getCalibrationPointCountForLens(lenses[calib_lens]);
+  if (current_calib_distance >= calibrationPointCount)
+  {
+    return false;
+  }
+
+  int readingCount = current_calib_distance + 1;
+  int readings[CALIB_DISTANCE_COUNT];
+  for (int i = 0; i < current_calib_distance; i++)
+  {
+    readings[i] = calib_distance_set[i];
+  }
+  readings[current_calib_distance] = candidateReading;
+
+  return isAscendingCalibration(readings, readingCount);
+}
+
 void handleLeftButtonShortPress()
 {
   bool wasSleeping = sleepMode;
@@ -180,6 +199,13 @@ void handleLeftButtonShortPress()
         else if (!isMonotonicCalibSequenceWithCandidate(averagedReading))
         {
           calib_capture_status = CALIB_CAPTURE_STATUS_NON_MONOTONIC;
+          calib_capture_status_ms = millis();
+        }
+        else if (!isAscendingCalibSequenceWithCandidate(averagedReading))
+        {
+          // Monotonic but decreasing: the sensor reads backwards. Stored as-is it
+          // would give an inverted focus readout, so reject with clear guidance.
+          calib_capture_status = CALIB_CAPTURE_STATUS_WRONG_DIRECTION;
           calib_capture_status_ms = millis();
         }
         else
@@ -374,6 +400,9 @@ void handleRightShortConfigLens()
   else if (config_step == CONFIG_LENS_STEP_PARALLAX) {
     parallaxEnabled = !parallaxEnabled;
     savePrefs();
+  }
+  else if (config_step == CONFIG_LENS_STEP_FOCUS_OFFSET) {
+    cycleLensFocusOffset();
   }
   else if (config_step == CONFIG_LENS_STEP_CALIB) {
     calib_step = 0;

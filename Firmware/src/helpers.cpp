@@ -70,6 +70,7 @@ void writeSettingsPrefs()
   prefs.putInt("selected_format", selected_format);
   prefs.putInt("selected_lens", selected_lens);
   prefs.putBool("parallax", parallaxEnabled);
+  prefs.putInt("lens_foc_off", lens_focus_offset);
   prefs.putInt("ev_comp_thirds", exposure_comp_thirds);
   prefs.putInt("meter_smooth", meter_smoothing_mode);
   prefs.putBool("show_ev", show_ev_readout);
@@ -220,6 +221,7 @@ void clampLoadedState()
 
   frame_one_offset = constrain(frame_one_offset, FRAME_TUNING_MIN, FRAME_TUNING_MAX);
   frame_spacing_offset = constrain(frame_spacing_offset, FRAME_TUNING_MIN, FRAME_TUNING_MAX);
+  lens_focus_offset = constrain(lens_focus_offset, LENS_FOCUS_OFFSET_MIN, LENS_FOCUS_OFFSET_MAX);
 }
 
 void loadLensCalibrationSchemaV2()
@@ -306,6 +308,7 @@ void loadPrefs()
   iso = prefs.getInt("iso", DEFAULT_ISO);
   aperture_index = prefs.getInt("aperture_index", 0);
   aperture = prefs.getFloat("aperture", 0.0f);
+  lens_focus_offset = prefs.getInt("lens_foc_off", DEFAULT_LENS_FOCUS_OFFSET);
   selected_lens = prefs.getInt("selected_lens", DEFAULT_SELECTED_LENS);
   selected_format = prefs.getInt("selected_format", DEFAULT_SELECTED_FORMAT);
   parallaxEnabled = prefs.getBool("parallax", true);

@@ -26,13 +26,23 @@ int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confi
 // diagnostics screen and unit tests.
 int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base);
 
+// Near-range distance correction (cm). Below LIDAR_CAL_CUTOFF_CM the dToF sensor
+// over-reads, so a single-reference power law pulls the value toward truth. The
+// correction is bounded: it can never return less than LIDAR_CAL_MIN_OUTPUT_PCT
+// percent of the raw distance (interim guard pending the measured table, bd 4p9),
+// so real sub-metre subjects are not collapsed below the display floor. Values at
+// or above the cutoff pass through unchanged. Exposed for the diagnostics screen
+// and unit tests.
+int applyLidarCalibrationCm(int raw_cm);
+
 // True when the LiDAR reading is so far beyond the lens focus prior that it is
 // almost certainly a beam-miss (LiDAR found distant background past the framed
 // subject). Asymmetric: only flags overshoot, not undershoot. Returns false
-// when: the lens is focused beyond the near-range gate threshold, no prior is
-// available, or the sensor reports the reading at LIDAR_PLAUSIBILITY_TRUST_
-// QUALITY_LEVEL or better (a confident return is trusted). The allowed overshoot
-// scales with the prior, since parallax beam-miss error grows with distance.
+// when the lens is focused beyond the near-range gate threshold or no prior is
+// available. The allowed overshoot scales with the prior, since parallax
+// beam-miss error grows with distance; a confident return (quality_level >=
+// LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL) earns a wider but still finite
+// allowance, so a gross overshoot is gated even when graded GOOD/EXCELLENT.
 bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm, int quality_level);
 
 // Running state for the plausibility-gate hold. The gate rejects readings that
