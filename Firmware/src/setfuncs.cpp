@@ -132,7 +132,13 @@ void setDistance()
   }
 
   DTSResult lidarUpdateResult = lidar.update();
-  last_lidar_error_code = static_cast<int>(static_cast<DTSError>(lidarUpdateResult));
+  // NO_NEW_DATA is the benign "no frame this poll" case; don't let it overwrite the
+  // last meaningful status shown on the diagnostics screen (so err: reads 0 while
+  // frames flow, and a real code such as TIMEOUT/CRC when something is actually wrong).
+  if (static_cast<DTSError>(lidarUpdateResult) != DTSError::NO_NEW_DATA)
+  {
+    last_lidar_error_code = static_cast<int>(static_cast<DTSError>(lidarUpdateResult));
+  }
   if (lidar.newDataAvailable())
   {
     fps_frame_count++;
@@ -223,9 +229,7 @@ void setDistance()
   }
 
   DTSError lidarUpdateError = static_cast<DTSError>(lidarUpdateResult);
-  LidarRecoveryEvent event = (lidarUpdateError == DTSError::TIMEOUT)
-                                 ? LidarRecoveryEvent::TIMEOUT
-                                 : LidarRecoveryEvent::ERROR;
+  LidarRecoveryEvent event = lidarRecoveryEventForUpdateError(lidarUpdateError);
   LidarRecoveryDecision recoveryDecision = updateLidarRecoveryState(lidarRuntime.recovery, event, now);
 
   if (recoveryDecision.clear_display)

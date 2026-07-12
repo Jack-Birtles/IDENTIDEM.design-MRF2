@@ -4,6 +4,11 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 
 ## Unreleased
 
+### LiDAR driver update (DTS6012M_UART 2.7.0)
+
+- Bumped the sensor library to `^2.7.0`, which fixes the frame-drain bug found during the range investigation (one `update()` now keeps the freshest queued frame instead of the oldest) and makes one-shot commands report real errors instead of false success.
+- **Adapted to the new `update()` contract.** The library now returns `NO_NEW_DATA` (not `TIMEOUT`) whenever no complete frame arrived on a given poll — the normal case every time the loop runs faster than the frame rate. The recovery layer now treats `NO_NEW_DATA` as a benign, time-based event, so a healthy sensor no longer risks tripping spurious recovery. A genuine comms stall still surfaces as `TIMEOUT` after the no-data timeout. Added regression tests for the mapping and for the no-spurious-recovery guarantee.
+
 ### LiDAR Diagnostics screen
 
 - The frame-rate line now shows a **measured** frames-per-second count (accepted frames over a rolling one-second window) instead of the sensor's boot-time self-report. The self-report reads 0 on current hardware because the DTS6012M does not answer the frame-rate query, so the old `act:` value was always misleading. The measured count is what confirmed, during the outdoor-range field investigation, that a lower frame rate is genuinely delivered yet does not extend range.

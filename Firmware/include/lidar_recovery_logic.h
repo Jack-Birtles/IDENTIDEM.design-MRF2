@@ -2,6 +2,7 @@
 #define LIDAR_RECOVERY_LOGIC_H
 
 #include <Arduino.h>
+#include <DTS6012M_UART.h>
 
 enum class LidarRecoveryEvent
 {
@@ -10,6 +11,11 @@ enum class LidarRecoveryEvent
   TIMEOUT = 2,
   ERROR = 3
 };
+
+// Translate an update() DTSError into a recovery event. NO_NEW_DATA (library
+// v2.6.0+) is the normal "no complete frame this poll" case and must be treated
+// like a benign TIMEOUT, never as a fault — see the .cpp for why.
+LidarRecoveryEvent lidarRecoveryEventForUpdateError(DTSError update_error);
 
 struct LidarRecoveryState
 {

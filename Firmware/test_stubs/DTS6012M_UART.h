@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-// Error codes — matches library v2.5.3
+// Error codes — matches library v2.7.0
 enum class DTSError : uint8_t
 {
   NONE = 0x00,
@@ -14,7 +14,8 @@ enum class DTSError : uint8_t
   BUFFER_OVERFLOW = 0x05,
   TIMEOUT = 0x06,
   INVALID_COMMAND = 0x07,
-  UNSUPPORTED_OPERATION = 0x08
+  UNSUPPORTED_OPERATION = 0x08,
+  NO_NEW_DATA = 0x09
 };
 
 // Data quality indicators — matches library v2.5.3

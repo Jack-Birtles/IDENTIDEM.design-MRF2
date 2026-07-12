@@ -296,6 +296,52 @@ void test_lidar_recovery_state_machine_survives_many_consecutive_failures()
   TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
 }
 
+void test_lidar_recovery_event_mapping_treats_no_new_data_as_benign()
+{
+  // Library v2.6.0 changed update() to return NO_NEW_DATA (not TIMEOUT) when no
+  // complete frame arrived this poll. It must map to the time-based TIMEOUT event,
+  // exactly like a real TIMEOUT — never to the count-based ERROR event.
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::TIMEOUT),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA)));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::TIMEOUT),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::TIMEOUT)));
+
+  // Genuine frame faults still map to the ERROR event so recovery can engage.
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::ERROR),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::CRC_CHECK_FAILED)));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::ERROR),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::FRAME_HEADER_INVALID)));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::ERROR),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::BUFFER_OVERFLOW)));
+}
+
+void test_lidar_no_new_data_polls_do_not_trip_spurious_recovery()
+{
+  // The v2.6.0 hazard: a healthy sensor returns NO_NEW_DATA on every poll between
+  // frames. If those mapped to ERROR, LIDAR_RECOVERY_ERROR_THRESHOLD fast polls
+  // would trip recovery in milliseconds. With the correct mapping, many rapid
+  // no-data polls within the timeout window must NOT trigger recovery.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  for (int i = 0; i < LIDAR_RECOVERY_ERROR_THRESHOLD * 5; i++)
+  {
+    LidarRecoveryEvent event = lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA);
+    // Poll rapidly (1ms apart), staying inside LIDAR_RECOVERY_TIMEOUT_MS.
+    LidarRecoveryDecision decision = updateLidarRecoveryState(state, event, 1 + i);
+    TEST_ASSERT_FALSE(decision.attempt_recovery);
+    TEST_ASSERT_FALSE(state.recovering);
+  }
+  TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
+
+  // Only a sustained stall past LIDAR_RECOVERY_TIMEOUT_MS with no valid frame
+  // escalates to recovery.
+  LidarRecoveryDecision stalled = updateLidarRecoveryState(
+      state, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA),
+      LIDAR_RECOVERY_TIMEOUT_MS + 1);
+  TEST_ASSERT_TRUE(stalled.attempt_recovery);
+}
+
 void test_calibration_logic_rejects_invalid_input_shapes()
 {
   // Defensive guards in calibration_logic.cpp that nothing currently tested
@@ -1163,6 +1209,8 @@ int main(int, char **)
   RUN_TEST(test_encoder_filter_reverse_requires_rewind_mode);
   RUN_TEST(test_lidar_timeout_recovery_and_backoff);
   RUN_TEST(test_lidar_recovery_state_machine_survives_many_consecutive_failures);
+  RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
+  RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
   RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_calibration_median_spread_tolerates_gentle_drift);
