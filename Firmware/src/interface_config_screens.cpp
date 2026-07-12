@@ -234,10 +234,8 @@ void drawLidarDiagnosticsUI()
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 3));
   u8g2.print(F("Quality: "));
   u8g2.print(lidar_quality_level);
-  u8g2.print(F(" Held:"));
+  u8g2.print(F("  Held: "));
   u8g2.print(lidar_distance_held ? F("Y") : F("N"));
-  u8g2.print(F(" Tc:"));
-  u8g2.print(lidar_temperature_code);
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 4));
   u8g2.print(F("fps req:"));

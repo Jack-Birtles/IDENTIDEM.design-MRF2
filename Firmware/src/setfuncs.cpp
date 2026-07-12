@@ -150,7 +150,6 @@ void setDistance()
     lidar_raw_distance_mm = measurement.primaryDistance_mm;
     lidar_primary_intensity = measurement.primaryIntensity;
     lidar_sunlight_base = measurement.sunlightBase;
-    lidar_temperature_code = measurement.temperatureCode;
     lidar_snr_permille = computeSnrPermille(measurement.primaryIntensity, measurement.sunlightBase);
     lidar_telemetry_ms = now;
 

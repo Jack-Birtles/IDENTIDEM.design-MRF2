@@ -12,7 +12,6 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 ### LiDAR Diagnostics screen
 
 - The frame-rate line now shows a **measured** frames-per-second count (accepted frames over a rolling one-second window) instead of the sensor's boot-time self-report. The self-report reads 0 on current hardware because the DTS6012M does not answer the frame-rate query, so the old `act:` value was always misleading. The measured count is what confirmed, during the outdoor-range field investigation, that a lower frame rate is genuinely delivered yet does not extend range.
-- Added the sensor's raw **temperature code** (`Tc:`) to the screen, to check for thermal effects on range in direct sun.
 
 ## 10.5.0 - 2026-06-21
 
