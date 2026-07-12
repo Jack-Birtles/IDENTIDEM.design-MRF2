@@ -72,9 +72,11 @@ extern int lidar_distance_offset_mm;
 extern uint16_t lidar_raw_distance_mm;   // Raw primary distance from the sensor (pre-calibration).
 extern uint16_t lidar_primary_intensity; // Primary return intensity.
 extern uint16_t lidar_sunlight_base;     // Ambient-light baseline reported by the sensor.
+extern uint16_t lidar_temperature_code;  // Raw temperature code from the sensor (bd n06 — check for thermal desensitisation in sun; no datasheet conversion, compare sun vs shade).
 extern int lidar_snr_permille;           // computeSnrPermille() of the last measurement (-1 if no baseline).
 extern unsigned long lidar_telemetry_ms; // millis() when the telemetry above was captured (0 = no frame yet).
 extern uint16_t lidar_frame_rate_actual; // Frame rate read back from the sensor at boot (0 if unread).
+extern uint16_t lidar_frame_rate_measured; // MEASURED accepted-frames/sec (bd n06 — trustworthy; sensor's self-report via getFrameRate reads 0 on this hardware).
 
 // ---------------------------------------------------------------------------
 // Battery gauge

@@ -114,10 +114,28 @@ void setDistance()
 
   const unsigned long now = millis();
 
+  // Measured frame rate (bd n06): the sensor's getFrameRate() self-report reads 0
+  // on this hardware, so count accepted frames over a rolling ~1s window instead.
+  // This is the only trustworthy confirmation that setFrameRate() actually changed
+  // the delivery rate. Valid only while the main loop polls faster than the rate.
+  static uint32_t fps_window_start = 0;
+  static uint16_t fps_frame_count = 0;
+  if (fps_window_start == 0)
+  {
+    fps_window_start = now;
+  }
+  if (now - fps_window_start >= 1000UL)
+  {
+    lidar_frame_rate_measured = fps_frame_count;
+    fps_frame_count = 0;
+    fps_window_start = now;
+  }
+
   DTSResult lidarUpdateResult = lidar.update();
   last_lidar_error_code = static_cast<int>(static_cast<DTSError>(lidarUpdateResult));
   if (lidar.newDataAvailable())
   {
+    fps_frame_count++;
     DTSMeasurement measurement = lidar.getMeasurement();
     lidar_high_sunlight = updateSunlightWarnState(lidar_high_sunlight, measurement.sunlightBase);
 
@@ -126,6 +144,7 @@ void setDistance()
     lidar_raw_distance_mm = measurement.primaryDistance_mm;
     lidar_primary_intensity = measurement.primaryIntensity;
     lidar_sunlight_base = measurement.sunlightBase;
+    lidar_temperature_code = measurement.temperatureCode;
     lidar_snr_permille = computeSnrPermille(measurement.primaryIntensity, measurement.sunlightBase);
     lidar_telemetry_ms = now;
 

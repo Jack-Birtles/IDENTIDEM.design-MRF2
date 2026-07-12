@@ -234,14 +234,16 @@ void drawLidarDiagnosticsUI()
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 3));
   u8g2.print(F("Quality: "));
   u8g2.print(lidar_quality_level);
-  u8g2.print(F("  Held: "));
+  u8g2.print(F(" Held:"));
   u8g2.print(lidar_distance_held ? F("Y") : F("N"));
+  u8g2.print(F(" Tc:"));
+  u8g2.print(lidar_temperature_code);
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 4));
   u8g2.print(F("fps req:"));
   u8g2.print(LIDAR_FRAME_RATE_FPS);
-  u8g2.print(F(" act:"));
-  u8g2.print(lidar_frame_rate_actual);
+  u8g2.print(F(" meas:"));
+  u8g2.print(lidar_frame_rate_measured);
   // Age of the telemetry above — a climbing value means the sensor has stopped
   // producing frames and the numbers on this screen are stale.
   char ageText[8];
