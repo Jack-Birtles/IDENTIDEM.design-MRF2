@@ -236,12 +236,18 @@ void loadLensCalibrationSchemaV2()
     getLensReadingsKey(lensIndex, readingsKey, sizeof(readingsKey));
     getLensCalibratedKey(lensIndex, calibratedKey, sizeof(calibratedKey));
 
+    // Require an exact size match rather than clamping to the smaller of the
+    // two. ESP32 Preferences::getBytes() refuses (returns 0, copies nothing)
+    // when the destination is smaller than the stored blob, and a stored blob
+    // shorter than expected would otherwise leave the tail zero-filled — both
+    // cases would silently corrupt lenses[lensIndex].sensor_reading while
+    // `calibrated` stays true below. Any shape mismatch keeps the compiled-in
+    // table instead.
     size_t storedReadingBytes = prefs.getBytesLength(readingsKey);
-    if (storedReadingBytes > 0)
+    int loadedReadings[LENS_DISTANCE_POINT_COUNT] = {};
+    if (storedReadingBytes == sizeof(loadedReadings) &&
+        prefs.getBytes(readingsKey, loadedReadings, sizeof(loadedReadings)) == sizeof(loadedReadings))
     {
-      int loadedReadings[LENS_DISTANCE_POINT_COUNT] = {};
-      size_t copyBytes = min(storedReadingBytes, sizeof(loadedReadings));
-      prefs.getBytes(readingsKey, loadedReadings, copyBytes);
       memcpy(lenses[lensIndex].sensor_reading, loadedReadings, sizeof(lenses[lensIndex].sensor_reading));
     }
 
