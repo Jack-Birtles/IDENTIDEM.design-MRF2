@@ -48,8 +48,24 @@ struct LidarRuntimeState
   LidarRecoveryState recovery = {};    // error / timeout backoff for sensor recovery attempts
   PlausibilityHoldState plausibilityHold = {}; // overshoot-hold tracking (re-aim vs beam-miss)
   int stableStreakFrames = 0;          // count of consecutive readings within stability delta
+  uint32_t fpsWindowStartMs = 0;       // measured-frame-rate rolling window start (bd n06)
+  uint16_t fpsFrameCount = 0;          // accepted frames inside the current window
 };
 LidarRuntimeState lidarRuntime;
+
+// Called whenever the sensor is (re-)enabled: boot retry, idle-standby wake,
+// sleep wake. The first update() after an enable is inevitably NO_NEW_DATA, and
+// a recovery state still carrying the pre-standby last_valid timestamp would
+// pass LIDAR_RECOVERY_TIMEOUT_MS instantly — running resetState()+enableSensor()
+// back-to-back with the wake enable (the v10.4.7 no-settle hazard) and bumping
+// the Health "Recoveries" counter on every wake. Restart the timeout window and
+// the frame-rate measurement window from "now" instead.
+void noteLidarSensorEnabled()
+{
+  resetLidarRecoveryState(lidarRuntime.recovery, millis());
+  lidarRuntime.fpsWindowStartMs = 0;
+  lidarRuntime.fpsFrameCount = 0;
+}
 
 // Per-frame caches consulted only by this module's sensor pipeline.
 // Previously declared extern in globals.h; kept file-scope so the global
@@ -123,17 +139,15 @@ void setDistance()
   // on this hardware, so count accepted frames over a rolling ~1s window instead.
   // This is the only trustworthy confirmation that setFrameRate() actually changed
   // the delivery rate. Valid only while the main loop polls faster than the rate.
-  static uint32_t fps_window_start = 0;
-  static uint16_t fps_frame_count = 0;
-  if (fps_window_start == 0)
+  if (lidarRuntime.fpsWindowStartMs == 0)
   {
-    fps_window_start = now;
+    lidarRuntime.fpsWindowStartMs = now;
   }
-  if (now - fps_window_start >= 1000UL)
+  if (now - lidarRuntime.fpsWindowStartMs >= 1000UL)
   {
-    lidar_frame_rate_measured = fps_frame_count;
-    fps_frame_count = 0;
-    fps_window_start = now;
+    lidar_frame_rate_measured = lidarRuntime.fpsFrameCount;
+    lidarRuntime.fpsFrameCount = 0;
+    lidarRuntime.fpsWindowStartMs = now;
   }
 
   DTSResult lidarUpdateResult = lidar.update();
@@ -146,7 +160,7 @@ void setDistance()
   }
   if (lidar.newDataAvailable())
   {
-    fps_frame_count++;
+    lidarRuntime.fpsFrameCount++;
     DTSMeasurement measurement = lidar.getMeasurement();
     lidar_high_sunlight = updateSunlightWarnState(lidar_high_sunlight, measurement.sunlightBase);
 
@@ -509,6 +523,7 @@ void retryLidarInit()
   hardware.lidarSensor = true;
   lidarEnabled = true;
   applyLidarCalibrationProfile();
+  noteLidarSensorEnabled();
   last_lidar_error_code = 0;
 }
 
@@ -535,6 +550,7 @@ void toggleLidar(bool lidarStatusParam)
     if (lidarStatusParam)
     {
       applyLidarCalibrationProfile();
+      noteLidarSensorEnabled();
     }
   }
 }

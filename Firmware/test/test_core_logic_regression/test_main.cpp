@@ -342,6 +342,35 @@ void test_lidar_no_new_data_polls_do_not_trip_spurious_recovery()
   TEST_ASSERT_TRUE(stalled.attempt_recovery);
 }
 
+void test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery()
+{
+  // Wake-from-sleep hazard: the first update() after re-enabling the sensor is
+  // inevitably NO_NEW_DATA (no frame can exist yet). If the recovery state still
+  // carries the pre-sleep last_valid_measurement_ms, the very first post-wake
+  // poll sits past LIDAR_RECOVERY_TIMEOUT_MS and recovery fires instantly —
+  // running resetState()+enableSensor() back-to-back with the wake enable (the
+  // v10.4.7 no-settle hazard) and incrementing the Health "Recoveries" counter
+  // on every wake.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  // Without an enable-time reset, a stale state trips recovery on the first poll.
+  unsigned long wake_ms = LIDAR_RECOVERY_TIMEOUT_MS * 10;
+  LidarRecoveryState staleState = state;
+  LidarRecoveryDecision staleDecision = updateLidarRecoveryState(
+      staleState, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA), wake_ms);
+  TEST_ASSERT_TRUE(staleDecision.attempt_recovery);
+
+  // The enable path must reset the timing baseline so post-wake NO_NEW_DATA
+  // polls get the full timeout window before recovery is considered.
+  resetLidarRecoveryState(state, wake_ms);
+  LidarRecoveryDecision decision = updateLidarRecoveryState(
+      state, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA), wake_ms + 1);
+  TEST_ASSERT_FALSE(decision.attempt_recovery);
+  TEST_ASSERT_FALSE(decision.clear_display);
+  TEST_ASSERT_FALSE(state.recovering);
+}
+
 void test_calibration_logic_rejects_invalid_input_shapes()
 {
   // Defensive guards in calibration_logic.cpp that nothing currently tested
@@ -1337,6 +1366,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_state_machine_survives_many_consecutive_failures);
   RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
   RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
+  RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
   RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_ascending_calibration_requires_increasing_readings);
