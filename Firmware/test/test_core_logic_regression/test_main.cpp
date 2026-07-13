@@ -1238,6 +1238,31 @@ void test_lightmeter_scale_split_preserves_effective_exposure_constant()
   TEST_ASSERT_EQUAL_STRING("1/15 sec.", shutter);
 }
 
+void test_lens_moving_average_primes_with_first_sample()
+{
+  // The old zero-filled window made the first smoothed reading sample/13 and
+  // ramped up over 13 polls; combined with the spike filter this pinned a
+  // bogus near-zero lens reading (and a wrong 100 cm LiDAR prior) for the
+  // first ~15 polls after boot. Priming fills the window with the first real
+  // sample instead.
+  LensMovingAverageState state = {};
+  TEST_ASSERT_EQUAL_INT(300, updateLensMovingAverage(state, 300));
+
+  // Window is fully primed: a step to 313 moves the average by 1 (13/13).
+  TEST_ASSERT_EQUAL_INT(301, updateLensMovingAverage(state, 313));
+
+  // Reset re-arms priming.
+  resetLensMovingAverageState(state);
+  TEST_ASSERT_EQUAL_INT(500, updateLensMovingAverage(state, 500));
+
+  // Composed with the spike filter: the first filtered boot reading is the
+  // real ADC value, not a warm-up artefact.
+  LensMovingAverageState bootAvg = {};
+  LensSpikeFilterState bootSpike = {};
+  int firstFiltered = updateLensSpikeFilter(bootSpike, updateLensMovingAverage(bootAvg, 300));
+  TEST_ASSERT_EQUAL_INT(300, firstFiltered);
+}
+
 void test_lens_spike_filter_initialises_and_accepts_small_movement()
 {
   LensSpikeFilterState state = {};
@@ -1475,6 +1500,7 @@ int main(int, char **)
   RUN_TEST(test_frameline_scaling_clamps_dimensions_to_minimum_one);
   RUN_TEST(test_6x9_and_9x3_share_corrected_sensor_table);
   RUN_TEST(test_lightmeter_scale_split_preserves_effective_exposure_constant);
+  RUN_TEST(test_lens_moving_average_primes_with_first_sample);
   RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
   RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
   RUN_TEST(test_lens_spike_filter_drifting_pending_resets_count);

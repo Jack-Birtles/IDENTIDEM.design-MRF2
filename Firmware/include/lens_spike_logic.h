@@ -3,6 +3,26 @@
 
 #include <stdint.h>
 
+#include "mrfconstants.h"
+
+// Ring-buffer moving average for the lens ADC. The first sample after a reset
+// primes the entire window: a zero-filled window would return sample/N and
+// ramp up over N polls, which the spike filter downstream then latches as a
+// bogus stable reading (the boot-time "lens stuck at closest focus" artefact).
+struct LensMovingAverageState
+{
+  int samples[SMOOTHING_WINDOW_SIZE] = {};
+  int index = 0;
+  long total = 0;
+  bool primed = false;
+};
+
+// Feed one sample; returns the window average rounded to the nearest count.
+int updateLensMovingAverage(LensMovingAverageState &state, int sample);
+
+// Re-arm priming so the next sample refills the window.
+void resetLensMovingAverageState(LensMovingAverageState &state);
+
 // Three-state filter that rejects transient spikes from the lens ADC.
 // Used by the lens-distance pipeline to keep a momentary glitch from
 // re-snapping the focus ring while the user is not actually turning the lens.

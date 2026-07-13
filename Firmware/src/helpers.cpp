@@ -10,6 +10,7 @@
 
 #include "globals.h"
 #include "formats.h"
+#include "lens_spike_logic.h" // LensMovingAverageState
 #include "lenses.h"       // Now includes NUM_LENSES
 #include "mrfconstants.h" // For SMOOTHING_WINDOW_SIZE
 #include "prefs_migration_logic.h"
@@ -27,13 +28,10 @@ bool prefsDirty = false;
 uint8_t prefsDirtyMask = 0;
 unsigned long prefsLastDirtyMs = 0;
 
-// Lens-ADC moving-average buffer. Lives here because calcMovingAvg() is the
-// only consumer; previously these four lived in globals.h alongside unrelated
-// session state.
-int movingAvgSamples[SMOOTHING_WINDOW_SIZE];
-int movingAvgIndex = 0;
-int movingAvgTotal = 0;
-int movingAvgValue = 0;
+// Lens-ADC moving-average state. The algorithm (with first-sample priming)
+// lives in lens_spike_logic so the native tests cover it; only the instance
+// lives here.
+LensMovingAverageState lensMovingAvg;
 
 void getLensReadingsKey(size_t lensIndex, char *buffer, size_t bufferSize)
 {
@@ -412,26 +410,12 @@ void flushPrefsIfDirty()
 
 int calcMovingAvg(int sensorVal)
 {
-  int index = constrain(movingAvgIndex, 0, SMOOTHING_WINDOW_SIZE - 1);
-
-  movingAvgTotal = movingAvgTotal - movingAvgSamples[index];
-
-  movingAvgSamples[index] = sensorVal;
-  movingAvgTotal = movingAvgTotal + movingAvgSamples[index];
-  movingAvgIndex = (index + 1) % SMOOTHING_WINDOW_SIZE;
-  movingAvgValue = movingAvgTotal / SMOOTHING_WINDOW_SIZE;
-  return movingAvgValue;
+  return updateLensMovingAverage(lensMovingAvg, sensorVal);
 }
 
 void resetLensMovingAverageState()
 {
-  for (int i = 0; i < SMOOTHING_WINDOW_SIZE; i++)
-  {
-    movingAvgSamples[i] = 0;
-  }
-  movingAvgIndex = 0;
-  movingAvgTotal = 0;
-  movingAvgValue = 0;
+  resetLensMovingAverageState(lensMovingAvg);
 }
 
 int_fast16_t getFocusRadius()
