@@ -90,7 +90,9 @@ void writeFilmPrefs()
 {
   prefs.putInt("film_counter", film_counter);
   prefs.putInt("encoder_value", encoder_value);
-  prefs.putInt("prev_encoder_value", prev_encoder_value);
+  // NVS keys are capped at 15 chars; "prev_encoder_value" (18) silently failed
+  // every write and always read back the 0 default.
+  prefs.putInt("prev_enc_val", prev_encoder_value);
   prefs.putInt("frame1_offset", frame_one_offset);
   prefs.putInt("frame_spacing", frame_spacing_offset);
 }
@@ -331,7 +333,7 @@ void loadPrefs()
   show_horizon_line = prefs.getBool("show_horizon", DEFAULT_SHOW_HORIZON_LINE);
   film_counter = prefs.getInt("film_counter", 0);
   encoder_value = prefs.getInt("encoder_value", 0);
-  prev_encoder_value = prefs.getInt("prev_encoder_value", 0);
+  prev_encoder_value = prefs.getInt("prev_enc_val", 0);
   frame_one_offset = prefs.getInt("frame1_offset", DEFAULT_FRAME_ONE_OFFSET);
   frame_spacing_offset = prefs.getInt("frame_spacing", DEFAULT_FRAME_SPACING_OFFSET);
 
