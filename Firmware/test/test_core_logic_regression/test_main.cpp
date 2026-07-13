@@ -1040,9 +1040,25 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("Dark!", formattedShutter);
   formatShutterSpeed(50000.0f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
-  // K=12.5: speed = 64*12.5/(320*400) = 0.00625 → rounds to 0.006 → 1/250
+  // K=12.5: speed = 64*12.5/(320*400) = 0.00625 s. Nearest standard speed in
+  // log space: 0.36 stop from 1/125 vs 0.64 stop from 1/250 → display 1/125.
+  // (The old bucket bounds floored this to 1/250, a 0..-1 stop display bias.)
   formatShutterSpeed(320.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1/125 sec.", formattedShutter);
+  // speed = 64*12.5/(400*400) = 0.005 s, below the 1/250|1/125 geometric
+  // boundary at 0.005657 s → still 1/250.
+  formatShutterSpeed(400.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("1/250 sec.", formattedShutter);
+  // speed = 4*12.5/(1.25*100) = 0.4 s → nearest standard is 1/2.
+  formatShutterSpeed(1.25f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1/2 sec.", formattedShutter);
+  // speed = 4*12.5/(666.7*100) = 0.00075 s: within half a stop of 1/1000, so
+  // show 1/1000 rather than Bright!.
+  formatShutterSpeed(666.7f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1/1000 sec.", formattedShutter);
+  // speed = 4*12.5/(833.3*100) = 0.0006 s: more than half a stop past 1/1000.
+  formatShutterSpeed(833.3f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
   // K=12.5: speed = 4*12.5/(0.5*50) = 2.0s → 2 sec
   formatShutterSpeed(0.5f, 2.0f, 50, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("2 sec.", formattedShutter);
