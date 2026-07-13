@@ -2,6 +2,13 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.6.3 - 2026-07-13
+
+### Boot animation: fix bottom-edge text artifacts, tune speed
+
+- Fixed stray version-text glyphs painted along the bottom of the external display at the start of the boot animation. Adafruit_GFX text wrap was left at its default (on), so while the version sat off the right edge the cursor wrapped to the left edge one line lower and drew there. Text wrap is now disabled for the boot screen, so off-screen glyphs are clipped as intended.
+- Sped the animation up a little: per-frame delay 80 ms to 65 ms and the settle hold 500 ms to 400 ms (~1.7 s total, down from ~2.1 s). Verify the feel on device.
+
 ## 10.6.2 - 2026-07-13
 
 ### Slower boot animation
