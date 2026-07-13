@@ -2,7 +2,7 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
-## Unreleased
+## 10.6.0 - 2026-07-13
 
 ### Whole-codebase review fixes (safety, persistence, input, rendering, lifecycle)
 

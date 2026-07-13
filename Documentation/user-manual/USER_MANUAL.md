@@ -1,6 +1,6 @@
 # MRF2 User Manual
 
-**Firmware version:** 10.5.0
+**Firmware version:** 10.6.0
 
 This manual covers how to operate the MRF2 firmware user interface, including the on-device displays, buttons, calibration flow, and film counter behavior. It is written for everyday use, not just for builders.
 
@@ -111,12 +111,12 @@ You can tune horizon trim offsets independently for **Landscape**, **Portrait+**
   - Confidence accounts for ambient sunlight relative to return intensity. Thresholds are tuned for outdoor use in bright conditions, and the sensor falls back to low-confidence tracking at all ranges when primary filtering rejects a return.
   - Measurement range: 5 cm to 18 m.
   - Displays values below 1 meter in centimeters (for example, `75cm`), 1m to below 2m in meters with two decimal places (for example, `1.85m`), and 2m and above with one decimal place (for example, `2.5m`).
-  - Displays `Inf.` for measured readings above 18 metres (the sensor's rated maximum).
+  - Displays `Inf.` for measured readings above 18 metres (the display's infinity cutoff; the sensor itself is rated to 20 m).
   - Displays `Inf?` when the signal is lost and the last reading was above 3 m — usually the camera is now aimed at the sky or something beyond sensor range. The question mark marks it as a guess, not a measurement.
   - Displays `...` if the sensor has no valid data for 1 second at close range.
   - Displays `Zzz` when LiDAR is in idle standby (wake by focusing or pressing a button).
   - Displays `<15cm` for near readings below display threshold.
-  - The label changes from `Dist:` to `Held:` when the lens is focused close and the LiDAR briefly reports something much farther away (usually the beam slipping past your subject to the background). The previous reading is held rather than jumping. Aim deliberately at the farther subject for a moment and it releases to the live value.
+  - The label changes from `Dist:` to `Held:` in two cases: when the lens is focused close and the LiDAR briefly reports something much farther away (usually the beam slipping past your subject to the background), or briefly during the first moment of a signal dropout before it falls back to `...`/`Inf?`. Either way the previous reading is held rather than jumping or blanking. For the beam-slip case, aim deliberately at the farther subject for a moment and it releases to the live value.
 - **Lens distance (Lens)**
   - Based on calibration and the lens position sensor.
   - Displays `Inf.` when beyond the calibrated infinity threshold.
@@ -167,7 +167,7 @@ The ring radius is based on the difference between the LiDAR distance and the le
 - **Use the LiDAR number first, then fine-tune with the ring.** Glance at the `Dist` readout to get a ballpark, dial the focus ring close, then watch the ring shrink for the last adjustment.
 - **Calibrate your lens** before relying on Lens distance. Without calibration the Lens readout is inactive and the ring defaults to maximum size. See [Lens calibration](#lens-calibration).
 - **In bright sunlight** the LiDAR may occasionally lose signal. The last valid reading is held for 1 second, so brief dropouts are hidden. When the signal is lost beyond 3 m the display switches to `Inf?`. If `...` persists at close range, check wiring or try a different target angle.
-- **At infinity** the Lens readout shows `Inf.` and the LiDAR readout shows `Inf.` above 18 m (the sensor's rated maximum), or `Inf?` when far-range signal is lost. The focus ring is irrelevant at infinity — just set the ring to the ∞ mark.
+- **At infinity** the Lens readout shows `Inf.` and the LiDAR readout shows `Inf.` above 18 m (the display's infinity cutoff; the sensor itself is rated to 20 m), or `Inf?` when far-range signal is lost. The focus ring is irrelevant at infinity — just set the ring to the ∞ mark.
 - **Parallax correction** shifts the framelines based on focus distance. Keep it enabled (default) for accurate framing at close range. It has no effect at infinity.
 
 ## Setup menus
@@ -457,7 +457,7 @@ Wake the device by pressing any button or moving the lens/advance lever (any act
 ## Troubleshooting
 
 - **LiDAR distance shows `Inf.`**
-  - The sensor measured a distance above 18 m (its rated maximum). Use the lens barrel distance markings instead.
+  - The sensor measured a distance above 18 m, the display's infinity cutoff (the sensor itself is rated to 20 m). Use the lens barrel distance markings instead.
 - **LiDAR distance shows `Inf?`**
   - The signal was lost while the last reading was beyond 3 m — usually the camera is aimed at the sky or at something too far or too dark to return a pulse. It is a guess, not a measurement. Use the lens barrel distance markings instead.
 - **LiDAR distance shows `...`**
