@@ -99,7 +99,6 @@ void writeFilmPrefs()
 
 void writePrefsToOpenNamespace(uint8_t dirtyMask)
 {
-  prefs.putUShort(PREFS_KEY_SCHEMA, PREFS_SCHEMA_VERSION);
   if ((dirtyMask & PREFS_DIRTY_SETTINGS) != 0)
   {
     writeSettingsPrefs();
@@ -112,6 +111,13 @@ void writePrefsToOpenNamespace(uint8_t dirtyMask)
   {
     writeLensCalibrationPrefs();
   }
+  // Write the schema marker last. Each Preferences::put* commits individually
+  // to NVS, so during a legacy migration (PREFS_DIRTY_ALL) a power loss after
+  // an earlier schema-first write but before the lens blobs landed would leave
+  // the next boot seeing a current schema with no lens data - the legacy blob
+  // is never consulted again. Writing schema last means any interruption
+  // before this point still reads as the old schema, so migration retries.
+  prefs.putUShort(PREFS_KEY_SCHEMA, PREFS_SCHEMA_VERSION);
 }
 
 void writePrefsNow(uint8_t dirtyMask)
