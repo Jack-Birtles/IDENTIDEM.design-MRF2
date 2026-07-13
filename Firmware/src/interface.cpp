@@ -665,7 +665,10 @@ bool drawExternalProgressBarAndLed()
 {
   if (frame_progress <= 0.0f)
   {
-    sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_BLUE_R, NEOPIXEL_BLUE_G, NEOPIXEL_BLUE_B));
+    if (hardware.statusPixel)
+    {
+      sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_BLUE_R, NEOPIXEL_BLUE_G, NEOPIXEL_BLUE_B));
+    }
     return false;
   }
 
@@ -677,7 +680,7 @@ bool drawExternalProgressBarAndLed()
 
   if (frame_progress != prev_frame_progress)
   {
-    if (progressPercentage > 0 && progressPercentage < PERCENT_SCALE)
+    if (progressPercentage > 0 && progressPercentage < PERCENT_SCALE && hardware.statusPixel)
     {
       int greenValue = static_cast<int>(frame_progress * NEOPIXEL_COLOR_MAX);
       int redValue = static_cast<int>((1 - frame_progress) * NEOPIXEL_COLOR_MAX);
@@ -699,13 +702,19 @@ void drawExternalCounterText(bool progressVisible)
   {
     u8g2_ext.setCursor(EXT_COUNTER_MESSAGE_X, EXT_COUNTER_TEXT_Y);
     u8g2_ext.print(F(" Load film."));
-    sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_VIOLET_R, NEOPIXEL_VIOLET_G, NEOPIXEL_VIOLET_B));
+    if (hardware.statusPixel)
+    {
+      sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_VIOLET_R, NEOPIXEL_VIOLET_G, NEOPIXEL_VIOLET_B));
+    }
   }
   else if (film_counter == FILM_COUNTER_END)
   {
     u8g2_ext.setCursor(EXT_COUNTER_MESSAGE_X, EXT_COUNTER_TEXT_Y);
     u8g2_ext.print(F(" Roll end."));
-    sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_VIOLET_R, NEOPIXEL_VIOLET_G, NEOPIXEL_VIOLET_B));
+    if (hardware.statusPixel)
+    {
+      sspixel.setPixelColor(NEOPIXEL_INDEX, sspixel.Color(NEOPIXEL_VIOLET_R, NEOPIXEL_VIOLET_G, NEOPIXEL_VIOLET_B));
+    }
   }
   else
   {
