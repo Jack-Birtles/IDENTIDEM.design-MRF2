@@ -136,6 +136,7 @@ const int RETICLE_OFFSET_MAX = 20;       // Maximum reticle offset in pixels.
 const int LIDAR_DISTANCE_DIVISOR = 10;           // Raw LiDAR millimetre-to-centimetre divisor.
 const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate. bd n06 confirmed frame rate is NOT a range lever: 25fps was delivered (fps meas:25) yet the outdoor cliff stayed ~3m, and a same-wall shade/sun test proved the limit is solar 905nm off the sunlit target, not integration time. 50 keeps the fastest usable refresh.
 const unsigned long LIDAR_NO_DATA_TIMEOUT_MS = 1000; // Hold last reading before showing placeholder.
+const unsigned long LIDAR_HELD_INDICATION_MS = 250;  // Mark the held reading as "Held:" this long into a dropout, so the grace window doesn't present a dead value as live.
 const int LIDAR_FAR_SIGNAL_LOSS_CM = 300;         // Show "Inf?" instead of "..." when signal lost above this distance (distinct from the "Inf." shown for a genuine measured reading).
 const int LIDAR_RECOVERY_ERROR_THRESHOLD = 3;    // Errors before recovery path escalates.
 const unsigned long LIDAR_RECOVERY_TIMEOUT_MS = 1500; // Timeout window triggering recovery.

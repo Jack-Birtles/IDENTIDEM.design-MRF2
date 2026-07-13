@@ -191,10 +191,17 @@ void setDistance()
     {
       // Sensor frame unusable — break any subject-stable streak.
       lidarRuntime.stableStreakFrames = 0;
+      unsigned long since_valid = now - lidarRuntime.recovery.last_valid_measurement_ms;
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
-      if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
+      if (since_valid > LIDAR_NO_DATA_TIMEOUT_MS)
       {
         clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
+      }
+      else if (since_valid > LIDAR_HELD_INDICATION_MS)
+      {
+        // Inside the grace window the previous reading stays on screen; flag
+        // it as held rather than letting it present as a live measurement.
+        lidar_distance_held = true;
       }
       return;
     }
@@ -253,6 +260,13 @@ void setDistance()
   DTSError lidarUpdateError = static_cast<DTSError>(lidarUpdateResult);
   LidarRecoveryEvent event = lidarRecoveryEventForUpdateError(lidarUpdateError);
   LidarRecoveryDecision recoveryDecision = updateLidarRecoveryState(lidarRuntime.recovery, event, now);
+
+  // No frame this poll. Benign between frames; once the gap grows past the
+  // held-indication threshold the on-screen reading is stale — say so.
+  if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_HELD_INDICATION_MS)
+  {
+    lidar_distance_held = true;
+  }
 
   if (recoveryDecision.clear_display)
   {
