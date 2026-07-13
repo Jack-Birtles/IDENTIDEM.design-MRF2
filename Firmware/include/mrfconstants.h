@@ -103,6 +103,7 @@ const int LENS_ACTIVITY_THRESHOLD = 3;          // Minimum ADC delta considered 
 const int LENS_SNAP_DEADZONE = 1;               // Snap deadzone near calibrated points (close range).
 const int LENS_SNAP_DEADZONE_FAR = 3;           // Snap deadzone for far focus points.
 const float LENS_SNAP_FAR_DISTANCE_M = 3.0f;    // Distance threshold to switch to far deadzone.
+const int LENS_SNAP_FAR_MAX_ERROR_PCT = 8;      // Far snap only when the interpolated distance is within this percent of the mark; the count deadzone alone spans metres on sparse far tables.
 const int LENS_ADC_SAMPLE_COUNT = 3;            // ADC samples averaged per read.
 const int LENS_ADC_SAMPLE_DELAY_US = 200;       // Delay between ADC sub-samples.
 const int LENS_ADC_QUIET_DELAY_MS = 1;          // Quiet time before ADC sampling.

@@ -961,6 +961,38 @@ void test_lens_logic_ignores_unused_distance_markers()
   TEST_ASSERT_EQUAL_INT(LENS_INFINITY_RAW, infinity.distance_cm);
 }
 
+void test_far_snap_deadzone_is_distance_relative_at_sparse_marks()
+{
+  // Sparse far span: 5m -> 10m over only 18 ADC counts. The fixed +-3 count
+  // far deadzone used to display the mark distance across a third of that
+  // span (reading 415 interpolates to 8.57m but snapped to "10.0m", a 14%
+  // error that also fed the LiDAR plausibility prior). Snapping must only
+  // engage when the interpolated distance is actually near the mark.
+  Lens lens = {
+      998,
+      "SPARSE",
+      100.0f,
+      {100, 200, 300, 400, 418, 0, 0},
+      {2.0f, 2.5f, 3.0f, 5.0f, 10.0f, 0.0f, 0.0f},
+      {0.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f, 22.0f, 32.0f},
+      {0, 0, 0, 0},
+      true};
+
+  // 3 counts from the 10m mark but 14% away in distance: no snap.
+  TEST_ASSERT_EQUAL_INT(-1, findLensSnapIndex(lens, 415));
+
+  // 1 count away interpolates to 9.47m (5.3% error): snap engages.
+  TEST_ASSERT_EQUAL_INT(4, findLensSnapIndex(lens, 417));
+
+  // Exact mark always snaps.
+  TEST_ASSERT_EQUAL_INT(4, findLensSnapIndex(lens, 418));
+
+  // Dense far span (100 counts from 5m to 10m on the shipped-style table):
+  // 3 counts is only ~3% in distance, so the deadzone behaves as before.
+  Lens dense = makeTestLens();
+  TEST_ASSERT_EQUAL_INT(6, findLensSnapIndex(dense, 697));
+}
+
 void test_shipped_calibrated_lens_readings_are_ascending()
 {
   // Convention: sensor_reading[] must ascend with focus distance so
@@ -1488,6 +1520,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_sunlight_hard_rejects_very_low_snr_measurement);
   RUN_TEST(test_lens_snap_and_distance_estimation);
   RUN_TEST(test_lens_logic_ignores_unused_distance_markers);
+  RUN_TEST(test_far_snap_deadzone_is_distance_relative_at_sparse_marks);
   RUN_TEST(test_shipped_calibrated_lens_readings_are_ascending);
   RUN_TEST(test_default_lens_estimate_interpolates_between_marks);
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);

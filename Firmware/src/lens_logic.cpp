@@ -22,6 +22,25 @@ int findLensSnapIndex(const Lens &lens, int sensor_reading)
     int snap_deadzone = (lens.distance[i] >= LENS_SNAP_FAR_DISTANCE_M) ? LENS_SNAP_DEADZONE_FAR : LENS_SNAP_DEADZONE;
     if (delta <= snap_deadzone && delta < snap_delta)
     {
+      // The far deadzone is in ADC counts, but far marks can sit on very
+      // sparse spans (a handful of counts covering metres of focus travel).
+      // Only snap when the interpolated distance is actually near the mark;
+      // otherwise a reading 3 counts from a sparse 10m mark displays "10.0m"
+      // for a subject the table places at 8.5m — and that snapped value also
+      // becomes the LiDAR plausibility prior.
+      if (delta > 0 && lens.distance[i] >= LENS_SNAP_FAR_DISTANCE_M)
+      {
+        LensDistanceEstimate estimate = estimateLensDistance(lens, sensor_reading);
+        if (estimate.valid && !estimate.is_infinity)
+        {
+          int mark_cm = static_cast<int>(lroundf(lens.distance[i] * CM_PER_METER));
+          int error_cm = abs(estimate.distance_cm - mark_cm);
+          if (error_cm * 100 > mark_cm * LENS_SNAP_FAR_MAX_ERROR_PCT)
+          {
+            continue;
+          }
+        }
+      }
       snap_delta = delta;
       snap_index = i;
     }
