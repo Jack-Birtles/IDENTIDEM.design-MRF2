@@ -234,6 +234,10 @@ void handleLeftButtonShortPress()
               lenses[calib_lens].sensor_reading[i] = (i < calibrationPointCount) ? calib_distance_set[i] : 0;
             }
             selected_lens = calib_lens;
+            // The just-calibrated lens may not share the previously selected
+            // lens's aperture range (or even its count); clamp before it is
+            // used for metering.
+            clampApertureToSelectedLens();
             savePrefs(true);
 
             // Show full-screen success and pulse LED before leaving calibration.

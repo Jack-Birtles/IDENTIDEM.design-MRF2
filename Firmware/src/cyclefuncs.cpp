@@ -128,6 +128,20 @@ void cycleISOs()
   savePrefs(false, PREFS_DIRTY_SETTINGS);
 }
 
+void clampApertureToSelectedLens()
+{
+  // Clamp aperture to the selected lens's valid range so callers never
+  // index past the end of the aperture array, and never leave a stale
+  // f-stop from a previously selected lens active.
+  int firstValid = getFirstNonZeroAperture();
+  if (firstValid < 0)
+  {
+    firstValid = 0;
+  }
+  aperture_index = firstValid;
+  aperture = lenses[selected_lens].apertures[aperture_index];
+}
+
 void cycleLenses()
 {
   int initial_lens = selected_lens;
@@ -145,15 +159,7 @@ void cycleLenses()
     }
   } while (!lenses[selected_lens].calibrated);
 
-  // Clamp aperture to the new lens's valid range so callers never
-  // index past the end of the aperture array.
-  int firstValid = getFirstNonZeroAperture();
-  if (firstValid < 0)
-  {
-    firstValid = 0;
-  }
-  aperture_index = firstValid;
-  aperture = lenses[selected_lens].apertures[aperture_index];
+  clampApertureToSelectedLens();
 
   savePrefs(false, PREFS_DIRTY_SETTINGS);
 }
