@@ -425,14 +425,14 @@ Tags are annotated, not signed. No binary assets — the updater workflow builds
 ## Self-Review
 
 **Spec coverage:**
-- Animation on external display, film-advance, replaces static splash → Task 2 draw loop. ✓
-- Perforations present whole animation, version eases in from right to centre → Task 1 logic + Task 2 loop. ✓
-- Timing ~1000-1200 ms → Task 2 constants (640 + 400 ms). ✓
-- Logic/hardware split, pure host-tested module → Task 1. ✓
-- Test invariants (starts off-screen, monotonic, lands centred, sprocket wrap) → Task 1 tests. ✓
-- No prefs/schema change, preserve guard + u8g2_ext handoff → Task 2 function preserves both. ✓
-- Release 10.6.1: five version files + changelog + tag/release → Task 3. ✓
-- Out of scope (main display, toggle, sound) → not present. ✓
+- Animation on external display, film-advance, replaces static splash → Task 2 draw loop. Yes
+- Perforations present whole animation, version eases in from right to centre → Task 1 logic + Task 2 loop. Yes
+- Timing ~1000-1200 ms → Task 2 constants (640 + 400 ms). Yes
+- Logic/hardware split, pure host-tested module → Task 1. Yes
+- Test invariants (starts off-screen, monotonic, lands centred, sprocket wrap) → Task 1 tests. Yes
+- No prefs/schema change, preserve guard + u8g2_ext handoff → Task 2 function preserves both. Yes
+- Release 10.6.1: five version files + changelog + tag/release → Task 3. Yes
+- Out of scope (main display, toggle, sound) → not present. Yes
 
 **Placeholder scan:** No TBD/TODO; all steps have concrete code and commands. The `<merge-commit>` in Step 8 is a genuine post-merge value the maintainer supplies, not a plan gap.
 
