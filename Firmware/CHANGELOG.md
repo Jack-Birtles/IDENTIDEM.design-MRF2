@@ -19,13 +19,15 @@ Findings from an independent accuracy review of the measurement chain, all fixed
 - **Far focus marks only snap when the distance is actually close.** The fixed 3-count far deadzone spans metres on sparse tables (a reading interpolating to 8.5 m displayed "10.0m"); snapping now also requires the interpolated distance within 8% of the mark.
 - **Dropouts flag the held reading.** During the 1 s grace window after signal loss the previous distance now shows as "Held:" instead of presenting as live, and the ~2 s calibration-complete celebration no longer leaves the LiDAR UART overflowed. The diagnostics fps count is normalised by the real window length.
 
-### LiDAR driver update (DTS6012M_UART 2.8.0)
+### LiDAR driver update (DTS6012M_UART 3.0.0)
 
-Requires DTS6012M_UART 2.8.0 (publish before building a release):
+Bumped the sensor library dependency to `^3.0.0`. Public signatures, error codes, and the measurement/statistics layouts are unchanged, so the firmware builds and runs against it without code changes; two `DTSConfig` fields are appended. Notable behaviour changes and how the firmware handles them:
 
-- **Raw distance 0 is invalid, not "40 cm".** A no-return frame reporting 0 got the geometry offset added library-side and arrived as a plausible reading at exactly the offset distance, defeating the firmware's zero-guard.
-- **CRC byte-order auto-detection survives recovery.** The firmware's recovery path runs every ~3 CRC errors and previously wiped the library's 100-failure detection streak, so an LSB-first sensor variant could never auto-switch and recovery-looped forever (err:4 with Recoveries climbing).
-- **The median-filter history clears on reset/standby**, so the first readings after a wake no longer report the previous subject's distance.
+- **Quality grading and the median filter now exclude out-of-range readings**, so the sensor's valid-distance limit finally has teeth. The firmware previously set that limit from the frameline parallax cap (`DISTANCE_MAX`, 18 m); with the geometry offset added that clipped genuine far returns ~2 m short of the sensor's rated range. The library's `maxValidDistance_mm` is now set from a dedicated `LIDAR_LIBRARY_MAX_VALID_DISTANCE_MM` (20 m, the sensor's rating), decoupled from both the parallax cap and the 18 m display-to-"Inf." policy (`LIDAR_DISPLAY_INF_THRESHOLD_CM`).
+- **The opt-in ambient-light gate (`maxSunlightBase`) is left disabled, deliberately.** The outdoor-range investigation established that `sunlightBase` reads flat outdoors (it measures ambient at the aperture, not the solar reflection off the target that causes the range cliff), so gating on it would reject valid frames without helping. Documented in `makeLidarConfig()` so it is not naively enabled later.
+- **The median filter now drops POOR/under-threshold samples too.** When too few quality-valid samples remain it returns the invalid sentinel; the firmware already falls back to the raw primary distance in that case, so far/marginal readings still display, just unsmoothed.
+- Carries the accuracy fixes first shipped in 2.8.0: raw distance 0 stays invalid instead of becoming a reading at the offset distance; AUTO CRC byte-order detection survives the host recovery path; and the median history clears on reset/standby so the first post-wake reading is not the previous subject's distance.
+- Plus the 3.0.0 robustness work: a timeout no longer wipes a frame reassembling across `update()` calls (no permanent-TIMEOUT livelock), stale data is invalidated after a comms timeout, `enableSensor()` refreshes the library's own timeout clock, and `errorCount`/`getConsecutiveErrors()` now count timeouts.
 
 ### LiDAR driver update (DTS6012M_UART 2.7.0)
 

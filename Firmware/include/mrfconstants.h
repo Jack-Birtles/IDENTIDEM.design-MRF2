@@ -145,6 +145,7 @@ const unsigned long LIDAR_RECOVERY_RETRY_MAX_MS = 2000; // Max retry backoff.
 const float LIDAR_LIBRARY_DISTANCE_SCALE = 1.0f; // Library-side linear distance scale.
 // LiDAR distance offset is now a runtime preference (lidar_distance_offset_mm) — see DEFAULT_LIDAR_DISTANCE_OFFSET_MM below.
 const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 20; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Kept lower than our pipeline's LIDAR_FUSION_MIN_INTENSITY=40 floor so weak-but-valid returns reach our scoring pipeline (which applies the harder gate). Aligning the two values caused near-range drop-outs in bright ambient light.
+const uint16_t LIDAR_LIBRARY_MAX_VALID_DISTANCE_MM = 20000; // Sensor's rated range (20m). From library 3.0.0 this gates quality grading and the median filter, so it must reflect what the SENSOR can measure, not the camera's 18m display-to-"Inf." policy (LIDAR_DISPLAY_INF_THRESHOLD_CM) or the frameline parallax cap (DISTANCE_MAX). Set to the full 20m so genuine far returns near the display-infinity boundary are still graded and smoothed rather than dropped as out-of-range (worse once the +400mm geometry offset is added).
 const int LIDAR_RANGE_NEAR_CM = 200;             // Single source of truth for the "near range" boundary (≤2m). Aliased by the constants below.
 const int LIDAR_FUSION_MIN_INTENSITY = 40;       // Near-range (≤2m) minimum intensity — strict for accuracy.
 const int LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM = LIDAR_RANGE_NEAR_CM; // Near-range boundary for intensity gating.
