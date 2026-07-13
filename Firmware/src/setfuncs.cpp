@@ -317,13 +317,19 @@ void setLensDistance()
 {
   const Lens &lens = lenses[selected_lens];
 
-  if (selected_lens != lensSnap.prevLens)
+  bool lensChanged = (selected_lens != lensSnap.prevLens);
+  if (lensChanged)
   {
     lensSnap.prevLens = selected_lens;
     lensSnap.prevIndex = -1;
   }
 
-  if (lens_sensor_reading == prev_lens_sensor_reading)
+  // A lens change swaps the whole sensor->distance table, so the distance must
+  // be recomputed even when the ADC reading is unchanged. Skipping this kept
+  // the previous lens's mapping (display and LiDAR plausibility prior) alive
+  // until the focus ring physically moved — indefinitely when the reading
+  // stayed quiet.
+  if (!lensChanged && lens_sensor_reading == prev_lens_sensor_reading)
   {
     return;
   }
