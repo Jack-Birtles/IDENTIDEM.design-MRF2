@@ -4,6 +4,23 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 
 ## Unreleased
 
+### Whole-codebase review fixes (safety, persistence, input, rendering, lifecycle)
+
+Findings from a broader firmware review covering everything outside the measurement chain, all fixed:
+
+- **Fixed a boot-loop crash when the status-pixel seesaw board is absent or fails init.** The external UI wrote to the NeoPixel unconditionally; the vendored library leaves its pixel buffer unallocated until `begin()` succeeds, so the first write panicked and the reboot repeated the same failure. All writes are now gated on `hardware.statusPixel`, matching the rest of the per-peripheral degrade-gracefully design.
+- **Fixed a dead NVS key.** `prev_encoder_value` (18 chars) exceeded the ESP32 Preferences 15-char key limit, so every write silently failed and every read returned the default. Renamed to `prev_enc_val`; no migration needed since the old key never held real data.
+- **Long-press wake no longer drops into the Setup/Health menu.** The long-press handlers lacked the wake guard both short-press handlers already have, so holding a button to wake the camera also acted on the newly-woken mode in the same call.
+- **Completing lens calibration now clamps the aperture to the new lens.** Finishing calibration on a newly-selected lens left the previous lens's f-stop active until the user touched an aperture button or rebooted, giving a wrong exposure readout right after the normal calibrate-a-new-lens flow.
+- **Setup > Lens > Focus offset and Setup > LiDAR > Distance offset now redraw immediately.** Both settings changed and persisted correctly but the menu's redraw-skip signature didn't include them, so the screen showed the stale number until an unrelated field happened to change.
+- **A size-mismatched lens-calibration blob in NVS can no longer silently wipe a lens to "Inf." on every reading.** The load path now requires an exact size match before trusting a stored blob.
+- **Legacy preferences migration now commits the schema marker last**, so a power loss mid-migration causes a retry on next boot instead of permanently orphaning the still-present legacy calibration data.
+- Sleep fade now starts from the current display brightness instead of always flashing to near-maximum first.
+- The light meter now retries a failed sleep/wake I2C command a couple of times before disabling itself, so one transient bus glitch no longer costs the meter for the rest of the session.
+- The calibration error message ("Unstable reading" etc.) now clears reliably at its hold-time boundary instead of lingering until an unrelated redraw.
+- Per-point calibration capture now cleans up the LiDAR UART afterward, same as the completion step already did.
+- The deferred NVS flush now has a 10 s maximum-postponement backstop, so continuous activity (e.g. winding several frames) can no longer delay the write indefinitely.
+
 ### Accuracy review fixes (ToF/measurement chain)
 
 Findings from an independent accuracy review of the measurement chain, all fixed:
