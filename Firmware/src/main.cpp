@@ -13,6 +13,7 @@
 #include "helpers.h"
 #include "loop_runtime.h"
 #include "mrfconstants.h"
+#include "boot_animation_logic.h"
 #include "setfuncs.h"
 
 namespace
@@ -149,7 +150,7 @@ void showBootScreenOnExternalDisplay()
   snprintf(bootText, sizeof(bootText), "MRF %s", FWVERSION);
 
   // Pick the largest text size (up to the preferred one) that fits the display
-  // width, so a longer version string (e.g. 10.4.10) can't wrap on the narrow
+  // width, so a longer version string (e.g. 10.6.10) can't wrap on the narrow
   // external screen.
   int16_t bootTextX1 = 0;
   int16_t bootTextY1 = 0;
@@ -165,12 +166,35 @@ void showBootScreenOnExternalDisplay()
     }
   }
 
-  int16_t bootCursorX = ((display_ext.width() - static_cast<int16_t>(bootTextWidth)) / 2) - bootTextX1;
-  int16_t bootCursorY = ((display_ext.height() - static_cast<int16_t>(bootTextHeight)) / 2) - bootTextY1;
-  display_ext.setCursor(bootCursorX, bootCursorY);
-  display_ext.print(bootText);
-  display_ext.display();
+  const int16_t bootCursorY =
+      ((display_ext.height() - static_cast<int16_t>(bootTextHeight)) / 2) - bootTextY1;
 
+  // Film-advance animation: perforations tick left along the top and bottom
+  // edges while the version rides in from the right and eases to centre.
+  for (int frame = 0; frame < DISPLAY_BOOT_ANIM_FRAMES; frame++)
+  {
+    display_ext.clearDisplay();
+
+    const int sprocketOffset =
+        bootSprocketOffsetForFrame(frame, DISPLAY_BOOT_SPROCKET_STEP, DISPLAY_BOOT_SPROCKET_SPACING);
+    for (int x = sprocketOffset - DISPLAY_BOOT_SPROCKET_SPACING; x < display_ext.width();
+         x += DISPLAY_BOOT_SPROCKET_SPACING)
+    {
+      display_ext.fillRect(x, 0, DISPLAY_BOOT_SPROCKET_W, DISPLAY_BOOT_SPROCKET_H, SSD1306_WHITE);
+      display_ext.fillRect(x, display_ext.height() - DISPLAY_BOOT_SPROCKET_H,
+                           DISPLAY_BOOT_SPROCKET_W, DISPLAY_BOOT_SPROCKET_H, SSD1306_WHITE);
+    }
+
+    const int textX = bootTextXForFrame(frame, DISPLAY_BOOT_ANIM_FRAMES,
+                                        display_ext.width(), static_cast<int>(bootTextWidth));
+    display_ext.setCursor(static_cast<int16_t>(textX) - bootTextX1, bootCursorY);
+    display_ext.print(bootText);
+
+    display_ext.display();
+    delay(DISPLAY_BOOT_ANIM_FRAME_MS);
+  }
+
+  // Hold the settled frame, then clear and hand the panel to u8g2_ext as before.
   delay(DISPLAY_BOOT_SCREEN_MS);
 
   u8g2_ext.begin(display_ext);
