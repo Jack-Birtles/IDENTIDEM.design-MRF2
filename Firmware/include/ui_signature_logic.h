@@ -58,6 +58,7 @@ struct MenuUiSnapshot
   int calib_capture_status;
   unsigned long calib_capture_status_ms;
   int lens_sensor_reading;
+  int lens_focus_offset;
   int iso;
   float aperture;
   int exposure_comp_thirds;
@@ -66,6 +67,7 @@ struct MenuUiSnapshot
   bool parallaxEnabled;
   int sleep_timeout_mode;
   int lidar_idle_timeout_mode;
+  int lidar_distance_offset_mm;
   int level_trim_landscape_deci_deg;
   int level_trim_portrait_pos_deci_deg;
   int level_trim_portrait_neg_deci_deg;

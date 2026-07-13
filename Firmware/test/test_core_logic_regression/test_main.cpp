@@ -1433,6 +1433,58 @@ ExternalUiSnapshot baselineExternalSnapshot()
           /* frame_progress  */ 0.25f,
           /* sleepMode       */ false};
 }
+
+MenuUiSnapshot baselineMenuSnapshot()
+{
+  return {/* ui_mode                          */ 1,
+          /* config_step                      */ 2,
+          /* calib_step                       */ 0,
+          /* selected_lens                    */ 3,
+          /* selected_format                  */ 1,
+          /* calib_lens                       */ 0,
+          /* current_calib_distance           */ 0,
+          /* calib_capture_status             */ 0,
+          /* calib_capture_status_ms          */ 0ul,
+          /* lens_sensor_reading              */ 200,
+          /* lens_focus_offset                */ 0,
+          /* iso                              */ 400,
+          /* aperture                         */ 8.0f,
+          /* exposure_comp_thirds             */ 0,
+          /* meter_smoothing_mode             */ 1,
+          /* show_ev_readout                  */ false,
+          /* parallaxEnabled                  */ true,
+          /* sleep_timeout_mode               */ 1,
+          /* lidar_idle_timeout_mode          */ 1,
+          /* lidar_distance_offset_mm         */ 400,
+          /* level_trim_landscape_deci_deg    */ 0,
+          /* level_trim_portrait_pos_deci_deg */ 0,
+          /* level_trim_portrait_neg_deci_deg */ 0,
+          /* reticle_offset_x                 */ 0,
+          /* reticle_offset_y                 */ 0,
+          /* reticle_adjust_step              */ 0,
+          /* brightness_auto                  */ true,
+          /* brightness_manual_pct            */ 50,
+          /* brightness_auto_top_pct          */ 100,
+          /* show_horizon_line                */ true,
+          /* frame_one_offset                 */ 0,
+          /* frame_spacing_offset             */ 0,
+          /* film_counter                     */ 5,
+          /* last_lidar_error_code            */ 0,
+          /* lidar_recovery_count             */ 0,
+          /* lidarEnabled                     */ true,
+          /* adsReady                         */ true,
+          /* mpuReady                         */ true,
+          /* mainDisplayReady                 */ true,
+          /* externalDisplayReady             */ true,
+          /* batteryGaugeReady                */ true,
+          /* lightMeterReady                  */ true,
+          /* statusPixelReady                 */ true,
+          /* encoderReady                     */ true,
+          /* lidarSensorReady                 */ true,
+          /* prefsSchemaValid                 */ true,
+          /* prefsLoadedLegacy                */ false,
+          /* prefsSchemaVersionLoaded         */ 2};
+}
 } // namespace
 
 void test_ui_signature_external_changes_when_any_field_changes()
@@ -1465,6 +1517,27 @@ void test_ui_signature_external_changes_when_any_field_changes()
   mutated = base;
   mutated.sleepMode = true;
   TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
+}
+
+void test_ui_signature_menu_changes_when_focus_or_distance_offset_changes()
+{
+  // Regression: MenuUiSnapshot previously omitted lens_focus_offset and
+  // lidar_distance_offset_mm, so Setup > Lens > Focus offset and Setup > LiDAR
+  // > Distance offset changed and persisted their value but the redraw-skip
+  // cache never saw a signature change, leaving the screen showing the old
+  // number until an unrelated field happened to change.
+  const MenuUiSnapshot base = baselineMenuSnapshot();
+  const uint32_t baseline = buildMenuUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildMenuUiSignature(baselineMenuSnapshot()));
+
+  MenuUiSnapshot mutated = base;
+  mutated.lens_focus_offset = 5;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildMenuUiSignature(mutated));
+
+  mutated = base;
+  mutated.lidar_distance_offset_mm = 450;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildMenuUiSignature(mutated));
 }
 
 int main(int, char **)
@@ -1542,5 +1615,6 @@ int main(int, char **)
   RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);
   RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
   RUN_TEST(test_ui_signature_external_changes_when_any_field_changes);
+  RUN_TEST(test_ui_signature_menu_changes_when_focus_or_distance_offset_changes);
   return UNITY_END();
 }

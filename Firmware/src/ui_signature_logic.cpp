@@ -75,6 +75,7 @@ uint32_t buildMenuUiSignature(const MenuUiSnapshot &s)
   hash = hashInt(hash, s.calib_capture_status);
   hash = hashUint32(hash, static_cast<uint32_t>(s.calib_capture_status_ms));
   hash = hashInt(hash, s.lens_sensor_reading);
+  hash = hashInt(hash, s.lens_focus_offset);
   hash = hashInt(hash, s.iso);
   hash = hashFloat(hash, s.aperture);
   hash = hashInt(hash, s.exposure_comp_thirds);
@@ -83,6 +84,7 @@ uint32_t buildMenuUiSignature(const MenuUiSnapshot &s)
   hash = hashBool(hash, s.parallaxEnabled);
   hash = hashInt(hash, s.sleep_timeout_mode);
   hash = hashInt(hash, s.lidar_idle_timeout_mode);
+  hash = hashInt(hash, s.lidar_distance_offset_mm);
   hash = hashInt(hash, s.level_trim_landscape_deci_deg);
   hash = hashInt(hash, s.level_trim_portrait_pos_deci_deg);
   hash = hashInt(hash, s.level_trim_portrait_neg_deci_deg);
