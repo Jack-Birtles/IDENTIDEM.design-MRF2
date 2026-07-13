@@ -55,7 +55,7 @@ If this is your first time using the camera, this sequence keeps things simple a
 
 ## Quick start (after initial setup)
 
-1. Power on the camera. The main display shows an "Initialising..." progress bar with a label naming each peripheral group as it starts up, the external display shows a short boot screen, and then the main UI appears.
+1. Power on the camera. The main display shows an "Initialising..." progress bar with a label naming each peripheral group as it starts up, the external display plays a short film-advance animation that carries the firmware version into view, and then the main UI appears.
 2. Check the **main screen** for ISO, aperture, shutter speed, LiDAR distance, LiDAR quality blocks, and lens distance.
 3. Long-press **Right (R)** for 3 seconds to enter **Setup** and make changes.
 4. Use the **advance lever** to move the film; the external display shows the frame counter and progress bar.
