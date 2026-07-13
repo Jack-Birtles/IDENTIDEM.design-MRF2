@@ -7,6 +7,7 @@
 #include "formats.h"
 #include "formatting_logic.h"
 #include "frameline_layout_logic.h"
+#include "boot_animation_logic.h"
 #include "calibration_logic.h"
 #include "lens_logic.h"
 #include "lens_spike_logic.h"
@@ -18,6 +19,7 @@
 #include "ui_signature_logic.h"
 
 // Limit the test scope to the core logic modules only.
+#include "../../src/boot_animation_logic.cpp"
 #include "../../src/calibration_logic.cpp"
 #include "../../src/film_counter_logic.cpp"
 #include "../../src/formats.cpp"
@@ -1540,6 +1542,58 @@ void test_ui_signature_menu_changes_when_focus_or_distance_offset_changes()
   TEST_ASSERT_NOT_EQUAL(baseline, buildMenuUiSignature(mutated));
 }
 
+void test_boot_text_starts_offscreen_right()
+{
+  // Frame 0: the version text begins fully off the right edge of the display.
+  TEST_ASSERT_TRUE(bootTextXForFrame(0, 16, 128, 120) >= 128);
+}
+
+void test_boot_text_lands_centered_on_final_frame()
+{
+  const int totalFrames = 16;
+  const int displayWidth = 128;
+  const int textWidth = 120;
+  int expectedCentered = (displayWidth - textWidth) / 2; // 4
+  TEST_ASSERT_EQUAL_INT(expectedCentered,
+                        bootTextXForFrame(totalFrames - 1, totalFrames, displayWidth, textWidth));
+}
+
+void test_boot_text_is_monotonically_non_increasing()
+{
+  const int totalFrames = 16;
+  int prev = bootTextXForFrame(0, totalFrames, 128, 120);
+  for (int f = 1; f < totalFrames; f++)
+  {
+    int x = bootTextXForFrame(f, totalFrames, 128, 120);
+    TEST_ASSERT_TRUE(x <= prev); // film never jitters back to the right
+    prev = x;
+  }
+}
+
+void test_boot_text_single_frame_guard()
+{
+  // Degenerate totalFrames must not divide by zero; returns the centered x.
+  TEST_ASSERT_EQUAL_INT((128 - 120) / 2, bootTextXForFrame(0, 1, 128, 120));
+}
+
+void test_boot_sprocket_offset_within_spacing_and_advances()
+{
+  const int step = 3;
+  const int spacing = 12;
+  for (int f = 0; f < 40; f++)
+  {
+    int off = bootSprocketOffsetForFrame(f, step, spacing);
+    TEST_ASSERT_TRUE(off >= 0 && off < spacing);
+    TEST_ASSERT_EQUAL_INT((f * step) % spacing, off);
+  }
+}
+
+void test_boot_sprocket_offset_spacing_guard()
+{
+  // Non-positive spacing must not modulo-by-zero.
+  TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -1616,5 +1670,11 @@ int main(int, char **)
   RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
   RUN_TEST(test_ui_signature_external_changes_when_any_field_changes);
   RUN_TEST(test_ui_signature_menu_changes_when_focus_or_distance_offset_changes);
+  RUN_TEST(test_boot_text_starts_offscreen_right);
+  RUN_TEST(test_boot_text_lands_centered_on_final_frame);
+  RUN_TEST(test_boot_text_is_monotonically_non_increasing);
+  RUN_TEST(test_boot_text_single_frame_guard);
+  RUN_TEST(test_boot_sprocket_offset_within_spacing_and_advances);
+  RUN_TEST(test_boot_sprocket_offset_spacing_guard);
   return UNITY_END();
 }
