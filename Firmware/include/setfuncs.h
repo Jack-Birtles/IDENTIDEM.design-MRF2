@@ -28,6 +28,11 @@ void retryLidarInit();
 void applyLidarCalibrationProfile();
 
 void clearLidarDisplay(const char *placeholder);
+
+// Call after a deliberately blocking UI section (long delay() stretches) so
+// the starved LiDAR UART is drained and its overflow state cleared before the
+// next scheduled poll.
+void recoverLidarAfterBlockingUi();
 // ---------------------
 
 #endif // SETFUNCS_H

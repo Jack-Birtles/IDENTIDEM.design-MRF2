@@ -257,6 +257,9 @@ void handleLeftButtonShortPress()
             }
 
             delay(CALIB_COMPLETE_HOLD_MS);
+            // The ~2 s of blocking celebration above starved the LiDAR UART
+            // past its 256-byte RX buffer; clean up before polling resumes.
+            recoverLidarAfterBlockingUi();
             config_step = CONFIG_LENS_STEP_CALIB;
             ui_mode = UiMode::ConfigLens;
           }

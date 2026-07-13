@@ -295,6 +295,23 @@ void setDistance()
   noteLidarRecoveryAttemptResult(lidarRuntime.recovery, recovered, now);
 }
 
+void recoverLidarAfterBlockingUi()
+{
+  if (!hardware.lidarSensor || !lidarEnabled)
+  {
+    return;
+  }
+
+  // A long blocking UI section (calibration-complete celebration) starves the
+  // LiDAR UART past its RX buffer. Drain what survived and clear the overflow
+  // so the next scheduled poll starts clean instead of surfacing a spurious
+  // BUFFER_OVERFLOW error; restart the recovery/fps windows for the same
+  // reason the enable paths do.
+  lidar.update();
+  lidar.clearError();
+  noteLidarSensorEnabled();
+}
+
 // Borrows moving average code from
 // https://github.com/makeabilitylab/arduino/blob/master/Filters/MovingAverageFilter/MovingAverageFilter.ino
 int getLensSensorReading()
