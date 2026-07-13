@@ -459,6 +459,14 @@ void drawReticleAndFocusRing(const MainFramelineLayout &layout)
 {
   display.fillCircle(layout.reticleCenterX, layout.reticleCenterY, MAIN_RETICLE_CENTER_RADIUS, INVERSE);
 
+  // No live LiDAR measurement (signal loss, standby, wake) — the readout shows
+  // a placeholder, so the focus ring must not keep rendering agreement against
+  // the last accepted distance. Draw the aiming reticle only.
+  if (distance <= 0)
+  {
+    return;
+  }
+
   int rawFocusRadius = getFocusRadius();
   int focusRadius = getSmoothedFocusRadius(rawFocusRadius);
   int focusThickness = getSmoothedFocusRingThickness(focusRadius);

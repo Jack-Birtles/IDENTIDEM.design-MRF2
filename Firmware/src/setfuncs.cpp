@@ -98,6 +98,11 @@ void clearLidarDisplay(const char *placeholder)
   lidar_quality_level = 0;
   lidar_distance_held = false; // Placeholder shown — nothing is being held.
   prev_distance = 0; // Reset so the next valid reading is not penalised against a stale value.
+  // Invalidate the shared measurement too. The focus-assist ring and the
+  // parallax fallback consume `distance` directly; leaving the last accepted
+  // value in place lets the ring collapse to "in focus" against a measurement
+  // the sensor is no longer making.
+  distance = 0;
 }
 
 // Functions to read values from sensors and set variables
