@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 // Firmware identity and boot behavior
 // ---------------------------------------------------------------------------
-#define FWVERSION "10.4.10"                  // Version shown in UI and release metadata.
+#define FWVERSION "10.6.0"                   // Version shown in UI and release metadata.
 const unsigned long SLEEP_BOOT_GRACE_MS = 15000; // Ignore sleep timer immediately after boot.
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,8 @@ const unsigned long LIDAR_SERIAL_STARTUP_DELAY_MS = 20; // LiDAR serial warm-up 
 const uint8_t LIGHTMETER_I2C_ADDR = 0x23;              // BH1750 I2C address.
 const uint8_t LIGHTMETER_CMD_POWER_DOWN = 0x00;        // BH1750 power-down command.
 const uint8_t LIGHTMETER_CMD_POWER_ON = 0x01;          // BH1750 power-on command.
+const int LIGHTMETER_I2C_RETRY_COUNT = 2;              // Extra attempts on a failed sleep/wake I2C command before giving up (a single transient NACK previously disabled the meter until reboot).
+const unsigned long LIGHTMETER_I2C_RETRY_DELAY_MS = 5; // Delay between retry attempts.
 const int DISPLAY_ROTATION = 3;                        // Main display rotation setting.
 const int DISPLAY_BOOT_TEXT_SIZE = 2;                  // Boot text scale on external display.
 const int DISPLAY_I2C_FREQUENCY_HZ = 1000000;          // Fast I2C bus frequency for display writes.
@@ -103,10 +105,14 @@ const int LENS_ACTIVITY_THRESHOLD = 3;          // Minimum ADC delta considered 
 const int LENS_SNAP_DEADZONE = 1;               // Snap deadzone near calibrated points (close range).
 const int LENS_SNAP_DEADZONE_FAR = 3;           // Snap deadzone for far focus points.
 const float LENS_SNAP_FAR_DISTANCE_M = 3.0f;    // Distance threshold to switch to far deadzone.
+const int LENS_SNAP_FAR_MAX_ERROR_PCT = 8;      // Far snap only when the interpolated distance is within this percent of the mark; the count deadzone alone spans metres on sparse far tables.
 const int LENS_ADC_SAMPLE_COUNT = 3;            // ADC samples averaged per read.
 const int LENS_ADC_SAMPLE_DELAY_US = 200;       // Delay between ADC sub-samples.
 const int LENS_ADC_QUIET_DELAY_MS = 1;          // Quiet time before ADC sampling.
 const int LENS_ADC_MAIN_OFFSET = 4;             // UI-mode compensation offset for lens ADC.
+const int DEFAULT_LENS_FOCUS_OFFSET = 0;        // Default user focus fine-tune (ADC counts, Main mode only).
+const int LENS_FOCUS_OFFSET_MIN = -25;          // Minimum user focus fine-tune (ADC counts).
+const int LENS_FOCUS_OFFSET_MAX = 25;           // Maximum user focus fine-tune (ADC counts).
 const int LENS_SPIKE_DELTA_THRESHOLD = 8;       // Delta treated as potential ADC spike.
 const int LENS_SPIKE_CONFIRMATION_COUNT = 2;    // Consecutive spike readings required for accept.
 const int FOCUS_RADIUS_MIN = 3;                 // Minimum focus-ring radius in pixels.
@@ -130,9 +136,10 @@ const int DEFAULT_RETICLE_OFFSET_Y = 0;  // Default reticle Y offset for optical
 const int RETICLE_OFFSET_MIN = -20;      // Minimum reticle offset in pixels.
 const int RETICLE_OFFSET_MAX = 20;       // Maximum reticle offset in pixels.
 const int LIDAR_DISTANCE_DIVISOR = 10;           // Raw LiDAR millimetre-to-centimetre divisor.
-const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate. 50 is the library's documented standard-mode floor; the temporal blend filter handles noise rejection at higher rates better than longer integration would.
+const uint16_t LIDAR_FRAME_RATE_FPS = 50;        // Sensor frame rate. bd n06 confirmed frame rate is NOT a range lever: 25fps was delivered (fps meas:25) yet the outdoor cliff stayed ~3m, and a same-wall shade/sun test proved the limit is solar 905nm off the sunlit target, not integration time. 50 keeps the fastest usable refresh.
 const unsigned long LIDAR_NO_DATA_TIMEOUT_MS = 1000; // Hold last reading before showing placeholder.
-const int LIDAR_FAR_SIGNAL_LOSS_CM = 300;         // Show "Inf." instead of "..." when signal lost above this distance.
+const unsigned long LIDAR_HELD_INDICATION_MS = 250;  // Mark the held reading as "Held:" this long into a dropout, so the grace window doesn't present a dead value as live.
+const int LIDAR_FAR_SIGNAL_LOSS_CM = 300;         // Show "Inf?" instead of "..." when signal lost above this distance (distinct from the "Inf." shown for a genuine measured reading).
 const int LIDAR_RECOVERY_ERROR_THRESHOLD = 3;    // Errors before recovery path escalates.
 const unsigned long LIDAR_RECOVERY_TIMEOUT_MS = 1500; // Timeout window triggering recovery.
 const unsigned long LIDAR_RECOVERY_RETRY_BASE_MS = 250; // Initial retry backoff.
@@ -140,6 +147,7 @@ const unsigned long LIDAR_RECOVERY_RETRY_MAX_MS = 2000; // Max retry backoff.
 const float LIDAR_LIBRARY_DISTANCE_SCALE = 1.0f; // Library-side linear distance scale.
 // LiDAR distance offset is now a runtime preference (lidar_distance_offset_mm) — see DEFAULT_LIDAR_DISTANCE_OFFSET_MM below.
 const int LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD = 20; // Library quality tier base; tiers are distance-scaled in v2.1.2+. Kept lower than our pipeline's LIDAR_FUSION_MIN_INTENSITY=40 floor so weak-but-valid returns reach our scoring pipeline (which applies the harder gate). Aligning the two values caused near-range drop-outs in bright ambient light.
+const uint16_t LIDAR_LIBRARY_MAX_VALID_DISTANCE_MM = 20000; // Sensor's rated range (20m). From library 3.0.0 this gates quality grading and the median filter, so it must reflect what the SENSOR can measure, not the camera's 18m display-to-"Inf." policy (LIDAR_DISPLAY_INF_THRESHOLD_CM) or the frameline parallax cap (DISTANCE_MAX). Set to the full 20m so genuine far returns near the display-infinity boundary are still graded and smoothed rather than dropped as out-of-range (worse once the +400mm geometry offset is added).
 const int LIDAR_RANGE_NEAR_CM = 200;             // Single source of truth for the "near range" boundary (≤2m). Aliased by the constants below.
 const int LIDAR_FUSION_MIN_INTENSITY = 40;       // Near-range (≤2m) minimum intensity — strict for accuracy.
 const int LIDAR_FUSION_INTENSITY_NEAR_RANGE_CM = LIDAR_RANGE_NEAR_CM; // Near-range boundary for intensity gating.
@@ -187,7 +195,10 @@ const float LIDAR_PRIOR_RANGE_SCALE_VERY_FAR = 0.2f; // Prior penalty scale at m
 const float LIDAR_LENS_PRIOR_WEIGHT_GOOD = 0.025f;    // Lens-prior pull when confidence is good.
 const float LIDAR_LENS_PRIOR_WEIGHT_EXCELLENT = 0.012f; // Lens-prior pull when confidence is excellent.
 const int LIDAR_PLAUSIBILITY_LENS_NEAR_CM = 300;      // Apply plausibility gate only when lens is focused at or below 3m (parallax matters most close; covers portrait/group range).
-const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Reject LiDAR readings more than this far beyond the lens prior — almost certainly a beam-miss past the subject.
+const int LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM = 200;  // Floor for the allowed overshoot beyond the lens prior. Used directly at near focus; the proportional factor below takes over at longer focus.
+const int LIDAR_PLAUSIBILITY_OVERSHOOT_FACTOR_PCT = 150; // Allowed overshoot scales with the prior (parallax beam-miss error grows with distance): allowance = max(floor, prior * pct/100).
+const int LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL = 3; // At this quality_level or better (3=GOOD, 4=EXCELLENT) a confident sensor return earns the wider trusted overshoot allowance below.
+const int LIDAR_PLAUSIBILITY_TRUST_OVERSHOOT_FACTOR_PCT = 300; // Confident returns get this wider overshoot allowance (prior * pct/100), but still finite: sensor quality is distance-normalized, so a far beam-miss onto a bright background can read GOOD — a gross overshoot must still be gated.
 const int LIDAR_PLAUSIBILITY_FALLTHROUGH_FRAMES = 3;  // Absolute cap: accept LiDAR after this many consecutive rejections no matter what, so a noisy beam-miss can never pin a stale value forever.
 const int LIDAR_PLAUSIBILITY_STABLE_DELTA_CM = 30;    // Two consecutive rejected readings within this distance count as "the same far subject" (intentional re-aim) rather than beam-miss jitter.
 const int LIDAR_PLAUSIBILITY_STABLE_RELEASE_FRAMES = 2; // Release the gate after this many consistent rejected readings — a deliberate re-aim past the subject is accepted at once.
@@ -214,6 +225,7 @@ const unsigned long FILM_COUNTER_REWIND_DEBOUNCE_MS = 120; // Rewind debounce.
 const float LIDAR_CAL_CUTOFF_CM = 150.0f; // Upper bound where near-range correction is applied.
 const float LIDAR_CAL_REF_RAW_CM = 130.0f; // Raw reference distance used for correction.
 const float LIDAR_CAL_REF_TRUE_CM = 100.0f; // True distance for the correction reference.
+const int LIDAR_CAL_MIN_OUTPUT_PCT = 60; // Interim floor (bd 4p9): the single-reference power law over-corrects below the anchor, so never let the correction return less than this percent of the raw distance. The measured anchor (130->100, 77%) sits above the floor.
 
 // ---------------------------------------------------------------------------
 // Frameline and parallax correction model
@@ -229,7 +241,7 @@ const float LIDAR_CAL_REF_TRUE_CM = 100.0f; // True distance for the correction 
 #define DISTANCE_MIN 5  // Minimum optical distance used by frameline mapping.
 #define DISTANCE_MAX 18 // Maximum optical distance used by frameline mapping.
 const int LIDAR_DISPLAY_MIN_CM = 15;            // Display "<15cm" below this threshold.
-const int LIDAR_DISPLAY_INF_THRESHOLD_CM = 1050; // Display "Inf." above this threshold.
+const int LIDAR_DISPLAY_INF_THRESHOLD_CM = 1800; // Display "Inf." above this threshold (sensor is rated to 18m, so genuine far readings still show).
 
 // ---------------------------------------------------------------------------
 // Battery and readout formatting
@@ -317,6 +329,7 @@ const unsigned long LOOP_BATTERY_INTERVAL_MS = 5000;      // Battery gauge updat
 const unsigned long LOOP_UI_INTERVAL_MS = 50;             // UI redraw cadence (~20 FPS).
 const unsigned long LOOP_UI_MAIN_REFRESH_MS = 100;        // Forced redraw cadence in Main mode when state is stable.
 const unsigned long LOOP_UI_HEALTH_REFRESH_MS = 1000;     // Forced redraw cadence for Health idle timer updates.
+const unsigned long LOOP_UI_LIDAR_DIAG_REFRESH_MS = 150;  // Forced redraw cadence for the live LiDAR diagnostics screen (fast so the readout tracks aiming).
 const unsigned long LOOP_PREFS_FLUSH_INTERVAL_MS = 200;   // Preferences flush check cadence.
 const int CPU_FREQ_ACTIVE_MHZ = 240;                      // CPU frequency while device is awake.
 const int CPU_FREQ_SLEEP_MHZ  = 80;                       // CPU frequency while device is sleeping.
@@ -377,6 +390,7 @@ enum ConfigLensStep
 {
   CONFIG_LENS_STEP_LENS = 0,      // Lens selector.
   CONFIG_LENS_STEP_PARALLAX,      // Parallax toggle.
+  CONFIG_LENS_STEP_FOCUS_OFFSET,  // Focus distance fine-tune.
   CONFIG_LENS_STEP_CALIB,         // Enter lens calibration.
   CONFIG_LENS_STEP_BACK,          // Back to setup root.
   CONFIG_LENS_STEP_COUNT
@@ -404,6 +418,7 @@ enum ConfigLidarStep
 {
   CONFIG_LIDAR_STEP_OFFSET = 0,    // LiDAR distance offset (sensor calibration).
   CONFIG_LIDAR_STEP_IDLE_TIMEOUT,  // LiDAR idle-timeout selector.
+  CONFIG_LIDAR_STEP_DIAGNOSTICS,   // Live LiDAR telemetry diagnostics screen.
   CONFIG_LIDAR_STEP_BACK,          // Back to setup root.
   CONFIG_LIDAR_STEP_COUNT
 };
@@ -478,6 +493,7 @@ const int CALIB_MONOTONIC_MIN_STEP = 1;      // Minimum monotonic step between c
 const int CALIB_CAPTURE_STATUS_NONE = 0;     // Calibration capture status: no error.
 const int CALIB_CAPTURE_STATUS_UNSTABLE = 1; // Calibration capture status: unstable reading.
 const int CALIB_CAPTURE_STATUS_NON_MONOTONIC = 2; // Calibration capture status: invalid sequence.
+const int CALIB_CAPTURE_STATUS_WRONG_DIRECTION = 3; // Calibration capture status: readings decreasing (sensor reads backwards; must ascend with distance).
 const unsigned long CALIB_ERROR_HOLD_MS = 2000; // Minimum display time for calibration errors.
 const int CALIB_COMPLETE_LED_PULSES = 3;     // Number of green LED pulses on calibration complete.
 const unsigned long CALIB_COMPLETE_LED_ON_MS = 80;  // LED on duration per pulse.

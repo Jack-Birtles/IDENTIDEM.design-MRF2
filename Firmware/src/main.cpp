@@ -101,7 +101,13 @@ void initializeInputHardware()
 
   if (hardware.ads)
   {
-    theads.setDataRate(RATE_ADS1015_128SPS);
+    // readADC_SingleEnded() busy-waits one conversion period, so the data rate
+    // sets how long each lens read blocks the cooperative loop. 128 SPS meant
+    // ~8 ms per conversion (~24 ms for the 3-sample average) stalling buttons and
+    // the encoder; 920 SPS drops that to ~1.1 ms each. The lens pot signal is
+    // large and slow, and the 3-sample average plus moving-average/spike filters
+    // absorb the slightly wider per-sample noise at the higher rate.
+    theads.setDataRate(RATE_ADS1015_920SPS);
     theads.setGain(GAIN_TWOTHIRDS);
   }
 
@@ -137,17 +143,27 @@ void showBootScreenOnExternalDisplay()
   }
 
   display_ext.clearDisplay();
-  display_ext.setTextSize(DISPLAY_BOOT_TEXT_SIZE);
   display_ext.setTextColor(SSD1306_WHITE);
 
   char bootText[24];
   snprintf(bootText, sizeof(bootText), "MRF %s", FWVERSION);
 
+  // Pick the largest text size (up to the preferred one) that fits the display
+  // width, so a longer version string (e.g. 10.4.10) can't wrap on the narrow
+  // external screen.
   int16_t bootTextX1 = 0;
   int16_t bootTextY1 = 0;
   uint16_t bootTextWidth = 0;
   uint16_t bootTextHeight = 0;
-  display_ext.getTextBounds(bootText, 0, 0, &bootTextX1, &bootTextY1, &bootTextWidth, &bootTextHeight);
+  for (int bootTextSize = DISPLAY_BOOT_TEXT_SIZE; bootTextSize >= 1; bootTextSize--)
+  {
+    display_ext.setTextSize(static_cast<uint8_t>(bootTextSize));
+    display_ext.getTextBounds(bootText, 0, 0, &bootTextX1, &bootTextY1, &bootTextWidth, &bootTextHeight);
+    if (static_cast<int16_t>(bootTextWidth) <= display_ext.width())
+    {
+      break;
+    }
+  }
 
   int16_t bootCursorX = ((display_ext.width() - static_cast<int16_t>(bootTextWidth)) / 2) - bootTextX1;
   int16_t bootCursorY = ((display_ext.height() - static_cast<int16_t>(bootTextHeight)) / 2) - bootTextY1;
@@ -192,6 +208,14 @@ void initializeLidarSensor()
     }
 
     lidar.setFrameRate(LIDAR_FRAME_RATE_FPS);
+    // Read back what the sensor actually latched — surfaced on the LiDAR
+    // diagnostics screen so a tester can confirm whether a requested sub-50fps
+    // rate was accepted. Boot only; never re-issued on the recovery path.
+    uint16_t actual_fps = 0;
+    if (lidar.getFrameRate(actual_fps) == DTSError::NONE)
+    {
+      lidar_frame_rate_actual = actual_fps;
+    }
     applyLidarCalibrationProfile();
   }
 

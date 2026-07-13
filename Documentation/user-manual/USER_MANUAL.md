@@ -1,6 +1,6 @@
 # MRF2 User Manual
 
-**Firmware version:** 10.4.10
+**Firmware version:** 10.6.0
 
 This manual covers how to operate the MRF2 firmware user interface, including the on-device displays, buttons, calibration flow, and film counter behavior. It is written for everyday use, not just for builders.
 
@@ -111,11 +111,12 @@ You can tune horizon trim offsets independently for **Landscape**, **Portrait+**
   - Confidence accounts for ambient sunlight relative to return intensity. Thresholds are tuned for outdoor use in bright conditions, and the sensor falls back to low-confidence tracking at all ranges when primary filtering rejects a return.
   - Measurement range: 5 cm to 18 m.
   - Displays values below 1 meter in centimeters (for example, `75cm`), 1m to below 2m in meters with two decimal places (for example, `1.85m`), and 2m and above with one decimal place (for example, `2.5m`).
-  - Displays `Inf.` when the subject is beyond sensor range (last reading was above 3 m and signal is lost), or for readings above 10.5 metres.
+  - Displays `Inf.` for measured readings above 18 metres (the display's infinity cutoff; the sensor itself is rated to 20 m).
+  - Displays `Inf?` when the signal is lost and the last reading was above 3 m — usually the camera is now aimed at the sky or something beyond sensor range. The question mark marks it as a guess, not a measurement.
   - Displays `...` if the sensor has no valid data for 1 second at close range.
   - Displays `Zzz` when LiDAR is in idle standby (wake by focusing or pressing a button).
   - Displays `<15cm` for near readings below display threshold.
-  - The label changes from `Dist:` to `Held:` when the lens is focused close and the LiDAR briefly reports something much farther away (usually the beam slipping past your subject to the background). The previous reading is held rather than jumping. Aim deliberately at the farther subject for a moment and it releases to the live value.
+  - The label changes from `Dist:` to `Held:` in two cases: when the lens is focused close and the LiDAR briefly reports something much farther away (usually the beam slipping past your subject to the background), or briefly during the first moment of a signal dropout before it falls back to `...`/`Inf?`. Either way the previous reading is held rather than jumping or blanking. For the beam-slip case, aim deliberately at the farther subject for a moment and it releases to the live value.
 - **Lens distance (Lens)**
   - Based on calibration and the lens position sensor.
   - Displays `Inf.` when beyond the calibrated infinity threshold.
@@ -129,7 +130,7 @@ The four tiny squares at the right edge of the top status bar show return qualit
 - **3 squares**: Good
 - **4 squares**: Excellent
 
-When no valid recent LiDAR data is available (`Dist: ...` or `Dist: Inf.`) or LiDAR is in idle standby (`Dist: Zzz`), the quality indicator clears.
+When no valid recent LiDAR data is available (`Dist: ...` or `Dist: Inf?`) or LiDAR is in idle standby (`Dist: Zzz`), the quality indicator clears.
 
 ### Light meter / shutter speed
 
@@ -165,8 +166,8 @@ The ring radius is based on the difference between the LiDAR distance and the le
 
 - **Use the LiDAR number first, then fine-tune with the ring.** Glance at the `Dist` readout to get a ballpark, dial the focus ring close, then watch the ring shrink for the last adjustment.
 - **Calibrate your lens** before relying on Lens distance. Without calibration the Lens readout is inactive and the ring defaults to maximum size. See [Lens calibration](#lens-calibration).
-- **In bright sunlight** the LiDAR may occasionally lose signal. The last valid reading is held for 1 second, so brief dropouts are hidden. When the subject is beyond sensor range the display switches to `Inf.` If `...` persists at close range, check wiring or try a different target angle.
-- **At infinity** the Lens readout shows `Inf.` and the LiDAR readout shows `Inf.` above 10.5 m or when far-range signal is lost. The focus ring is irrelevant at infinity — just set the ring to the ∞ mark.
+- **In bright sunlight** the LiDAR may occasionally lose signal. The last valid reading is held for 1 second, so brief dropouts are hidden. When the signal is lost beyond 3 m the display switches to `Inf?`. If `...` persists at close range, check wiring or try a different target angle.
+- **At infinity** the Lens readout shows `Inf.` and the LiDAR readout shows `Inf.` above 18 m (the display's infinity cutoff; the sensor itself is rated to 20 m), or `Inf?` when far-range signal is lost. The focus ring is irrelevant at infinity — just set the ring to the ∞ mark.
 - **Parallax correction** shifts the framelines based on focus distance. Keep it enabled (default) for accurate framing at close range. It has no effect at infinity.
 
 ## Setup menus
@@ -245,7 +246,25 @@ Current frame ranges are format-bound:
 
 1. **Distance offset**: cycles the LiDAR distance correction in `10mm` steps from `0mm` to `800mm` (default `400mm`). Compensates for the physical offset between the LiDAR sensor and the lens plane so the displayed distance matches reality. Tune by aiming at a target a known distance away (e.g. a tape measure at 1.00m) and adjusting until the **Dist** readout on the main screen agrees. Changes take effect immediately — no reboot needed.
 2. **Idle timeout**: cycles `Off`, `15s`, `30sec`, `1m`, `1m30s`, `2m` (default `1m`). Time of no measured-distance change before the LiDAR enters its low-power standby.
-3. **Back <<**: return to setup root menu.
+3. **Diagnostics >>**: opens a live telemetry screen for troubleshooting LiDAR range and lock problems (see below).
+4. **Back <<**: return to setup root menu.
+
+#### LiDAR Diagnostics screen
+
+![LiDAR diagnostics screen](images/config-lidar-diagnostics-ui.svg)
+
+Aim the camera at a target and read back exactly what the sensor reports, frame by frame. Use this when the LiDAR will not lock or seems short-ranged, and when reporting a problem so a maintainer has real numbers to work from. Press either button to return.
+
+- **Raw** — the sensor's reported distance in millimetres. This already includes your **Offset** setting (the sensor library adds it before reporting), but not the camera's near-range correction curve. When comparing Raw values between two cameras, make sure both use the same Offset. **Disp** is what the main screen would show.
+- **Intensity** — strength of the returned pulse. Low intensity at distance means little light is coming back (dark or distant subject).
+- **SunBase / SNR** — the ambient infrared baseline and the signal-to-noise ratio (in permille). High SunBase with low SNR is bright-light interference.
+- **Quality** — the sensor's own quality grade, 0 (none) to 4 (excellent).
+- **Held** — `Y` when the plausibility gate is holding the reading because it overshot the lens focus distance (see the `Held:` note above).
+- **fps req / act** — the frame rate the firmware requested versus what the sensor reported back. A lower frame rate gives the sensor longer to integrate, which can extend range.
+- **Age** — how long ago the values on this screen were captured. Normally a few tens of milliseconds; a climbing Age means the sensor has stopped producing frames and everything above is stale. `--` means no frame has arrived since boot.
+- **err / Recov / Sun** — last sensor error code, recovery count, and the high-sunlight flag.
+
+If you can read close objects but never distant ones — especially outdoors — see [Troubleshooting](#troubleshooting); this is often a sensor power-supply issue with a documented hardware fix.
 
 ### Display submenu
 
@@ -438,9 +457,15 @@ Wake the device by pressing any button or moving the lens/advance lever (any act
 ## Troubleshooting
 
 - **LiDAR distance shows `Inf.`**
-  - The subject is beyond the sensor's effective range. This is normal for distances above ~8–10 m or targets with very low reflectivity. Use the lens barrel distance markings instead.
+  - The sensor measured a distance above 18 m, the display's infinity cutoff (the sensor itself is rated to 20 m). Use the lens barrel distance markings instead.
+- **LiDAR distance shows `Inf?`**
+  - The signal was lost while the last reading was beyond 3 m — usually the camera is aimed at the sky or at something too far or too dark to return a pulse. It is a guess, not a measurement. Use the lens barrel distance markings instead.
 - **LiDAR distance shows `...`**
   - At close range, verify LiDAR wiring and power. The UI updates only with valid sensor data.
+- **LiDAR only reads close objects — nothing at distance, worse outdoors or in bright light**
+  - Open **Setup > LiDAR > Diagnostics** and aim at a distant target. If Intensity stays very low and Quality stays at 0–1 while SunBase is high, the sensor is not getting a usable return.
+  - This pattern (close reads fine, distance/bright-light fails) is commonly a sensor power-supply problem: the LiDAR's pulsed laser briefly starves its 3.3 V rail because the board has no local decoupling capacitor at the connector. There is a documented hardware fix — see [LiDAR power decoupling errata](../hardware-errata/lidar-stage1-decoupling.md).
+  - To gather data for a maintainer, follow the [LiDAR field test protocol](../hardware-errata/lidar-field-test.md).
 - **LiDAR distance shows `Zzz`**
   - LiDAR is in idle standby. Turn the focus ring or press a button to wake it, or increase/disable **Idle timeout** in **Setup > LiDAR >**.
 - **LiDAR quality stays at 1 square (Poor)**

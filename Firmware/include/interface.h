@@ -10,6 +10,7 @@ void drawFrameTuningConfigUI();
 void drawLensConfigUI();
 void drawMeterConfigUI();
 void drawLidarConfigUI();
+void drawLidarDiagnosticsUI();
 void drawDisplayConfigUI();
 void drawHorizonTrimConfigUI();
 void drawCalibUI();

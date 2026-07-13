@@ -12,10 +12,15 @@ enum class CycleDirection
 void cycleApertures(CycleDirection direction);
 void cycleISOs();
 void cycleLenses();
+// Clamp aperture_index/aperture to the currently selected_lens's valid range.
+// Call after selected_lens changes through any path other than cycleLenses()
+// (which already does this internally).
+void clampApertureToSelectedLens();
 void cycleCalibLenses();
 void cycleFormats();
 void cycleCurrentFrame();
 void cycleFrameOneOffset();
+void cycleLensFocusOffset();
 void cycleFrameSpacingOffset();
 void cycleExposureCompensation(CycleDirection direction);
 void cycleMeterSmoothing();

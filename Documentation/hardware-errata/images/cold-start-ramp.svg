@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <title>Cold-start boot regression: 3.3 V ramp versus reset release</title>
+  <desc>Voltage-versus-time plot. The ESP32-S3 leaves reset at a fixed time set by the EN RC. On a warm restart the bulk capacitor is pre-charged, so the 3.3 V rail is already up and the chip boots. On a cold start after the 47 microfarad bulk has discharged, the rail is still about 2 volts when reset releases, below the 3.0 volt minimum, so the chip browns out and fails to boot.</desc>
+  <rect x="0" y="0" width="760" height="470" fill="#ffffff"/>
+  <text x="380" y="30" text-anchor="middle" font-size="19" font-weight="700" fill="#0f172a">Cold-start boot regression</text>
+  <text x="380" y="50" text-anchor="middle" font-size="12.5" fill="#475569">Added bulk slows the cold 3.3 V ramp past the moment the ESP32-S3 leaves reset.</text>
+
+  <!-- legend -->
+  <g font-size="11.5" fill="#334155">
+    <line x1="430" y1="78" x2="454" y2="78" stroke="#059669" stroke-width="3"/><text x="459" y="82">warm restart (bulk charged)</text>
+    <line x1="430" y1="96" x2="454" y2="96" stroke="#dc2626" stroke-width="3"/><text x="459" y="100">cold start (47 &#181;F discharged)</text>
+  </g>
+
+  <!-- axes -->
+  <line x1="90" y1="110" x2="90" y2="360" stroke="#0f172a" stroke-width="1.5"/>
+  <line x1="90" y1="360" x2="700" y2="360" stroke="#0f172a" stroke-width="1.5"/>
+  <text x="70" y="114" text-anchor="end" font-size="11" fill="#334155">3.3 V</text>
+  <text x="70" y="137" text-anchor="end" font-size="11" fill="#334155">3.0 V</text>
+  <text x="78" y="364" text-anchor="end" font-size="11" fill="#334155">0</text>
+  <text x="690" y="382" text-anchor="end" font-size="11" fill="#475569">time</text>
+
+  <!-- VDD min line -->
+  <line x1="90" y1="133" x2="700" y2="133" stroke="#475569" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <text x="694" y="128" text-anchor="end" font-size="10.5" fill="#475569">ESP32-S3 VDD minimum</text>
+
+  <!-- reset release vertical -->
+  <line x1="300" y1="100" x2="300" y2="360" stroke="#7c3aed" stroke-width="1.6" stroke-dasharray="4 4"/>
+  <text x="300" y="96" text-anchor="middle" font-size="11" font-weight="600" fill="#6d28d9">reset releases (CHIP_PU)</text>
+
+  <!-- warm curve -->
+  <path d="M90,360 Q150,118 215,112 L700,112" fill="none" stroke="#059669" stroke-width="3"/>
+  <!-- cold curve -->
+  <path d="M90,360 C230,352 270,250 360,210 C470,162 580,118 700,112" fill="none" stroke="#dc2626" stroke-width="3"/>
+
+  <!-- markers at t_R -->
+  <circle cx="300" cy="112" r="5" fill="#059669"/>
+  <circle cx="300" cy="232" r="5" fill="#dc2626"/>
+
+  <!-- warm annotation -->
+  <text x="318" y="150" font-size="11" fill="#065f46">warm: rail already 3.3 V at reset &#8594; boots</text>
+  <!-- cold annotation -->
+  <text x="318" y="250" font-size="11" fill="#991b1b">cold: rail still &#8776; 2 V at reset</text>
+  <text x="318" y="266" font-size="11" fill="#991b1b">&#8594; brown-out, no boot</text>
+
+  <!-- fix note -->
+  <rect x="90" y="398" width="610" height="52" rx="7" fill="#f0fdf4" stroke="#059669" stroke-width="1.3"/>
+  <text x="104" y="420" font-size="11.5" font-weight="700" fill="#065f46">Fix</text>
+  <text x="104" y="438" font-size="11.5" fill="#334155">Move the 47 &#181;F behind U1 onto 3V3_LIDAR. The MCU rail returns to its known-good fast ramp, like the warm curve.</text>
+</svg>

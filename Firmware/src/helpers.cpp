@@ -10,6 +10,7 @@
 
 #include "globals.h"
 #include "formats.h"
+#include "lens_spike_logic.h" // LensMovingAverageState
 #include "lenses.h"       // Now includes NUM_LENSES
 #include "mrfconstants.h" // For SMOOTHING_WINDOW_SIZE
 #include "prefs_migration_logic.h"
@@ -22,18 +23,20 @@ const char *PREFS_KEY_SCHEMA = "schema";
 const char *PREFS_KEY_LEGACY_LENSES = "lenses";
 const char *PREFS_KEY_LENS_COUNT = "lc_count";
 const unsigned long PREFS_FLUSH_DELAY_MS = 2000;
+// Backstop: flush this long after the FIRST unflushed change even if activity
+// (e.g. continuous film winding) keeps re-arming the quiet-period timer above,
+// bounding the amount of unsaved state a battery pull could lose.
+const unsigned long PREFS_MAX_DIRTY_AGE_MS = 10000;
 
 bool prefsDirty = false;
 uint8_t prefsDirtyMask = 0;
 unsigned long prefsLastDirtyMs = 0;
+unsigned long prefsFirstDirtyMs = 0;
 
-// Lens-ADC moving-average buffer. Lives here because calcMovingAvg() is the
-// only consumer; previously these four lived in globals.h alongside unrelated
-// session state.
-int movingAvgSamples[SMOOTHING_WINDOW_SIZE];
-int movingAvgIndex = 0;
-int movingAvgTotal = 0;
-int movingAvgValue = 0;
+// Lens-ADC moving-average state. The algorithm (with first-sample priming)
+// lives in lens_spike_logic so the native tests cover it; only the instance
+// lives here.
+LensMovingAverageState lensMovingAvg;
 
 void getLensReadingsKey(size_t lensIndex, char *buffer, size_t bufferSize)
 {
@@ -70,6 +73,7 @@ void writeSettingsPrefs()
   prefs.putInt("selected_format", selected_format);
   prefs.putInt("selected_lens", selected_lens);
   prefs.putBool("parallax", parallaxEnabled);
+  prefs.putInt("lens_foc_off", lens_focus_offset);
   prefs.putInt("ev_comp_thirds", exposure_comp_thirds);
   prefs.putInt("meter_smooth", meter_smoothing_mode);
   prefs.putBool("show_ev", show_ev_readout);
@@ -91,14 +95,15 @@ void writeFilmPrefs()
 {
   prefs.putInt("film_counter", film_counter);
   prefs.putInt("encoder_value", encoder_value);
-  prefs.putInt("prev_encoder_value", prev_encoder_value);
+  // NVS keys are capped at 15 chars; "prev_encoder_value" (18) silently failed
+  // every write and always read back the 0 default.
+  prefs.putInt("prev_enc_val", prev_encoder_value);
   prefs.putInt("frame1_offset", frame_one_offset);
   prefs.putInt("frame_spacing", frame_spacing_offset);
 }
 
 void writePrefsToOpenNamespace(uint8_t dirtyMask)
 {
-  prefs.putUShort(PREFS_KEY_SCHEMA, PREFS_SCHEMA_VERSION);
   if ((dirtyMask & PREFS_DIRTY_SETTINGS) != 0)
   {
     writeSettingsPrefs();
@@ -111,6 +116,13 @@ void writePrefsToOpenNamespace(uint8_t dirtyMask)
   {
     writeLensCalibrationPrefs();
   }
+  // Write the schema marker last. Each Preferences::put* commits individually
+  // to NVS, so during a legacy migration (PREFS_DIRTY_ALL) a power loss after
+  // an earlier schema-first write but before the lens blobs landed would leave
+  // the next boot seeing a current schema with no lens data - the legacy blob
+  // is never consulted again. Writing schema last means any interruption
+  // before this point still reads as the old schema, so migration retries.
+  prefs.putUShort(PREFS_KEY_SCHEMA, PREFS_SCHEMA_VERSION);
 }
 
 void writePrefsNow(uint8_t dirtyMask)
@@ -220,6 +232,7 @@ void clampLoadedState()
 
   frame_one_offset = constrain(frame_one_offset, FRAME_TUNING_MIN, FRAME_TUNING_MAX);
   frame_spacing_offset = constrain(frame_spacing_offset, FRAME_TUNING_MIN, FRAME_TUNING_MAX);
+  lens_focus_offset = constrain(lens_focus_offset, LENS_FOCUS_OFFSET_MIN, LENS_FOCUS_OFFSET_MAX);
 }
 
 void loadLensCalibrationSchemaV2()
@@ -234,12 +247,18 @@ void loadLensCalibrationSchemaV2()
     getLensReadingsKey(lensIndex, readingsKey, sizeof(readingsKey));
     getLensCalibratedKey(lensIndex, calibratedKey, sizeof(calibratedKey));
 
+    // Require an exact size match rather than clamping to the smaller of the
+    // two. ESP32 Preferences::getBytes() refuses (returns 0, copies nothing)
+    // when the destination is smaller than the stored blob, and a stored blob
+    // shorter than expected would otherwise leave the tail zero-filled — both
+    // cases would silently corrupt lenses[lensIndex].sensor_reading while
+    // `calibrated` stays true below. Any shape mismatch keeps the compiled-in
+    // table instead.
     size_t storedReadingBytes = prefs.getBytesLength(readingsKey);
-    if (storedReadingBytes > 0)
+    int loadedReadings[LENS_DISTANCE_POINT_COUNT] = {};
+    if (storedReadingBytes == sizeof(loadedReadings) &&
+        prefs.getBytes(readingsKey, loadedReadings, sizeof(loadedReadings)) == sizeof(loadedReadings))
     {
-      int loadedReadings[LENS_DISTANCE_POINT_COUNT] = {};
-      size_t copyBytes = min(storedReadingBytes, sizeof(loadedReadings));
-      prefs.getBytes(readingsKey, loadedReadings, copyBytes);
       memcpy(lenses[lensIndex].sensor_reading, loadedReadings, sizeof(lenses[lensIndex].sensor_reading));
     }
 
@@ -306,6 +325,7 @@ void loadPrefs()
   iso = prefs.getInt("iso", DEFAULT_ISO);
   aperture_index = prefs.getInt("aperture_index", 0);
   aperture = prefs.getFloat("aperture", 0.0f);
+  lens_focus_offset = prefs.getInt("lens_foc_off", DEFAULT_LENS_FOCUS_OFFSET);
   selected_lens = prefs.getInt("selected_lens", DEFAULT_SELECTED_LENS);
   selected_format = prefs.getInt("selected_format", DEFAULT_SELECTED_FORMAT);
   parallaxEnabled = prefs.getBool("parallax", true);
@@ -330,7 +350,7 @@ void loadPrefs()
   show_horizon_line = prefs.getBool("show_horizon", DEFAULT_SHOW_HORIZON_LINE);
   film_counter = prefs.getInt("film_counter", 0);
   encoder_value = prefs.getInt("encoder_value", 0);
-  prev_encoder_value = prefs.getInt("prev_encoder_value", 0);
+  prev_encoder_value = prefs.getInt("prev_enc_val", 0);
   frame_one_offset = prefs.getInt("frame1_offset", DEFAULT_FRAME_ONE_OFFSET);
   frame_spacing_offset = prefs.getInt("frame_spacing", DEFAULT_FRAME_SPACING_OFFSET);
 
@@ -379,6 +399,10 @@ void savePrefs(bool force, uint8_t dirtyMask)
     return;
   }
 
+  if (!prefsDirty)
+  {
+    prefsFirstDirtyMs = millis();
+  }
   prefsDirty = true;
   prefsDirtyMask |= dirtyMask;
   prefsLastDirtyMs = millis();
@@ -398,7 +422,9 @@ void flushPrefsIfDirty()
   }
 
   unsigned long now = millis();
-  if ((now - prefsLastDirtyMs) < PREFS_FLUSH_DELAY_MS)
+  bool quietPeriodElapsed = (now - prefsLastDirtyMs) >= PREFS_FLUSH_DELAY_MS;
+  bool maxAgeElapsed = (now - prefsFirstDirtyMs) >= PREFS_MAX_DIRTY_AGE_MS;
+  if (!quietPeriodElapsed && !maxAgeElapsed)
   {
     return;
   }
@@ -409,26 +435,12 @@ void flushPrefsIfDirty()
 
 int calcMovingAvg(int sensorVal)
 {
-  int index = constrain(movingAvgIndex, 0, SMOOTHING_WINDOW_SIZE - 1);
-
-  movingAvgTotal = movingAvgTotal - movingAvgSamples[index];
-
-  movingAvgSamples[index] = sensorVal;
-  movingAvgTotal = movingAvgTotal + movingAvgSamples[index];
-  movingAvgIndex = (index + 1) % SMOOTHING_WINDOW_SIZE;
-  movingAvgValue = movingAvgTotal / SMOOTHING_WINDOW_SIZE;
-  return movingAvgValue;
+  return updateLensMovingAverage(lensMovingAvg, sensorVal);
 }
 
 void resetLensMovingAverageState()
 {
-  for (int i = 0; i < SMOOTHING_WINDOW_SIZE; i++)
-  {
-    movingAvgSamples[i] = 0;
-  }
-  movingAvgIndex = 0;
-  movingAvgTotal = 0;
-  movingAvgValue = 0;
+  resetLensMovingAverageState(lensMovingAvg);
 }
 
 int_fast16_t getFocusRadius()

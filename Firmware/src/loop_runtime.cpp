@@ -109,6 +109,7 @@ MenuUiSnapshot captureMenuUiSnapshot()
       calib_capture_status,
       calib_capture_status_ms,
       lens_sensor_reading,
+      lens_focus_offset,
       iso,
       aperture,
       exposure_comp_thirds,
@@ -117,6 +118,7 @@ MenuUiSnapshot captureMenuUiSnapshot()
       parallaxEnabled,
       sleep_timeout_mode,
       lidar_idle_timeout_mode,
+      lidar_distance_offset_mm,
       level_trim_landscape_deci_deg,
       level_trim_portrait_pos_deci_deg,
       level_trim_portrait_neg_deci_deg,
@@ -178,17 +180,32 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
     return true;
   }
 
+  // Clearing calib_capture_status here (rather than inside drawCalibUI) keeps
+  // rendering read-only and guarantees the signature below actually reflects
+  // the expiry, so the redraw-skip cache reliably schedules the redraw that
+  // removes the message instead of leaving it until an unrelated field changes.
+  if (calib_capture_status != CALIB_CAPTURE_STATUS_NONE &&
+      (nowMs - calib_capture_status_ms) >= CALIB_ERROR_HOLD_MS)
+  {
+    calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
+  }
+
   uint32_t signature = buildMenuUiSignature(captureMenuUiSnapshot());
   bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.menuSignature;
   bool healthRefreshDue = (ui_mode == UiMode::Health) &&
                           ((nowMs - cache.lastHealthDrawMs) >= LOOP_UI_HEALTH_REFRESH_MS);
-  if (!changed && !healthRefreshDue)
+  // The diagnostics telemetry is not part of the menu signature, so force a fast
+  // periodic redraw while it is open (reusing the health timestamp — the two
+  // full-screen live views are never active at the same time).
+  bool diagRefreshDue = (ui_mode == UiMode::LidarDiagnostics) &&
+                        ((nowMs - cache.lastHealthDrawMs) >= LOOP_UI_LIDAR_DIAG_REFRESH_MS);
+  if (!changed && !healthRefreshDue && !diagRefreshDue)
   {
     return false;
   }
 
   cache.menuSignature = signature;
-  if (ui_mode == UiMode::Health)
+  if (ui_mode == UiMode::Health || ui_mode == UiMode::LidarDiagnostics)
   {
     cache.lastHealthDrawMs = nowMs;
   }
@@ -273,9 +290,23 @@ bool sendLightMeterCommand(uint8_t command)
     return false;
   }
 
-  Wire.beginTransmission(LIGHTMETER_I2C_ADDR);
-  Wire.write(command);
-  return Wire.endTransmission() == 0;
+  // A single transient I2C NACK during sleep/wake previously disabled the
+  // meter for the rest of the session (no retry path, unlike LiDAR's
+  // Health-screen manual retry). Retry a few times before giving up.
+  for (int attempt = 0; attempt <= LIGHTMETER_I2C_RETRY_COUNT; attempt++)
+  {
+    Wire.beginTransmission(LIGHTMETER_I2C_ADDR);
+    Wire.write(command);
+    if (Wire.endTransmission() == 0)
+    {
+      return true;
+    }
+    if (attempt < LIGHTMETER_I2C_RETRY_COUNT)
+    {
+      delay(LIGHTMETER_I2C_RETRY_DELAY_MS);
+    }
+  }
+  return false;
 }
 
 void powerDownLightMeterForSleep()
@@ -325,6 +356,9 @@ void wakeLightMeterFromSleep()
 
   hardware.lightMeter = true;
   loopState.lightMeterSleeping = false;
+  // Ambient light can change arbitrarily during sleep; don't blend the
+  // pre-sleep EMA into the first post-wake exposure readings.
+  resetLightMeterSmoothing();
 }
 
 // Sleep-wake activity baselines are owned by finaliseSleepServices(): it is
@@ -384,6 +418,21 @@ void resetWakeSchedulerAndActivityBaselines(unsigned long nowMs)
   loopState.lastMeterChangeMs = nowMs;
 }
 
+uint8_t computeTargetBrightnessByte()
+{
+  if (brightness_auto)
+  {
+    float topFraction = static_cast<float>(brightness_auto_top_pct) / 100.0f;
+    float minFraction = static_cast<float>(BRIGHTNESS_AUTO_MIN_PCT) / 100.0f * topFraction;
+    uint8_t topByte = static_cast<uint8_t>(topFraction * 0xFF);
+    uint8_t minByte = static_cast<uint8_t>(minFraction * 0xFF);
+    float clampedLux = constrain(lux, 0.0f, BRIGHTNESS_AUTO_LUX_MAX);
+    float scaled = clampedLux / BRIGHTNESS_AUTO_LUX_MAX;
+    return static_cast<uint8_t>(minByte + scaled * (topByte - minByte));
+  }
+  return static_cast<uint8_t>(brightness_manual_pct * 0xFF / 100);
+}
+
 void beginFadeOutMainDisplay(unsigned long nowMs)
 {
   if (!hardware.mainDisplay)
@@ -392,7 +441,10 @@ void beginFadeOutMainDisplay(unsigned long nowMs)
   }
 
   loopState.fade.active = true;
-  loopState.fade.brightness = 0xFF;
+  // Start from the currently applied contrast, not max brightness: in a dark
+  // room with auto-brightness dimmed, starting at 0xFF flashed the display to
+  // near-maximum for the fade duration before going dark.
+  loopState.fade.brightness = computeTargetBrightnessByte();
   loopState.fade.lastStepMs = nowMs;
 }
 
@@ -428,21 +480,6 @@ void stepFadeOutMainDisplay(unsigned long nowMs)
   {
     loopState.fade.active = false;
   }
-}
-
-uint8_t computeTargetBrightnessByte()
-{
-  if (brightness_auto)
-  {
-    float topFraction = static_cast<float>(brightness_auto_top_pct) / 100.0f;
-    float minFraction = static_cast<float>(BRIGHTNESS_AUTO_MIN_PCT) / 100.0f * topFraction;
-    uint8_t topByte = static_cast<uint8_t>(topFraction * 0xFF);
-    uint8_t minByte = static_cast<uint8_t>(minFraction * 0xFF);
-    float clampedLux = constrain(lux, 0.0f, BRIGHTNESS_AUTO_LUX_MAX);
-    float scaled = clampedLux / BRIGHTNESS_AUTO_LUX_MAX;
-    return static_cast<uint8_t>(minByte + scaled * (topByte - minByte));
-  }
-  return static_cast<uint8_t>(brightness_manual_pct * 0xFF / 100);
 }
 
 void applyDisplayBrightness()
@@ -634,6 +671,9 @@ void drawPrimaryUiForCurrentMode()
     break;
   case UiMode::ReticleAdjust:
     drawReticleAdjustUI();
+    break;
+  case UiMode::LidarDiagnostics:
+    drawLidarDiagnosticsUI();
     break;
   }
 }

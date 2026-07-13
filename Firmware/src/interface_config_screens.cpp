@@ -16,6 +16,7 @@
 #include "interface_menu_helpers.h"
 #include "lenses.h"
 #include "lens_logic.h"
+#include "lidar_logic.h"
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
 
@@ -133,6 +134,11 @@ void drawLensConfigUI()
   u8g2.print(parallaxEnabled ? F("On") : F("Off"));
   u8g2.print(F(" "));
 
+  selectConfigMenuRow(CONFIG_LENS_STEP_FOCUS_OFFSET, config_step == CONFIG_LENS_STEP_FOCUS_OFFSET);
+  u8g2.print(F(" Focus offset: "));
+  printSignedInt(lens_focus_offset);
+  u8g2.print(F(" "));
+
   selectConfigMenuRow(CONFIG_LENS_STEP_CALIB, config_step == CONFIG_LENS_STEP_CALIB);
   u8g2.print(F(" Lens Calibration > "));
 
@@ -191,8 +197,80 @@ void drawLidarConfigUI()
   u8g2.print(getSleepTimeoutModeLabel(lidar_idle_timeout_mode));
   u8g2.print(F(" "));
 
+  selectConfigMenuRow(CONFIG_LIDAR_STEP_DIAGNOSTICS, config_step == CONFIG_LIDAR_STEP_DIAGNOSTICS);
+  u8g2.print(F(" Diagnostics >> "));
+
   selectConfigMenuRow(CONFIG_LIDAR_STEP_BACK, config_step == CONFIG_LIDAR_STEP_BACK);
   u8g2.print(F(" Back << "));
+
+  display.display();
+}
+
+// Live LiDAR telemetry. Field testers aim at a target and read back exactly what
+// the sensor returns, so range/lock failures can be diagnosed from data instead
+// of guesses. Values are updated each frame in setDistance(); see the field-test
+// protocol in Documentation/hardware-errata/lidar-field-test.md.
+void drawLidarDiagnosticsUI()
+{
+  preparePrimaryDisplayTextMode();
+
+  u8g2.setFont(u8g2_font_6x10_mf);
+  u8g2.setCursor(HEALTH_TITLE_X, HEALTH_TITLE_Y);
+  u8g2.print(F("LiDAR Diagnostics"));
+
+  u8g2.setFont(u8g2_font_4x6_mf);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 0));
+  // Library-calibrated primary distance (raw sensor * scale + geometry offset),
+  // before the pipeline's near-range correction. Shown in the same domain the
+  // correction consumes, so a near-range calibration table (bd 4p9) built from
+  // this line stays coherent with applyLidarCalibrationCm().
+  u8g2.print(F("Raw: "));
+  u8g2.print(lidar_raw_distance_mm);
+  u8g2.print(F("mm  Disp: "));
+  u8g2.print(distance_cm);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 1));
+  u8g2.print(F("Intensity: "));
+  u8g2.print(lidar_primary_intensity);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 2));
+  u8g2.print(F("SunBase: "));
+  u8g2.print(lidar_sunlight_base);
+  u8g2.print(F("  SNR: "));
+  u8g2.print(lidar_snr_permille);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 3));
+  u8g2.print(F("Quality: "));
+  u8g2.print(lidar_quality_level);
+  u8g2.print(F("  Held: "));
+  u8g2.print(lidar_distance_held ? F("Y") : F("N"));
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 4));
+  u8g2.print(F("fps req:"));
+  u8g2.print(LIDAR_FRAME_RATE_FPS);
+  u8g2.print(F(" meas:"));
+  u8g2.print(lidar_frame_rate_measured);
+  // Age of the telemetry above — a climbing value means the sensor has stopped
+  // producing frames and the numbers on this screen are stale.
+  char ageText[8];
+  formatLidarTelemetryAge(static_cast<uint32_t>(millis()),
+                          static_cast<uint32_t>(lidar_telemetry_ms),
+                          ageText,
+                          sizeof(ageText));
+  u8g2.print(F(" Age:"));
+  u8g2.print(ageText);
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 5));
+  u8g2.print(F("err:"));
+  u8g2.print(last_lidar_error_code);
+  u8g2.print(F("  Recov:"));
+  u8g2.print(lidar_recovery_count);
+  u8g2.print(F("  Sun:"));
+  u8g2.print(lidar_high_sunlight ? F("Hi") : F("Ok"));
+
+  u8g2.setCursor(HEALTH_ITEM_X, HEALTH_FOOTER_Y);
+  u8g2.print(F(" (L/R) Back"));
 
   display.display();
 }
@@ -406,27 +484,30 @@ void drawCalibUI()
     u8g2.setCursor(CALIB_ITEM_X, CALIB_HELP_Y3);
     u8g2.print(F(" (R) to Cancel"));
 
-    // Show error for at least CALIB_ERROR_HOLD_MS, then auto-clear.
-    if (calib_capture_status != CALIB_CAPTURE_STATUS_NONE)
+    // Rendering only: the hold-window expiry that clears calib_capture_status
+    // back to NONE runs in the loop (shouldDrawPrimaryUi), not here, so a
+    // render never mutates state and a menu redraw is reliably scheduled
+    // when the status changes.
+    if (calib_capture_status == CALIB_CAPTURE_STATUS_UNSTABLE)
     {
-      if ((millis() - calib_capture_status_ms) >= CALIB_ERROR_HOLD_MS)
-      {
-        calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
-      }
-      else if (calib_capture_status == CALIB_CAPTURE_STATUS_UNSTABLE)
-      {
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
-        u8g2.print(F(" Unstable reading"));
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
-        u8g2.print(F(" Hold lens still and retry"));
-      }
-      else if (calib_capture_status == CALIB_CAPTURE_STATUS_NON_MONOTONIC)
-      {
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
-        u8g2.print(F(" Out of sequence"));
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
-        u8g2.print(F(" Increase focus distance"));
-      }
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+      u8g2.print(F(" Unstable reading"));
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+      u8g2.print(F(" Hold lens still and retry"));
+    }
+    else if (calib_capture_status == CALIB_CAPTURE_STATUS_NON_MONOTONIC)
+    {
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+      u8g2.print(F(" Out of sequence"));
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+      u8g2.print(F(" Increase focus distance"));
+    }
+    else if (calib_capture_status == CALIB_CAPTURE_STATUS_WRONG_DIRECTION)
+    {
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+      u8g2.print(F(" Readings decreasing"));
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+      u8g2.print(F(" Sensor wired backward?"));
     }
   }
 

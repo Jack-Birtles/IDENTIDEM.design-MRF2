@@ -87,6 +87,25 @@ bool isMonotonicCalibSequenceWithCandidate(int candidateReading)
   return validateMonotonicCalibration(readings, readingCount, CALIB_MONOTONIC_MIN_STEP);
 }
 
+bool isAscendingCalibSequenceWithCandidate(int candidateReading)
+{
+  const int calibrationPointCount = getCalibrationPointCountForLens(lenses[calib_lens]);
+  if (current_calib_distance >= calibrationPointCount)
+  {
+    return false;
+  }
+
+  int readingCount = current_calib_distance + 1;
+  int readings[CALIB_DISTANCE_COUNT];
+  for (int i = 0; i < current_calib_distance; i++)
+  {
+    readings[i] = calib_distance_set[i];
+  }
+  readings[current_calib_distance] = candidateReading;
+
+  return isAscendingCalibration(readings, readingCount);
+}
+
 void handleLeftButtonShortPress()
 {
   bool wasSleeping = sleepMode;
@@ -172,7 +191,13 @@ void handleLeftButtonShortPress()
       {
         const int calibrationPointCount = getCalibrationPointCountForLens(lenses[calib_lens]);
         int averagedReading = 0;
-        if (!captureStableCalibReading(averagedReading))
+        bool captureOk = captureStableCalibReading(averagedReading);
+        // The capture above blocks for ~160ms (8 ADC samples) with the LiDAR
+        // UART still streaming in Calib mode; clean up afterward the same way
+        // the longer calibration-complete block already does, regardless of
+        // whether this particular reading was accepted.
+        recoverLidarAfterBlockingUi();
+        if (!captureOk)
         {
           calib_capture_status = CALIB_CAPTURE_STATUS_UNSTABLE;
           calib_capture_status_ms = millis();
@@ -180,6 +205,13 @@ void handleLeftButtonShortPress()
         else if (!isMonotonicCalibSequenceWithCandidate(averagedReading))
         {
           calib_capture_status = CALIB_CAPTURE_STATUS_NON_MONOTONIC;
+          calib_capture_status_ms = millis();
+        }
+        else if (!isAscendingCalibSequenceWithCandidate(averagedReading))
+        {
+          // Monotonic but decreasing: the sensor reads backwards. Stored as-is it
+          // would give an inverted focus readout, so reject with clear guidance.
+          calib_capture_status = CALIB_CAPTURE_STATUS_WRONG_DIRECTION;
           calib_capture_status_ms = millis();
         }
         else
@@ -208,6 +240,10 @@ void handleLeftButtonShortPress()
               lenses[calib_lens].sensor_reading[i] = (i < calibrationPointCount) ? calib_distance_set[i] : 0;
             }
             selected_lens = calib_lens;
+            // The just-calibrated lens may not share the previously selected
+            // lens's aperture range (or even its count); clamp before it is
+            // used for metering.
+            clampApertureToSelectedLens();
             savePrefs(true);
 
             // Show full-screen success and pulse LED before leaving calibration.
@@ -231,6 +267,9 @@ void handleLeftButtonShortPress()
             }
 
             delay(CALIB_COMPLETE_HOLD_MS);
+            // The ~2 s of blocking celebration above starved the LiDAR UART
+            // past its 256-byte RX buffer; clean up before polling resumes.
+            recoverLidarAfterBlockingUi();
             config_step = CONFIG_LENS_STEP_CALIB;
             ui_mode = UiMode::ConfigLens;
           }
@@ -248,6 +287,11 @@ void handleLeftButtonShortPress()
   {
     ui_mode = UiMode::Config;
     config_step = CONFIG_ROOT_STEP_HEALTH;
+  }
+  else if (ui_mode == UiMode::LidarDiagnostics)
+  {
+    ui_mode = UiMode::ConfigLidar;
+    config_step = CONFIG_LIDAR_STEP_DIAGNOSTICS;
   }
   else if (ui_mode == UiMode::FactoryResetConfirm)
   {
@@ -271,7 +315,13 @@ void handleReticleAdjustLongPress()
 
 void handleLeftButtonLongPress()
 {
+  bool wasSleeping = sleepMode;
   registerActivity();
+  if (wasSleeping)
+  {
+    return;
+  }
+
   if (ui_mode == UiMode::ReticleAdjust)
   {
     handleReticleAdjustLongPress();
@@ -280,7 +330,13 @@ void handleLeftButtonLongPress()
 
 void handleRightButtonLongPress()
 {
+  bool wasSleeping = sleepMode;
   registerActivity();
+  if (wasSleeping)
+  {
+    return;
+  }
+
   if (ui_mode == UiMode::Main)
   {
     ui_mode = UiMode::Config;
@@ -370,6 +426,9 @@ void handleRightShortConfigLens()
     parallaxEnabled = !parallaxEnabled;
     savePrefs();
   }
+  else if (config_step == CONFIG_LENS_STEP_FOCUS_OFFSET) {
+    cycleLensFocusOffset();
+  }
   else if (config_step == CONFIG_LENS_STEP_CALIB) {
     calib_step = 0;
     calib_lens = selected_lens; // Use current selected lens for calibration
@@ -439,6 +498,9 @@ void handleRightShortConfigLidar()
   }
   else if (config_step == CONFIG_LIDAR_STEP_IDLE_TIMEOUT) {
     cycleLidarIdleTimeoutMode();
+  }
+  else if (config_step == CONFIG_LIDAR_STEP_DIAGNOSTICS) {
+    ui_mode = UiMode::LidarDiagnostics;
   }
   else if (config_step == CONFIG_LIDAR_STEP_BACK) {
     config_step = CONFIG_ROOT_STEP_LIDAR_MENU;
@@ -552,6 +614,10 @@ void handleRightButtonShortPress()
     break;
   case UiMode::FactoryResetConfirm:
     performFactoryReset();
+    break;
+  case UiMode::LidarDiagnostics:
+    ui_mode = UiMode::ConfigLidar;
+    config_step = CONFIG_LIDAR_STEP_DIAGNOSTICS;
     break;
   }
 }

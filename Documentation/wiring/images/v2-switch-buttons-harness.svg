@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 648" font-family="-apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <title>v2 (MRF-Pro-v8) power switch and buttons harness — J4</title>
+  <desc>Wiring diagram for the 8-pin JST-SH connector J4 on the MRF-Pro-v8 main board, which carries one DPDT power switch and two momentary buttons. J4 pin 1, 2, 3 are GND. Pin 4 is EN (Feather J2 pin 11). Pin 5 is the right button, Feather D10 (J2 pin 6). Pin 6 is the left button, Feather D9 (J2 pin 5). Pin 7 is 3.3OUT, switched 3.3 V to FPC pin 6. Pin 8 is 3.3IN, the Feather 3.3 V source from J1 pin 2. DPDT pole A switches 3.3IN to 3.3OUT. Pole B ties EN to GND to hold the ESP32-S3 in reset when off. Each button connects its GPIO pin to GND when pressed.</desc>
+
+  <rect x="0" y="0" width="1000" height="620" fill="#ffffff"/>
+  <text x="500" y="32" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">v2 (MRF-Pro-v8) &#8212; power switch + buttons harness</text>
+  <text x="500" y="53" text-anchor="middle" font-size="13" fill="#475569">Main board connector J4 &#183; 8-pin JST-SH 1.0 mm</text>
+
+  <!-- wire-colour legend -->
+  <g font-size="12" fill="#334155">
+    <line x1="250" y1="78" x2="284" y2="78" stroke="#d32f2f" stroke-width="3"/><text x="290" y="82">3.3 V</text>
+    <line x1="360" y1="78" x2="394" y2="78" stroke="#111827" stroke-width="3"/><text x="400" y="82">GND</text>
+    <line x1="460" y1="78" x2="494" y2="78" stroke="#1565c0" stroke-width="3"/><text x="500" y="82">EN / control</text>
+    <line x1="600" y1="78" x2="634" y2="78" stroke="#6a1b9a" stroke-width="3"/><text x="640" y="82">button</text>
+  </g>
+
+  <!-- ===================== J4 connector ===================== -->
+  <rect x="70" y="150" width="210" height="330" rx="6" fill="#f1f5f9" stroke="#0f172a" stroke-width="2"/>
+  <rect x="70" y="150" width="210" height="26" rx="6" fill="#0f172a"/>
+  <text x="175" y="168" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">J4 &#183; 8-pin JST-SH</text>
+  <polygon points="84,190 92,186 92,194" fill="#0f172a"/>
+  <text x="98" y="193" font-size="9" fill="#64748b">pin 1</text>
+
+  <!-- pins: y = 210 + i*35 -->
+  <!-- each pin: label left, number pad at right edge (x=250..270) -->
+  <g font-size="12.5" fill="#0f172a" font-weight="600">
+    <text x="150" y="214" text-anchor="end">GND</text>
+    <text x="150" y="249" text-anchor="end">GND</text>
+    <text x="150" y="284" text-anchor="end">GND</text>
+    <text x="150" y="319" text-anchor="end">EN</text>
+    <text x="150" y="354" text-anchor="end">D10</text>
+    <text x="150" y="389" text-anchor="end">D9</text>
+    <text x="150" y="424" text-anchor="end">3.3OUT</text>
+    <text x="150" y="459" text-anchor="end">3.3IN</text>
+  </g>
+  <g font-size="9" fill="#64748b">
+    <text x="150" y="331" text-anchor="end">J2.11</text>
+    <text x="150" y="366" text-anchor="end">J2.6</text>
+    <text x="150" y="401" text-anchor="end">J2.5</text>
+    <text x="150" y="436" text-anchor="end">&#8594; FPC 6</text>
+    <text x="150" y="471" text-anchor="end">&#8592; J1.2</text>
+  </g>
+  <!-- pin pads -->
+  <g font-size="11" font-weight="700" fill="#fff">
+    <rect x="252" y="200" width="20" height="20" rx="3" fill="#111827"/><text x="262" y="215" text-anchor="middle">1</text>
+    <rect x="252" y="235" width="20" height="20" rx="3" fill="#111827"/><text x="262" y="250" text-anchor="middle">2</text>
+    <rect x="252" y="270" width="20" height="20" rx="3" fill="#111827"/><text x="262" y="285" text-anchor="middle">3</text>
+    <rect x="252" y="305" width="20" height="20" rx="3" fill="#1565c0"/><text x="262" y="320" text-anchor="middle">4</text>
+    <rect x="252" y="340" width="20" height="20" rx="3" fill="#6a1b9a"/><text x="262" y="355" text-anchor="middle">5</text>
+    <rect x="252" y="375" width="20" height="20" rx="3" fill="#6a1b9a"/><text x="262" y="390" text-anchor="middle">6</text>
+    <rect x="252" y="410" width="20" height="20" rx="3" fill="#d32f2f"/><text x="262" y="425" text-anchor="middle">7</text>
+    <rect x="252" y="445" width="20" height="20" rx="3" fill="#d32f2f"/><text x="262" y="460" text-anchor="middle">8</text>
+  </g>
+
+  <!-- ===================== GND trunk ===================== -->
+  <!-- vertical GND bus at x=360 collecting pins 1,2,3 + pole B + button commons -->
+  <polyline points="272,210 360,210" fill="none" stroke="#111827" stroke-width="2.5"/>
+  <polyline points="272,245 360,245" fill="none" stroke="#111827" stroke-width="2.5"/>
+  <polyline points="272,280 360,280" fill="none" stroke="#111827" stroke-width="2.5"/>
+  <line x1="360" y1="210" x2="360" y2="540" stroke="#111827" stroke-width="2.5"/>
+  <circle cx="360" cy="210" r="3.5" fill="#111827"/>
+  <circle cx="360" cy="245" r="3.5" fill="#111827"/>
+  <circle cx="360" cy="280" r="3.5" fill="#111827"/>
+  <!-- ground symbol -->
+  <line x1="360" y1="540" x2="360" y2="552" stroke="#111827" stroke-width="2.5"/>
+  <line x1="345" y1="552" x2="375" y2="552" stroke="#111827" stroke-width="2.5"/>
+  <line x1="350" y1="558" x2="370" y2="558" stroke="#111827" stroke-width="2.5"/>
+  <line x1="355" y1="564" x2="365" y2="564" stroke="#111827" stroke-width="2.5"/>
+  <text x="384" y="556" font-size="11" fill="#334155">GND</text>
+
+  <!-- ===================== DPDT switch (6 pins) — shown OFF ===================== -->
+  <rect x="640" y="150" width="300" height="224" rx="8" fill="#fff" stroke="#0f172a" stroke-width="1.6"/>
+  <text x="790" y="170" text-anchor="middle" font-size="13.5" font-weight="700" fill="#0f172a">DPDT power switch &#183; 6 pins</text>
+  <text x="790" y="186" text-anchor="middle" font-size="10.5" fill="#64748b">shown OFF &#183; ganged: one pole makes as the other breaks</text>
+
+  <!-- pole A: OPEN in OFF -> 3.3 V broken -->
+  <text x="655" y="212" font-size="10.5" font-weight="600" fill="#b91c1c">Pole A &#183; 3.3 V gate &#8212; <tspan font-weight="700">OPEN</tspan></text>
+  <text x="662" y="233" text-anchor="end" font-size="8" fill="#94a3b8">COM</text>
+  <circle cx="672" cy="240" r="4" fill="#d32f2f"/><text x="662" y="244" text-anchor="end" font-size="9.5" fill="#334155">3.3IN</text>
+  <line x1="672" y1="240" x2="736" y2="231" stroke="#d32f2f" stroke-width="2.5"/>
+  <text x="752" y="236" font-size="13" font-weight="700" fill="#b91c1c">&#10005;</text>
+  <circle cx="780" cy="224" r="4" fill="#d32f2f"/><text x="790" y="228" font-size="9.5" fill="#334155">3.3OUT</text>
+  <circle cx="780" cy="258" r="4" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><text x="790" y="262" font-size="9.5" fill="#94a3b8">n/c</text>
+  <text x="668" y="256" font-size="8.5" font-weight="700" fill="#b91c1c">3.3 V broken</text>
+
+  <!-- pole B: CLOSED in OFF -> EN to GND -->
+  <text x="655" y="300" font-size="10.5" font-weight="600" fill="#1565c0">Pole B &#183; EN hold-off &#8212; <tspan fill="#047857" font-weight="700">CLOSED</tspan></text>
+  <text x="662" y="321" text-anchor="end" font-size="8" fill="#94a3b8">COM</text>
+  <circle cx="672" cy="328" r="4" fill="#1565c0"/><text x="662" y="332" text-anchor="end" font-size="9.5" fill="#334155">EN</text>
+  <circle cx="780" cy="312" r="4" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><text x="790" y="316" font-size="9.5" fill="#94a3b8">n/c</text>
+  <line x1="672" y1="328" x2="776" y2="344" stroke="#111827" stroke-width="2.5"/>
+  <circle cx="780" cy="346" r="4" fill="#111827"/><text x="790" y="350" font-size="9.5" fill="#334155">GND</text>
+  <text x="690" y="366" font-size="8.5" font-weight="700" fill="#047857">EN pulled to GND</text>
+
+  <!-- ganging bar -->
+  <line x1="726" y1="231" x2="726" y2="336" stroke="#0f172a" stroke-width="1.6" stroke-dasharray="3 3"/>
+  <text x="732" y="286" font-size="8.5" fill="#334155">ganged</text>
+
+  <!-- wires J4 -> switch (orthogonal) -->
+  <!-- pin 8 (3.3IN) to pole A COM -->
+  <polyline points="272,455 610,455 610,240 668,240" fill="none" stroke="#d32f2f" stroke-width="2.5"/>
+  <text x="470" y="449" font-size="10" fill="#b91c1c">3.3IN (from Feather 3.3 V)</text>
+  <!-- pin 7 (3.3OUT) to pole A used throw -->
+  <polyline points="272,420 592,420 592,224 776,224" fill="none" stroke="#d32f2f" stroke-width="2.5"/>
+  <text x="470" y="414" font-size="10" fill="#b91c1c">3.3OUT (&#8594; FPC pin 6)</text>
+  <!-- pin 4 (EN) to pole B COM -->
+  <polyline points="272,315 574,315 574,328 668,328" fill="none" stroke="#1565c0" stroke-width="2.5"/>
+  <text x="410" y="309" font-size="10" fill="#1565c0">EN</text>
+  <!-- pole B used throw GND to trunk -->
+  <polyline points="784,346 900,346 900,500 360,500" fill="none" stroke="#111827" stroke-width="2.2"/>
+  <circle cx="360" cy="500" r="3.5" fill="#111827"/>
+
+  <!-- ===================== buttons ===================== -->
+  <rect x="640" y="392" width="300" height="150" rx="8" fill="#fff" stroke="#0f172a" stroke-width="1.6"/>
+  <text x="790" y="416" text-anchor="middle" font-size="13.5" font-weight="700" fill="#0f172a">Momentary buttons</text>
+  <text x="790" y="433" text-anchor="middle" font-size="10.5" fill="#64748b">8 mm &#183; press shorts GPIO &#8594; GND</text>
+  <!-- right button symbol -->
+  <text x="742" y="456" font-size="11" fill="#6a1b9a" font-weight="600">Right &#183; D10</text>
+  <circle cx="742" cy="472" r="4" fill="#6a1b9a"/>
+  <line x1="742" y1="472" x2="800" y2="472" stroke="#6a1b9a" stroke-width="2.2"/>
+  <line x1="770" y1="464" x2="790" y2="464" stroke="#6a1b9a" stroke-width="2.2"/>
+  <circle cx="800" cy="472" r="4" fill="#111827"/><text x="810" y="476" font-size="10" fill="#334155">GND</text>
+  <!-- left button symbol -->
+  <text x="742" y="498" font-size="11" fill="#6a1b9a" font-weight="600">Left &#183; D9</text>
+  <circle cx="742" cy="514" r="4" fill="#6a1b9a"/>
+  <line x1="742" y1="514" x2="800" y2="514" stroke="#6a1b9a" stroke-width="2.2"/>
+  <line x1="770" y1="506" x2="790" y2="506" stroke="#6a1b9a" stroke-width="2.2"/>
+  <circle cx="800" cy="514" r="4" fill="#111827"/><text x="810" y="518" font-size="10" fill="#334155">GND</text>
+
+  <!-- wires J4 -> buttons -->
+  <polyline points="272,350 620,350 620,472 738,472" fill="none" stroke="#6a1b9a" stroke-width="2.5"/>
+  <polyline points="272,385 604,385 604,514 738,514" fill="none" stroke="#6a1b9a" stroke-width="2.5"/>
+  <!-- button GND returns to trunk -->
+  <polyline points="804,472 930,472 930,530 360,530" fill="none" stroke="#111827" stroke-width="2.2"/>
+  <polyline points="804,514 918,514 918,530" fill="none" stroke="#111827" stroke-width="2.2"/>
+  <circle cx="360" cy="530" r="3.5" fill="#111827"/>
+  <circle cx="918" cy="530" r="3.5" fill="#111827"/>
+
+  <!-- ===================== notes ===================== -->
+  <line x1="70" y1="584" x2="940" y2="584" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="70" y="604" font-size="11" fill="#b91c1c" font-weight="700">Ganged: pulling EN to GND (OFF) also OPENS pole A, breaking the 3.3 V to the breakout &#8212; power and MCU-enable are cut together.</text>
+  <text x="70" y="623" font-size="10.5" fill="#334155"><tspan font-weight="700" fill="#047857">ON:</tspan> pole A closed (3.3 V &#8594; breakout), pole B open (EN released). Verify Feather pins vs the Adafruit pinout.</text>
+</svg>

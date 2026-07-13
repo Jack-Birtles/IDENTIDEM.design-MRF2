@@ -3,16 +3,37 @@
 #include <Arduino.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "mrfconstants.h"
 
-namespace
+// File scope (not the anonymous namespace) so the diagnostics screen and unit
+// tests can call it; the in-namespace helpers below also use it.
+int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
 {
-int applyLidarCalibrationCm(int raw_cm)
+  if (sunlight_base == 0)
+  {
+    return -1;
+  }
+
+  return static_cast<int>((static_cast<unsigned long>(intensity) * 1000UL) /
+                          static_cast<unsigned long>(sunlight_base));
+}
+
+int applyLidarCalibrationCm(int raw_cm, int offset_delta_cm)
 {
   if (raw_cm <= 0)
   {
     return raw_cm;
+  }
+
+  // The 130->100 anchor was measured with the default geometry offset already
+  // applied library-side. A different offset pref shifts every reading by the
+  // delta, which would silently invalidate the anchor: evaluate the correction
+  // in the default-offset frame and re-add the delta afterwards.
+  if (offset_delta_cm != 0)
+  {
+    return applyLidarCalibrationCm(raw_cm - offset_delta_cm, 0) + offset_delta_cm;
   }
 
   if (raw_cm >= static_cast<int>(LIDAR_CAL_CUTOFF_CM))
@@ -36,9 +57,19 @@ int applyLidarCalibrationCm(int raw_cm)
 
   float raw_cm_f = static_cast<float>(raw_cm);
   float scaled = raw_cm_f * powf(raw_cm_f / LIDAR_CAL_CUTOFF_CM, exponent);
-  return static_cast<int>(roundf(scaled));
+  int corrected_cm = static_cast<int>(roundf(scaled));
+
+  // Interim guard until the measured piecewise table lands (bd 4p9): the single
+  // reference-point power law over-corrects below the anchor (raw 65cm -> 14cm),
+  // dropping real sub-metre subjects below the display floor. Never remove more
+  // than (100 - LIDAR_CAL_MIN_OUTPUT_PCT)% of the raw distance. The measured
+  // anchor (130 -> 100, 77%) sits well above the floor and is unaffected.
+  int floor_cm = raw_cm * LIDAR_CAL_MIN_OUTPUT_PCT / 100;
+  return max(corrected_cm, floor_cm);
 }
 
+namespace
+{
 struct QualityProfile
 {
   int base_score;
@@ -122,18 +153,6 @@ int snrTargetPermilleForDistanceCm(int raw_cm)
   return lookupByDistance(raw_cm, tiers);
 }
 
-int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
-{
-  if (sunlight_base == 0)
-  {
-    return -1;
-  }
-
-  int sunlight = max(1, static_cast<int>(sunlight_base));
-  return static_cast<int>((static_cast<unsigned long>(intensity) * 1000UL) /
-                          static_cast<unsigned long>(sunlight));
-}
-
 bool shouldRejectBySnrFloor(int raw_cm, uint16_t intensity, uint16_t sunlight_base)
 {
   int snr_permille = computeSnrPermille(intensity, sunlight_base);
@@ -182,7 +201,8 @@ struct LidarReading
 // distance. Each builder layers its own additional reject checks on top.
 LidarReading prepareLidarReading(uint16_t raw_distance_mm,
                                  uint16_t intensity,
-                                 uint16_t sunlight_base)
+                                 uint16_t sunlight_base,
+                                 int offset_delta_cm)
 {
   LidarReading reading = {false, 0, 0};
   if (raw_distance_mm == DTS_INVALID_DISTANCE)
@@ -190,7 +210,9 @@ LidarReading prepareLidarReading(uint16_t raw_distance_mm,
     return reading;
   }
 
-  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
+  // Round to the nearest cm; plain division truncated, biasing every reading
+  // 0-9 mm short.
+  int raw_cm = (static_cast<int>(raw_distance_mm) + LIDAR_DISTANCE_DIVISOR / 2) / LIDAR_DISTANCE_DIVISOR;
   if (raw_cm <= 0)
   {
     return reading;
@@ -201,7 +223,7 @@ LidarReading prepareLidarReading(uint16_t raw_distance_mm,
     return reading;
   }
 
-  int corrected_cm = applyLidarCalibrationCm(raw_cm);
+  int corrected_cm = applyLidarCalibrationCm(raw_cm, offset_delta_cm);
   if (corrected_cm <= 0)
   {
     return reading;
@@ -217,10 +239,11 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
                                            uint16_t intensity,
                                            uint16_t sunlight_base,
                                            DataQuality quality,
-                                           int previous_distance_cm)
+                                           int previous_distance_cm,
+                                           int offset_delta_cm)
 {
   LidarCandidate candidate = {false, 0, 0, 0};
-  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base, offset_delta_cm);
   if (!reading.valid)
   {
     return candidate;
@@ -265,11 +288,12 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
                                    bool secondary_candidate,
                                    int previous_distance_cm,
                                    bool has_lens_prior,
-                                   int lens_prior_cm)
+                                   int lens_prior_cm,
+                                   int offset_delta_cm)
 {
   LidarCandidate candidate = {false, 0, 0, 0};
 
-  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base, offset_delta_cm);
   if (!reading.valid)
   {
     return candidate;
@@ -328,7 +352,10 @@ LidarCandidate fuseLidarCandidates(const LidarCandidate &primary, const LidarCan
                               (secondary.distance_cm * secondary.confidence);
   int fused_distance_cm = static_cast<int>(roundf(static_cast<float>(weighted_distance_sum) /
                                                   static_cast<float>(weight_sum)));
-  int fused_confidence = constrain(((primary.confidence + secondary.confidence) / 2) +
+  // Take the stronger candidate's confidence (not the average) so a weak but
+  // agreeing secondary can only add the agreement bonus, never demote a confident
+  // primary. Mirrors the max() used for the fused quality level just below.
+  int fused_confidence = constrain(max(primary.confidence, secondary.confidence) +
                                        LIDAR_FUSION_CONF_BONUS,
                                    0,
                                    100);
@@ -357,7 +384,8 @@ LidarCandidate selectBestPair(const LidarCandidate &primary, const LidarCandidat
 LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                         int previous_distance_cm,
                                         bool has_lens_prior,
-                                        int lens_prior_cm)
+                                        int lens_prior_cm,
+                                        int offset_delta_cm)
 {
   LidarCandidate primary = buildLidarCandidate(measurement.primaryDistance_mm,
                                                measurement.primaryIntensity,
@@ -366,7 +394,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                false,
                                                previous_distance_cm,
                                                has_lens_prior,
-                                               lens_prior_cm);
+                                               lens_prior_cm,
+                                               offset_delta_cm);
 
   // Only build secondary candidate when a dual-peak target is present
   // (valid distance AND non-zero intensity, matching library hasSecondaryTarget() logic).
@@ -388,7 +417,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                     true,
                                     previous_distance_cm,
                                     has_lens_prior,
-                                    lens_prior_cm);
+                                    lens_prior_cm,
+                                    offset_delta_cm);
   }
 
   if (primary.valid || secondary.valid)
@@ -402,7 +432,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                                measurement.primaryIntensity,
                                                                measurement.sunlightBase,
                                                                measurement.primaryQuality,
-                                                               previous_distance_cm);
+                                                               previous_distance_cm,
+                                                               offset_delta_cm);
   if (!has_secondary)
   {
     return fallbackPrimary;
@@ -417,11 +448,12 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                                  measurement.secondaryIntensity,
                                                                  measurement.sunlightBase,
                                                                  fb_secondary_quality,
-                                                                 previous_distance_cm);
+                                                                 previous_distance_cm,
+                                                                 offset_delta_cm);
   return selectBestPair(fallbackPrimary, fallbackSecondary);
 }
 
-bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
+bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm, int quality_level)
 {
   if (lens_prior_cm <= 0 || lens_prior_cm > LIDAR_PLAUSIBILITY_LENS_NEAR_CM)
   {
@@ -431,7 +463,21 @@ bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm)
   {
     return false;
   }
-  return lidar_distance_cm > lens_prior_cm + LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM;
+  // Parallax beam-miss error grows with distance, so scale the allowed overshoot
+  // with the prior, never below the near-focus floor.
+  int allowance_cm = max(LIDAR_PLAUSIBILITY_MAX_OVERSHOOT_CM,
+                         lens_prior_cm * LIDAR_PLAUSIBILITY_OVERSHOOT_FACTOR_PCT / 100);
+  // A confident (GOOD/EXCELLENT) return earns a wider allowance — it is more
+  // likely locking a real far subject than missing the framed one. But the sensor
+  // grades quality AFTER distance-normalization, so a far beam-miss onto a bright
+  // background can still read GOOD; keep the allowance finite so a gross overshoot
+  // is rejected regardless of grade.
+  if (quality_level >= LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL)
+  {
+    allowance_cm = max(allowance_cm,
+                       lens_prior_cm * LIDAR_PLAUSIBILITY_TRUST_OVERSHOOT_FACTOR_PCT / 100);
+  }
+  return lidar_distance_cm > lens_prior_cm + allowance_cm;
 }
 
 bool updatePlausibilityHold(PlausibilityHoldState &state,
@@ -553,4 +599,48 @@ void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize)
            "%.*fm",
            decimalPlaces,
            static_cast<float>(corrected_cm) / static_cast<float>(CM_PER_METER));
+}
+
+const char *lidarSignalLossPlaceholder(int prev_distance_cm, const char *current_display)
+{
+  // clearLidarDisplay() resets prev_distance to 0 on the first dropped frame, so
+  // every later frame in a continuing dropout would recompute "..." from a zeroed
+  // prior and the brief "Inf?" would never be seen. The shown string carries the
+  // far state across that reset: once we are already marking a far dropout ("Inf?")
+  // or held a genuine far measurement ("Inf."), keep marking it until a valid
+  // reading replaces the display. Standby ("Zzz") and near dropouts ("...") are
+  // not far states, so a fresh decision is taken from prev_distance.
+  if (current_display &&
+      (strcmp(current_display, "Inf?") == 0 || strcmp(current_display, "Inf.") == 0))
+  {
+    return "Inf?";
+  }
+  return prev_distance_cm >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf?" : "...";
+}
+
+void formatLidarTelemetryAge(uint32_t now_ms, uint32_t telemetry_ms, char *buffer, size_t bufferSize)
+{
+  if (!buffer || bufferSize == 0)
+  {
+    return;
+  }
+
+  if (telemetry_ms == 0)
+  {
+    snprintf(buffer, bufferSize, "--");
+    return;
+  }
+
+  uint32_t age_ms = now_ms - telemetry_ms;
+  if (age_ms < 1000UL)
+  {
+    snprintf(buffer, bufferSize, "%lums", static_cast<unsigned long>(age_ms));
+    return;
+  }
+  if (age_ms > 99000UL)
+  {
+    snprintf(buffer, bufferSize, ">99s");
+    return;
+  }
+  snprintf(buffer, bufferSize, "%.1fs", static_cast<double>(age_ms) / 1000.0);
 }

@@ -41,10 +41,21 @@ DTSConfig makeLidarConfig()
   config.baudRate = LIDAR_BAUD_RATE;
   config.timeout_ms = LIDAR_NO_DATA_TIMEOUT_MS;
   config.minValidDistance_mm = DISTANCE_MIN * LIDAR_DISTANCE_DIVISOR;
-  config.maxValidDistance_mm = DISTANCE_MAX * CM_PER_METER * LIDAR_DISTANCE_DIVISOR;
+  // Sensor's rated range, not the frameline parallax cap (DISTANCE_MAX = 18m).
+  // From library 3.0.0 maxValidDistance_mm gates quality grading and the median
+  // filter: a genuine far return beyond it grades POOR and is dropped from the
+  // smoothed distance. The camera's own 18m display-to-"Inf." policy lives in
+  // LIDAR_DISPLAY_INF_THRESHOLD_CM, so let the library trust the full 20m.
+  config.maxValidDistance_mm = LIDAR_LIBRARY_MAX_VALID_DISTANCE_MM;
   config.minIntensityThreshold = LIDAR_LIBRARY_MIN_INTENSITY_THRESHOLD;
   config.crcByteOrder = DTSCRCByteOrder::AUTO;
   config.crcAutoSwitchErrorThreshold = 10;
+  // Ambient-light gate (library 3.0.0) left OFF deliberately. The outdoor-range
+  // investigation found sunlightBase reads a flat ~13 outdoors — it measures
+  // ambient at the sensor aperture behind the bandpass filter, not the solar
+  // 905nm reflecting off the sunlit target that actually causes the range
+  // cliff. Gating on it would reject valid frames without fixing the cliff.
+  config.maxSunlightBase = 0;
   return config;
 }
 } // namespace

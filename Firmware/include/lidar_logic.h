@@ -2,6 +2,7 @@
 #define LIDAR_LOGIC_H
 
 #include <stddef.h>
+#include <stdint.h>
 #include <DTS6012M_UART.h>
 
 struct LidarCandidate
@@ -12,18 +13,44 @@ struct LidarCandidate
   int quality_level; // 1..4 (poor..excellent), 0 when invalid
 };
 
+// offset_delta_cm is the difference between the configured geometry-offset
+// pref and the default it was calibrated with, in cm:
+// (lidar_distance_offset_mm - DEFAULT_LIDAR_DISTANCE_OFFSET_MM) / 10.
 LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                         int previous_distance_cm,
                                         bool has_lens_prior,
-                                        int lens_prior_cm);
+                                        int lens_prior_cm,
+                                        int offset_delta_cm = 0);
 
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence);
 
+// SNR in permille: primary intensity relative to the sensor's ambient-light
+// baseline (sunlightBase). Returns -1 when there is no baseline (sunlightBase
+// == 0), signalling the caller to skip SNR-based logic. Exposed for the
+// diagnostics screen and unit tests.
+int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base);
+
+// Near-range distance correction (cm). Below LIDAR_CAL_CUTOFF_CM the dToF sensor
+// over-reads, so a single-reference power law pulls the value toward truth. The
+// correction is bounded: it can never return less than LIDAR_CAL_MIN_OUTPUT_PCT
+// percent of the raw distance (interim guard pending the measured table, bd 4p9),
+// so real sub-metre subjects are not collapsed below the display floor. Values at
+// or above the cutoff pass through unchanged. Exposed for the diagnostics screen
+// and unit tests. The correction anchor was measured with the default geometry
+// offset; pass offset_delta_cm (configured minus default, in cm) so the
+// correction is evaluated in the default-offset frame and the delta re-added,
+// keeping the anchor valid when the user tunes the offset pref.
+int applyLidarCalibrationCm(int raw_cm, int offset_delta_cm = 0);
+
 // True when the LiDAR reading is so far beyond the lens focus prior that it is
 // almost certainly a beam-miss (LiDAR found distant background past the framed
-// subject). Asymmetric: only flags overshoot, not undershoot. Returns false if
-// the lens is focused beyond the near-range gate threshold.
-bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm);
+// subject). Asymmetric: only flags overshoot, not undershoot. Returns false
+// when the lens is focused beyond the near-range gate threshold or no prior is
+// available. The allowed overshoot scales with the prior, since parallax
+// beam-miss error grows with distance; a confident return (quality_level >=
+// LIDAR_PLAUSIBILITY_TRUST_QUALITY_LEVEL) earns a wider but still finite
+// allowance, so a gross overshoot is gated even when graded GOOD/EXCELLENT.
+bool isLidarReadingImplausible(int lidar_distance_cm, int lens_prior_cm, int quality_level);
 
 // Running state for the plausibility-gate hold. The gate rejects readings that
 // overshoot the lens prior and holds the previous value; this tracks how long
@@ -64,5 +91,22 @@ int applyStableConfidenceBoost(int base_confidence, int stable_streak_frames);
 bool updateSunlightWarnState(bool currently_warning, uint16_t sunlight_base);
 
 void formatDistanceDisplay(int corrected_cm, char *buffer, size_t bufferSize);
+
+// Placeholder shown when the sensor stops returning data. "Inf?" when the last
+// accepted reading was at or beyond LIDAR_FAR_SIGNAL_LOSS_CM — no return at
+// that range usually means the user re-aimed at the sky — and "..." otherwise.
+// Deliberately distinct from the "Inf." that formatDistanceDisplay() emits for
+// a genuine measured reading, so a dropout can't be read as a measurement.
+// current_display is the string currently on screen: once it already marks a far
+// dropout ("Inf?"/"Inf."), the placeholder stays "Inf?" so the far state survives
+// clearLidarDisplay() zeroing prev_distance between frames. Pass nullptr to decide
+// purely from prev_distance_cm.
+const char *lidarSignalLossPlaceholder(int prev_distance_cm, const char *current_display);
+
+// Format the age of the last LiDAR telemetry frame for the diagnostics screen:
+// "--" when no frame has been captured yet (telemetry_ms == 0 sentinel),
+// "NNNms" under one second, "N.Ns" up to 99s, ">99s" beyond. Takes uint32_t so
+// the unsigned subtraction survives a millis() wrap on target and host alike.
+void formatLidarTelemetryAge(uint32_t now_ms, uint32_t telemetry_ms, char *buffer, size_t bufferSize);
 
 #endif // LIDAR_LOGIC_H

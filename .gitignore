@@ -13,6 +13,9 @@ venv/
 # Node/Yarn (if used for tooling)
 node_modules/
 
+# Local-only MCP server config (hard-codes a machine-specific server path)
+.mcp.json
+
 # Build/output from PlatformIO
 .pio/
 .pioenvs/
@@ -81,3 +84,14 @@ CLAUDE.md
 AGENTS.md
 .claude/
 .beads/
+.beads/proxieddb/
+.agents/
+.codex/
+
+# KiCad generated and local-only artifacts (regenerated from the board files)
+**/production/
+**/_restore_backup_*/
+**/.history/
+**/fabrication-toolkit-options.json
+*-erc.rpt
+*-drc.rpt

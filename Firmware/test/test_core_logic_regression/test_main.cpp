@@ -296,6 +296,81 @@ void test_lidar_recovery_state_machine_survives_many_consecutive_failures()
   TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
 }
 
+void test_lidar_recovery_event_mapping_treats_no_new_data_as_benign()
+{
+  // Library v2.6.0 changed update() to return NO_NEW_DATA (not TIMEOUT) when no
+  // complete frame arrived this poll. It must map to the time-based TIMEOUT event,
+  // exactly like a real TIMEOUT — never to the count-based ERROR event.
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::TIMEOUT),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA)));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::TIMEOUT),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::TIMEOUT)));
+
+  // Genuine frame faults still map to the ERROR event so recovery can engage.
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::ERROR),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::CRC_CHECK_FAILED)));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::ERROR),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::FRAME_HEADER_INVALID)));
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(LidarRecoveryEvent::ERROR),
+      static_cast<int>(lidarRecoveryEventForUpdateError(DTSError::BUFFER_OVERFLOW)));
+}
+
+void test_lidar_no_new_data_polls_do_not_trip_spurious_recovery()
+{
+  // The v2.6.0 hazard: a healthy sensor returns NO_NEW_DATA on every poll between
+  // frames. If those mapped to ERROR, LIDAR_RECOVERY_ERROR_THRESHOLD fast polls
+  // would trip recovery in milliseconds. With the correct mapping, many rapid
+  // no-data polls within the timeout window must NOT trigger recovery.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  for (int i = 0; i < LIDAR_RECOVERY_ERROR_THRESHOLD * 5; i++)
+  {
+    LidarRecoveryEvent event = lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA);
+    // Poll rapidly (1ms apart), staying inside LIDAR_RECOVERY_TIMEOUT_MS.
+    LidarRecoveryDecision decision = updateLidarRecoveryState(state, event, 1 + i);
+    TEST_ASSERT_FALSE(decision.attempt_recovery);
+    TEST_ASSERT_FALSE(state.recovering);
+  }
+  TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
+
+  // Only a sustained stall past LIDAR_RECOVERY_TIMEOUT_MS with no valid frame
+  // escalates to recovery.
+  LidarRecoveryDecision stalled = updateLidarRecoveryState(
+      state, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA),
+      LIDAR_RECOVERY_TIMEOUT_MS + 1);
+  TEST_ASSERT_TRUE(stalled.attempt_recovery);
+}
+
+void test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery()
+{
+  // Wake-from-sleep hazard: the first update() after re-enabling the sensor is
+  // inevitably NO_NEW_DATA (no frame can exist yet). If the recovery state still
+  // carries the pre-sleep last_valid_measurement_ms, the very first post-wake
+  // poll sits past LIDAR_RECOVERY_TIMEOUT_MS and recovery fires instantly —
+  // running resetState()+enableSensor() back-to-back with the wake enable (the
+  // v10.4.7 no-settle hazard) and incrementing the Health "Recoveries" counter
+  // on every wake.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  // Without an enable-time reset, a stale state trips recovery on the first poll.
+  unsigned long wake_ms = LIDAR_RECOVERY_TIMEOUT_MS * 10;
+  LidarRecoveryState staleState = state;
+  LidarRecoveryDecision staleDecision = updateLidarRecoveryState(
+      staleState, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA), wake_ms);
+  TEST_ASSERT_TRUE(staleDecision.attempt_recovery);
+
+  // The enable path must reset the timing baseline so post-wake NO_NEW_DATA
+  // polls get the full timeout window before recovery is considered.
+  resetLidarRecoveryState(state, wake_ms);
+  LidarRecoveryDecision decision = updateLidarRecoveryState(
+      state, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA), wake_ms + 1);
+  TEST_ASSERT_FALSE(decision.attempt_recovery);
+  TEST_ASSERT_FALSE(decision.clear_display);
+  TEST_ASSERT_FALSE(state.recovering);
+}
+
 void test_calibration_logic_rejects_invalid_input_shapes()
 {
   // Defensive guards in calibration_logic.cpp that nothing currently tested
@@ -340,6 +415,20 @@ void test_calibration_validation_stable_and_monotonic()
 
   const int nonMonotonic[4] = {330, 320, 325, 300};
   TEST_ASSERT_FALSE(validateMonotonicCalibration(nonMonotonic, 4, 1));
+}
+
+void test_ascending_calibration_requires_increasing_readings()
+{
+  // Focus calibration must capture readings that rise with distance, so a
+  // backwards-wired sensor (descending capture) is rejected rather than stored
+  // as a table the estimator would read inverted.
+  const int ascending[4] = {261, 268, 276, 287};
+  TEST_ASSERT_TRUE(isAscendingCalibration(ascending, 4));
+  const int descending[4] = {330, 320, 310, 300};
+  TEST_ASSERT_FALSE(isAscendingCalibration(descending, 4));
+  // Fewer than two readings: direction is not yet determined, so accept.
+  TEST_ASSERT_TRUE(isAscendingCalibration(ascending, 1));
+  TEST_ASSERT_TRUE(isAscendingCalibration(nullptr, 0));
 }
 
 void test_prefs_migration_mode_and_blob_apply()
@@ -398,35 +487,86 @@ void test_lidar_candidate_selection_and_blend()
 
 void test_lidar_plausibility_gate_rejects_overshoot()
 {
-  // Lens at 1.0m, LiDAR returns something far past +overshoot threshold: implausible.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 100));
-  // Lens at 1.5m, LiDAR returns 4.0m: implausible (well past +200cm overshoot).
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(400, 150));
+  // Lens at 1.0m, low-quality LiDAR return far past +overshoot threshold: implausible.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 100, 1));
+  // Lens at 1.5m, LiDAR returns 4.0m: implausible (well past the scaled overshoot).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(400, 150, 1));
 }
 
 void test_lidar_plausibility_gate_allows_undershoot_and_far_focus()
 {
   // Lens at 1.0m, LiDAR returns 1.2m: well within overshoot delta — allowed.
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(120, 100));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(120, 100, 1));
   // Lens at 1.0m, LiDAR returns 0.6m: undershoot is allowed (e.g. something passed in front).
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(60, 100));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(60, 100, 1));
   // Lens focused beyond near-range gate boundary: gate disabled regardless of overshoot.
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(2000, 500, 1));
   // No lens prior available: gate disabled.
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0));
-  // Lens focused at 2.5m is now within the gate's coverage (boundary raised to 3m).
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 250));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 0, 1));
+  // Lens focused at 2.5m is within the gate's coverage (boundary 3m).
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 250, 1));
   // Lens at boundary itself (300cm) still gated; lens just past it (301cm) not gated.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 300));
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 301));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(800, 300, 1));
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(800, 301, 1));
 }
 
 void test_lidar_plausibility_gate_boundary_at_overshoot_delta()
 {
-  // Lens at 100cm: 100+200=300 is the boundary. Reading 300cm is NOT implausible (strict greater-than).
-  TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100));
+  // Lens at 100cm: allowance is the 200cm floor, so 100+200=300 is the boundary.
+  // Reading 300cm is NOT implausible (strict greater-than).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(300, 100, 1));
   // 301cm IS implausible.
-  TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(301, 100, 1));
+}
+
+void test_lidar_plausibility_gate_trusts_confident_readings()
+{
+  // A confident (GOOD/EXCELLENT) return earns a WIDER overshoot allowance than a
+  // low-quality one: prior 100cm gives a non-trusted boundary of 300cm and a
+  // trusted boundary of 400cm. A moderate overshoot within the trusted allowance
+  // is accepted only when the grade is good.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(350, 100, 3)); // GOOD, within trusted allowance
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(350, 100, 4)); // EXCELLENT
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(350, 100, 1));  // POOR, past non-trusted boundary
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(350, 100, 2));  // FAIR
+  // Quality is distance-normalized, so a far beam-miss onto a bright background can
+  // still grade GOOD/EXCELLENT. A gross overshoot is gated regardless of grade.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(1000, 100, 4)); // EXCELLENT but 10x the prior
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(1000, 100, 1)); // POOR
+}
+
+void test_lidar_plausibility_trust_boundaries()
+{
+  // Trusted boundary at prior 100cm is exactly 400cm (strict greater-than).
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(400, 100, 4));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(401, 100, 4));
+  // At the gate's far edge (prior 300cm) the trusted allowance is 900cm, boundary 1200cm.
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(1200, 300, 4));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(1201, 300, 4));
+  // Below ~67cm prior the proportional allowance falls under the 200cm floor, so the
+  // trust bonus vanishes: a confident return is gated the same as a low-quality one.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(300, 60, 4));
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(300, 60, 1));
+}
+
+void test_lidar_plausibility_overshoot_scales_with_prior()
+{
+  // Parallax beam-miss error scales with distance, so the allowed overshoot grows
+  // with the prior. Prior 100cm: allowance is the 200cm floor -> boundary 300.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(600, 100, 1));
+  // Prior 250cm: allowance scales up (250*1.5=375) -> boundary 625, so 600 is allowed...
+  TEST_ASSERT_FALSE(isLidarReadingImplausible(600, 250, 1));
+  // ...but 700 past the scaled boundary is still rejected.
+  TEST_ASSERT_TRUE(isLidarReadingImplausible(700, 250, 1));
+}
+
+void test_lidar_snr_permille_math()
+{
+  // No ambient baseline -> -1 sentinel (caller skips SNR logic).
+  TEST_ASSERT_EQUAL_INT(-1, computeSnrPermille(100, 0));
+  // permille = intensity * 1000 / sunlightBase.
+  TEST_ASSERT_EQUAL_INT(1000, computeSnrPermille(100, 100));
+  TEST_ASSERT_EQUAL_INT(500, computeSnrPermille(50, 100));
 }
 
 void test_lidar_plausibility_hold_releases_on_stable_far_readings()
@@ -519,14 +659,72 @@ void test_lidar_distance_display_formatting_covers_each_band()
   TEST_ASSERT_EQUAL_STRING("<15cm", formattedDistance);
   formatDistanceDisplay(75, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("75cm", formattedDistance);
-  formatDistanceDisplay(1050, formattedDistance, sizeof(formattedDistance));
-  TEST_ASSERT_EQUAL_STRING("10.5m", formattedDistance);
-  formatDistanceDisplay(1051, formattedDistance, sizeof(formattedDistance));
+  // Genuine far readings now display up to the sensor's rated 18m, not "Inf." at 10.5m.
+  formatDistanceDisplay(1200, formattedDistance, sizeof(formattedDistance));
+  TEST_ASSERT_EQUAL_STRING("12.0m", formattedDistance);
+  formatDistanceDisplay(1800, formattedDistance, sizeof(formattedDistance));
+  TEST_ASSERT_EQUAL_STRING("18.0m", formattedDistance);
+  formatDistanceDisplay(1801, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("Inf.", formattedDistance);
-  formatDistanceDisplay(1900, formattedDistance, sizeof(formattedDistance));
+  formatDistanceDisplay(2500, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("Inf.", formattedDistance);
   formatDistanceDisplay(150, formattedDistance, sizeof(formattedDistance));
   TEST_ASSERT_EQUAL_STRING("1.50m", formattedDistance); // near-range precision: 2dp below 2m
+}
+
+void test_lidar_signal_loss_placeholder_distinguishes_far_dropout()
+{
+  // Signal lost while tracking a far subject: likely re-aimed at sky, but not a
+  // measurement — show "Inf?" so it cannot be mistaken for a genuine reading.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM, "5.0m"));
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(1200, "5.0m"));
+  // Signal lost near, or with no previous reading: plain dropout.
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(LIDAR_FAR_SIGNAL_LOSS_CM - 1, "75cm"));
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0, "75cm"));
+}
+
+void test_lidar_signal_loss_placeholder_sticks_across_prev_distance_reset()
+{
+  // clearLidarDisplay zeroes prev_distance after the first dropped frame, so the
+  // very next frame would otherwise recompute "..." from prev_distance == 0 and
+  // the brief "Inf?" would never be seen. Once the display already marks a far
+  // dropout, keep marking it regardless of the reset prev_distance.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(0, "Inf?"));
+  // A genuine far measurement (Inf.) that then drops out also stays a far guess.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(0, "Inf."));
+  // A near dropout in progress must not get promoted to a far guess.
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0, "..."));
+  // Standby placeholder is not a far state — wake must start from a clean "...".
+  TEST_ASSERT_EQUAL_STRING("...", lidarSignalLossPlaceholder(0, "Zzz"));
+  // A null/empty current display falls back to the prev_distance decision.
+  TEST_ASSERT_EQUAL_STRING("Inf?", lidarSignalLossPlaceholder(1200, nullptr));
+}
+
+void test_lidar_telemetry_age_formatting_covers_each_band()
+{
+  char ageText[8] = {0};
+
+  // No frame captured yet (timestamp 0 is the "never" sentinel).
+  formatLidarTelemetryAge(5000, 0, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("--", ageText);
+  // Fresh frame: millisecond resolution.
+  formatLidarTelemetryAge(5084, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("84ms", ageText);
+  formatLidarTelemetryAge(5999, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("999ms", ageText);
+  // Stale frame: seconds with one decimal.
+  formatLidarTelemetryAge(6000, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("1.0s", ageText);
+  formatLidarTelemetryAge(7500, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("2.5s", ageText);
+  // Very stale: capped so the field never overflows the line.
+  formatLidarTelemetryAge(104000, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("99.0s", ageText);
+  formatLidarTelemetryAge(205000, 5000, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING(">99s", ageText);
+  // millis() wrap: 32-bit unsigned subtraction still yields the true age.
+  formatLidarTelemetryAge(84, 0xFFFFFFF0UL, ageText, sizeof(ageText));
+  TEST_ASSERT_EQUAL_STRING("100ms", ageText);
 }
 
 void test_lidar_low_confidence_tracks_beyond_previous_distance()
@@ -582,6 +780,86 @@ void test_lidar_candidate_fusion_when_returns_agree()
   TEST_ASSERT_INT_WITHIN(2, 305, candidate.distance_cm);
   TEST_ASSERT_GREATER_THAN_INT(55, candidate.confidence);
   TEST_ASSERT_EQUAL_INT(3, candidate.quality_level);
+}
+
+void test_near_range_correction_is_bounded_below_by_floor()
+{
+  // At or above the cutoff, the reading passes through unchanged.
+  TEST_ASSERT_EQUAL_INT(150, applyLidarCalibrationCm(150));
+  TEST_ASSERT_EQUAL_INT(200, applyLidarCalibrationCm(200));
+
+  // The measured anchor (raw 130 -> ~100cm) is preserved; the floor does not clip it.
+  TEST_ASSERT_INT_WITHIN(1, 100, applyLidarCalibrationCm(130));
+
+  // Below the anchor the raw power law collapses (raw 65 -> ~14, raw 50 -> ~7),
+  // dropping sub-metre subjects below the display floor. The bound holds them at
+  // LIDAR_CAL_MIN_OUTPUT_PCT percent of the raw distance instead.
+  TEST_ASSERT_EQUAL_INT(65 * LIDAR_CAL_MIN_OUTPUT_PCT / 100, applyLidarCalibrationCm(65));
+  TEST_ASSERT_EQUAL_INT(50 * LIDAR_CAL_MIN_OUTPUT_PCT / 100, applyLidarCalibrationCm(50));
+  TEST_ASSERT_EQUAL_INT(100 * LIDAR_CAL_MIN_OUTPUT_PCT / 100, applyLidarCalibrationCm(100));
+
+  // The correction only ever pulls a reading down, never up.
+  TEST_ASSERT_LESS_OR_EQUAL_INT(120, applyLidarCalibrationCm(120));
+}
+
+void test_lidar_mm_to_cm_conversion_rounds_to_nearest()
+{
+  // Truncation biased every reading 0-9 mm short (mean -4.5 mm). 1996 mm is
+  // 199.6 cm and must read 200, not 199.
+  DTSMeasurement measurement = makeLidarMeasurement(1996, 200, DataQuality::GOOD);
+  LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
+  TEST_ASSERT_TRUE(candidate.valid);
+  TEST_ASSERT_EQUAL_INT(200, candidate.distance_cm);
+
+  // Below the .5 boundary still rounds down.
+  measurement = makeLidarMeasurement(1994, 200, DataQuality::GOOD);
+  candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
+  TEST_ASSERT_TRUE(candidate.valid);
+  TEST_ASSERT_EQUAL_INT(199, candidate.distance_cm);
+}
+
+void test_near_range_correction_compensates_for_offset_pref_delta()
+{
+  // The 130->100 anchor was measured with the default geometry offset (400 mm,
+  // applied library-side before this correction sees the value). When the user
+  // changes the offset pref by delta, the same physical subject arrives
+  // delta cm higher/lower, so the correction must be evaluated in the
+  // default-offset frame and the delta re-added afterwards. Without this, any
+  // offset change silently invalidates the measured anchor.
+  const int delta_up = 10;   // user offset 500 mm
+  const int delta_down = -5; // user offset 350 mm
+
+  // The anchor subject: default-offset reading 130 -> ~100. With the pref
+  // moved, the same subject reads 130+delta and must correct to ~100+delta.
+  TEST_ASSERT_INT_WITHIN(1, 100 + delta_up, applyLidarCalibrationCm(130 + delta_up, delta_up));
+  TEST_ASSERT_INT_WITHIN(1, 100 + delta_down, applyLidarCalibrationCm(130 + delta_down, delta_down));
+
+  // The cutoff moves with the delta too: a subject at the cutoff passes
+  // through unchanged regardless of the configured offset.
+  TEST_ASSERT_EQUAL_INT(150 + delta_up, applyLidarCalibrationCm(150 + delta_up, delta_up));
+
+  // Zero delta stays byte-for-byte compatible with the single-argument form.
+  TEST_ASSERT_EQUAL_INT(applyLidarCalibrationCm(130), applyLidarCalibrationCm(130, 0));
+}
+
+void test_lidar_fusion_takes_max_confidence_not_average()
+{
+  // A strong primary must not be demoted by a weak but agreeing secondary:
+  // fusion keeps the higher confidence (plus the agreement bonus), it does not
+  // average the two down toward the weak candidate.
+  DTSMeasurement primaryOnly = makeLidarMeasurement(3000, 200, DataQuality::EXCELLENT);
+  LidarCandidate strong = chooseBestLidarCandidate(primaryOnly, 0, false, 0);
+  TEST_ASSERT_TRUE(strong.valid);
+
+  DTSMeasurement dual = makeLidarDualPeakMeasurement(
+      3000, 200, DataQuality::EXCELLENT,
+      3200, 12, DataQuality::POOR);
+  LidarCandidate fused = chooseBestLidarCandidate(dual, 0, false, 0);
+  TEST_ASSERT_TRUE(fused.valid);
+
+  // Averaging would drag confidence below the strong primary; max() keeps it at
+  // or above (agreement only adds a bonus).
+  TEST_ASSERT_GREATER_OR_EQUAL_INT(strong.confidence, fused.confidence);
 }
 
 void test_lidar_lens_prior_is_range_weighted()
@@ -641,10 +919,12 @@ void test_lens_snap_and_distance_estimation()
   TEST_ASSERT_FALSE(below.is_infinity);
   TEST_ASSERT_EQUAL_INT(100, below.distance_cm);
 
+  // Reciprocal-distance interpolation between the 1.2m (200) and 1.5m (300)
+  // marks: sensor 250 -> 1/(1/1.2 + 0.5*(1/1.5 - 1/1.2)) = 1.333m.
   LensDistanceEstimate interpolated = estimateLensDistance(lens, 250);
   TEST_ASSERT_TRUE(interpolated.valid);
   TEST_ASSERT_FALSE(interpolated.is_infinity);
-  TEST_ASSERT_EQUAL_INT(135, interpolated.distance_cm);
+  TEST_ASSERT_EQUAL_INT(133, interpolated.distance_cm);
 
   LensDistanceEstimate infinity = estimateLensDistance(lens, 706);
   TEST_ASSERT_TRUE(infinity.valid);
@@ -667,15 +947,99 @@ void test_lens_logic_ignores_unused_distance_markers()
   TEST_ASSERT_EQUAL_INT(5, getLensDistancePointCount(lens));
   TEST_ASSERT_EQUAL_INT(2, findLensSnapIndex(lens, 301));
 
+  // Reciprocal-distance interpolation between the 2.5m (200) and 3.0m (300)
+  // marks: sensor 250 -> 1/(1/2.5 + 0.5*(1/3 - 1/2.5)) = 2.7272m -> 273 cm
+  // rounded to nearest (truncation used to pin this at 272).
   LensDistanceEstimate interpolated = estimateLensDistance(lens, 250);
   TEST_ASSERT_TRUE(interpolated.valid);
   TEST_ASSERT_FALSE(interpolated.is_infinity);
-  TEST_ASSERT_EQUAL_INT(275, interpolated.distance_cm);
+  TEST_ASSERT_EQUAL_INT(273, interpolated.distance_cm);
 
   LensDistanceEstimate infinity = estimateLensDistance(lens, 506);
   TEST_ASSERT_TRUE(infinity.valid);
   TEST_ASSERT_TRUE(infinity.is_infinity);
   TEST_ASSERT_EQUAL_INT(LENS_INFINITY_RAW, infinity.distance_cm);
+}
+
+void test_far_snap_deadzone_is_distance_relative_at_sparse_marks()
+{
+  // Sparse far span: 5m -> 10m over only 18 ADC counts. The fixed +-3 count
+  // far deadzone used to display the mark distance across a third of that
+  // span (reading 415 interpolates to 8.57m but snapped to "10.0m", a 14%
+  // error that also fed the LiDAR plausibility prior). Snapping must only
+  // engage when the interpolated distance is actually near the mark.
+  Lens lens = {
+      998,
+      "SPARSE",
+      100.0f,
+      {100, 200, 300, 400, 418, 0, 0},
+      {2.0f, 2.5f, 3.0f, 5.0f, 10.0f, 0.0f, 0.0f},
+      {0.0f, 2.8f, 4.0f, 5.6f, 8.0f, 11.0f, 16.0f, 22.0f, 32.0f},
+      {0, 0, 0, 0},
+      true};
+
+  // 3 counts from the 10m mark but 14% away in distance: no snap.
+  TEST_ASSERT_EQUAL_INT(-1, findLensSnapIndex(lens, 415));
+
+  // 1 count away interpolates to 9.47m (5.3% error): snap engages.
+  TEST_ASSERT_EQUAL_INT(4, findLensSnapIndex(lens, 417));
+
+  // Exact mark always snaps.
+  TEST_ASSERT_EQUAL_INT(4, findLensSnapIndex(lens, 418));
+
+  // Dense far span (100 counts from 5m to 10m on the shipped-style table):
+  // 3 counts is only ~3% in distance, so the deadzone behaves as before.
+  Lens dense = makeTestLens();
+  TEST_ASSERT_EQUAL_INT(6, findLensSnapIndex(dense, 697));
+}
+
+void test_shipped_calibrated_lens_readings_are_ascending()
+{
+  // Convention: sensor_reading[] must ascend with focus distance so
+  // estimateLensDistance() (which assumes an ascending ADC axis) interpolates
+  // between marks instead of collapsing to the near clamp / infinity. A
+  // descending table was the v10.5.x default-65mm focus bug.
+  for (size_t i = 0; i < NUM_LENSES; i++)
+  {
+    const Lens &lens = lenses[i];
+    if (!lens.calibrated)
+    {
+      continue;
+    }
+    int point_count = getLensDistancePointCount(lens);
+    for (int p = 1; p < point_count; p++)
+    {
+      TEST_ASSERT_TRUE_MESSAGE(lens.sensor_reading[p] > lens.sensor_reading[p - 1], lens.name);
+    }
+  }
+}
+
+void test_default_lens_estimate_interpolates_between_marks()
+{
+  // Regression for the descending-table bug: the shipped default lens must read
+  // back a monotonic focus distance across its range, not snap to 1m / Inf.
+  const Lens &lens = lenses[DEFAULT_SELECTED_LENS];
+  TEST_ASSERT_TRUE(lens.calibrated);
+  int point_count = getLensDistancePointCount(lens);
+  TEST_ASSERT_GREATER_THAN_INT(2, point_count);
+
+  // Each calibrated mark reads back its own distance.
+  for (int p = 0; p < point_count; p++)
+  {
+    LensDistanceEstimate at_mark = estimateLensDistance(lens, lens.sensor_reading[p]);
+    TEST_ASSERT_TRUE(at_mark.valid);
+    TEST_ASSERT_FALSE(at_mark.is_infinity);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(lens.distance[p] * CM_PER_METER), at_mark.distance_cm);
+  }
+
+  // A reading halfway between the two nearest-focus marks interpolates strictly
+  // between them (the descending table returned distance[0] exactly here).
+  int mid_reading = (lens.sensor_reading[0] + lens.sensor_reading[1]) / 2;
+  LensDistanceEstimate mid = estimateLensDistance(lens, mid_reading);
+  TEST_ASSERT_TRUE(mid.valid);
+  TEST_ASSERT_FALSE(mid.is_infinity);
+  TEST_ASSERT_GREATER_THAN_INT(static_cast<int>(lens.distance[0] * CM_PER_METER), mid.distance_cm);
+  TEST_ASSERT_LESS_THAN_INT(static_cast<int>(lens.distance[1] * CM_PER_METER), mid.distance_cm);
 }
 
 void test_150mm_profile_uses_custom_distance_scale()
@@ -749,9 +1113,25 @@ void test_lightmeter_dark_bright_fraction_and_seconds()
   TEST_ASSERT_EQUAL_STRING("Dark!", formattedShutter);
   formatShutterSpeed(50000.0f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
-  // K=12.5: speed = 64*12.5/(320*400) = 0.00625 → rounds to 0.006 → 1/250
+  // K=12.5: speed = 64*12.5/(320*400) = 0.00625 s. Nearest standard speed in
+  // log space: 0.36 stop from 1/125 vs 0.64 stop from 1/250 → display 1/125.
+  // (The old bucket bounds floored this to 1/250, a 0..-1 stop display bias.)
   formatShutterSpeed(320.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1/125 sec.", formattedShutter);
+  // speed = 64*12.5/(400*400) = 0.005 s, below the 1/250|1/125 geometric
+  // boundary at 0.005657 s → still 1/250.
+  formatShutterSpeed(400.0f, 8.0f, 400, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("1/250 sec.", formattedShutter);
+  // speed = 4*12.5/(1.25*100) = 0.4 s → nearest standard is 1/2.
+  formatShutterSpeed(1.25f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1/2 sec.", formattedShutter);
+  // speed = 4*12.5/(666.7*100) = 0.00075 s: within half a stop of 1/1000, so
+  // show 1/1000 rather than Bright!.
+  formatShutterSpeed(666.7f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("1/1000 sec.", formattedShutter);
+  // speed = 4*12.5/(833.3*100) = 0.0006 s: more than half a stop past 1/1000.
+  formatShutterSpeed(833.3f, 2.0f, 100, formattedShutter, sizeof(formattedShutter));
+  TEST_ASSERT_EQUAL_STRING("Bright!", formattedShutter);
   // K=12.5: speed = 4*12.5/(0.5*50) = 2.0s → 2 sec
   formatShutterSpeed(0.5f, 2.0f, 50, formattedShutter, sizeof(formattedShutter));
   TEST_ASSERT_EQUAL_STRING("2 sec.", formattedShutter);
@@ -888,6 +1268,31 @@ void test_lightmeter_scale_split_preserves_effective_exposure_constant()
   // failing the assert and flagging the 1.5-stop drift.
   formatShutterSpeed(100.0f, 8.0f, 100, shutter, sizeof(shutter));
   TEST_ASSERT_EQUAL_STRING("1/15 sec.", shutter);
+}
+
+void test_lens_moving_average_primes_with_first_sample()
+{
+  // The old zero-filled window made the first smoothed reading sample/13 and
+  // ramped up over 13 polls; combined with the spike filter this pinned a
+  // bogus near-zero lens reading (and a wrong 100 cm LiDAR prior) for the
+  // first ~15 polls after boot. Priming fills the window with the first real
+  // sample instead.
+  LensMovingAverageState state = {};
+  TEST_ASSERT_EQUAL_INT(300, updateLensMovingAverage(state, 300));
+
+  // Window is fully primed: a step to 313 moves the average by 1 (13/13).
+  TEST_ASSERT_EQUAL_INT(301, updateLensMovingAverage(state, 313));
+
+  // Reset re-arms priming.
+  resetLensMovingAverageState(state);
+  TEST_ASSERT_EQUAL_INT(500, updateLensMovingAverage(state, 500));
+
+  // Composed with the spike filter: the first filtered boot reading is the
+  // real ADC value, not a warm-up artefact.
+  LensMovingAverageState bootAvg = {};
+  LensSpikeFilterState bootSpike = {};
+  int firstFiltered = updateLensSpikeFilter(bootSpike, updateLensMovingAverage(bootAvg, 300));
+  TEST_ASSERT_EQUAL_INT(300, firstFiltered);
 }
 
 void test_lens_spike_filter_initialises_and_accepts_small_movement()
@@ -1028,6 +1433,58 @@ ExternalUiSnapshot baselineExternalSnapshot()
           /* frame_progress  */ 0.25f,
           /* sleepMode       */ false};
 }
+
+MenuUiSnapshot baselineMenuSnapshot()
+{
+  return {/* ui_mode                          */ 1,
+          /* config_step                      */ 2,
+          /* calib_step                       */ 0,
+          /* selected_lens                    */ 3,
+          /* selected_format                  */ 1,
+          /* calib_lens                       */ 0,
+          /* current_calib_distance           */ 0,
+          /* calib_capture_status             */ 0,
+          /* calib_capture_status_ms          */ 0ul,
+          /* lens_sensor_reading              */ 200,
+          /* lens_focus_offset                */ 0,
+          /* iso                              */ 400,
+          /* aperture                         */ 8.0f,
+          /* exposure_comp_thirds             */ 0,
+          /* meter_smoothing_mode             */ 1,
+          /* show_ev_readout                  */ false,
+          /* parallaxEnabled                  */ true,
+          /* sleep_timeout_mode               */ 1,
+          /* lidar_idle_timeout_mode          */ 1,
+          /* lidar_distance_offset_mm         */ 400,
+          /* level_trim_landscape_deci_deg    */ 0,
+          /* level_trim_portrait_pos_deci_deg */ 0,
+          /* level_trim_portrait_neg_deci_deg */ 0,
+          /* reticle_offset_x                 */ 0,
+          /* reticle_offset_y                 */ 0,
+          /* reticle_adjust_step              */ 0,
+          /* brightness_auto                  */ true,
+          /* brightness_manual_pct            */ 50,
+          /* brightness_auto_top_pct          */ 100,
+          /* show_horizon_line                */ true,
+          /* frame_one_offset                 */ 0,
+          /* frame_spacing_offset             */ 0,
+          /* film_counter                     */ 5,
+          /* last_lidar_error_code            */ 0,
+          /* lidar_recovery_count             */ 0,
+          /* lidarEnabled                     */ true,
+          /* adsReady                         */ true,
+          /* mpuReady                         */ true,
+          /* mainDisplayReady                 */ true,
+          /* externalDisplayReady             */ true,
+          /* batteryGaugeReady                */ true,
+          /* lightMeterReady                  */ true,
+          /* statusPixelReady                 */ true,
+          /* encoderReady                     */ true,
+          /* lidarSensorReady                 */ true,
+          /* prefsSchemaValid                 */ true,
+          /* prefsLoadedLegacy                */ false,
+          /* prefsSchemaVersionLoaded         */ 2};
+}
 } // namespace
 
 void test_ui_signature_external_changes_when_any_field_changes()
@@ -1062,6 +1519,27 @@ void test_ui_signature_external_changes_when_any_field_changes()
   TEST_ASSERT_NOT_EQUAL(baseline, buildExternalUiSignature(mutated));
 }
 
+void test_ui_signature_menu_changes_when_focus_or_distance_offset_changes()
+{
+  // Regression: MenuUiSnapshot previously omitted lens_focus_offset and
+  // lidar_distance_offset_mm, so Setup > Lens > Focus offset and Setup > LiDAR
+  // > Distance offset changed and persisted their value but the redraw-skip
+  // cache never saw a signature change, leaving the screen showing the old
+  // number until an unrelated field happened to change.
+  const MenuUiSnapshot base = baselineMenuSnapshot();
+  const uint32_t baseline = buildMenuUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildMenuUiSignature(baselineMenuSnapshot()));
+
+  MenuUiSnapshot mutated = base;
+  mutated.lens_focus_offset = 5;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildMenuUiSignature(mutated));
+
+  mutated = base;
+  mutated.lidar_distance_offset_mm = 450;
+  TEST_ASSERT_NOT_EQUAL(baseline, buildMenuUiSignature(mutated));
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -1073,8 +1551,12 @@ int main(int, char **)
   RUN_TEST(test_encoder_filter_reverse_requires_rewind_mode);
   RUN_TEST(test_lidar_timeout_recovery_and_backoff);
   RUN_TEST(test_lidar_recovery_state_machine_survives_many_consecutive_failures);
+  RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
+  RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
+  RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
   RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
+  RUN_TEST(test_ascending_calibration_requires_increasing_readings);
   RUN_TEST(test_calibration_median_spread_tolerates_gentle_drift);
   RUN_TEST(test_calibration_rejects_truly_unstable_readings);
   RUN_TEST(test_prefs_migration_mode_and_blob_apply);
@@ -1082,6 +1564,13 @@ int main(int, char **)
   RUN_TEST(test_lidar_plausibility_gate_rejects_overshoot);
   RUN_TEST(test_lidar_plausibility_gate_allows_undershoot_and_far_focus);
   RUN_TEST(test_lidar_plausibility_gate_boundary_at_overshoot_delta);
+  RUN_TEST(test_lidar_plausibility_gate_trusts_confident_readings);
+  RUN_TEST(test_lidar_plausibility_trust_boundaries);
+  RUN_TEST(test_lidar_plausibility_overshoot_scales_with_prior);
+  RUN_TEST(test_lidar_snr_permille_math);
+  RUN_TEST(test_lidar_signal_loss_placeholder_distinguishes_far_dropout);
+  RUN_TEST(test_lidar_signal_loss_placeholder_sticks_across_prev_distance_reset);
+  RUN_TEST(test_lidar_telemetry_age_formatting_covers_each_band);
   RUN_TEST(test_lidar_plausibility_hold_releases_on_stable_far_readings);
   RUN_TEST(test_lidar_plausibility_hold_caps_noisy_beam_miss);
   RUN_TEST(test_lidar_plausibility_hold_reset_restarts_counts);
@@ -1094,12 +1583,19 @@ int main(int, char **)
   RUN_TEST(test_lidar_low_confidence_tracks_beyond_previous_distance);
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);
   RUN_TEST(test_lidar_far_fallback_prevents_dropouts);
+  RUN_TEST(test_near_range_correction_is_bounded_below_by_floor);
+  RUN_TEST(test_near_range_correction_compensates_for_offset_pref_delta);
+  RUN_TEST(test_lidar_mm_to_cm_conversion_rounds_to_nearest);
   RUN_TEST(test_lidar_candidate_fusion_when_returns_agree);
+  RUN_TEST(test_lidar_fusion_takes_max_confidence_not_average);
   RUN_TEST(test_lidar_lens_prior_is_range_weighted);
   RUN_TEST(test_lidar_sunlight_penalizes_confidence_without_dropping_valid_measurement);
   RUN_TEST(test_lidar_sunlight_hard_rejects_very_low_snr_measurement);
   RUN_TEST(test_lens_snap_and_distance_estimation);
   RUN_TEST(test_lens_logic_ignores_unused_distance_markers);
+  RUN_TEST(test_far_snap_deadzone_is_distance_relative_at_sparse_marks);
+  RUN_TEST(test_shipped_calibrated_lens_readings_are_ascending);
+  RUN_TEST(test_default_lens_estimate_interpolates_between_marks);
   RUN_TEST(test_150mm_profile_uses_custom_distance_scale);
   RUN_TEST(test_250mm_profiles_use_custom_distance_scales);
   RUN_TEST(test_lightmeter_dark_bright_fraction_and_seconds);
@@ -1110,6 +1606,7 @@ int main(int, char **)
   RUN_TEST(test_frameline_scaling_clamps_dimensions_to_minimum_one);
   RUN_TEST(test_6x9_and_9x3_share_corrected_sensor_table);
   RUN_TEST(test_lightmeter_scale_split_preserves_effective_exposure_constant);
+  RUN_TEST(test_lens_moving_average_primes_with_first_sample);
   RUN_TEST(test_lens_spike_filter_initialises_and_accepts_small_movement);
   RUN_TEST(test_lens_spike_filter_rejects_lone_spike_then_promotes_consistent_pending);
   RUN_TEST(test_lens_spike_filter_drifting_pending_resets_count);
@@ -1118,5 +1615,6 @@ int main(int, char **)
   RUN_TEST(test_ui_signature_hash_primitives_are_deterministic_and_distinct);
   RUN_TEST(test_ui_signature_hash_cstring_treats_null_as_empty);
   RUN_TEST(test_ui_signature_external_changes_when_any_field_changes);
+  RUN_TEST(test_ui_signature_menu_changes_when_focus_or_distance_offset_changes);
   return UNITY_END();
 }

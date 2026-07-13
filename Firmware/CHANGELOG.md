@@ -2,6 +2,105 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.6.0 - 2026-07-13
+
+### Whole-codebase review fixes (safety, persistence, input, rendering, lifecycle)
+
+Findings from a broader firmware review covering everything outside the measurement chain, all fixed:
+
+- **Fixed a boot-loop crash when the status-pixel seesaw board is absent or fails init.** The external UI wrote to the NeoPixel unconditionally; the vendored library leaves its pixel buffer unallocated until `begin()` succeeds, so the first write panicked and the reboot repeated the same failure. All writes are now gated on `hardware.statusPixel`, matching the rest of the per-peripheral degrade-gracefully design.
+- **Fixed a dead NVS key.** `prev_encoder_value` (18 chars) exceeded the ESP32 Preferences 15-char key limit, so every write silently failed and every read returned the default. Renamed to `prev_enc_val`; no migration needed since the old key never held real data.
+- **Long-press wake no longer drops into the Setup/Health menu.** The long-press handlers lacked the wake guard both short-press handlers already have, so holding a button to wake the camera also acted on the newly-woken mode in the same call.
+- **Completing lens calibration now clamps the aperture to the new lens.** Finishing calibration on a newly-selected lens left the previous lens's f-stop active until the user touched an aperture button or rebooted, giving a wrong exposure readout right after the normal calibrate-a-new-lens flow.
+- **Setup > Lens > Focus offset and Setup > LiDAR > Distance offset now redraw immediately.** Both settings changed and persisted correctly but the menu's redraw-skip signature didn't include them, so the screen showed the stale number until an unrelated field happened to change.
+- **A size-mismatched lens-calibration blob in NVS can no longer silently wipe a lens to "Inf." on every reading.** The load path now requires an exact size match before trusting a stored blob.
+- **Legacy preferences migration now commits the schema marker last**, so a power loss mid-migration causes a retry on next boot instead of permanently orphaning the still-present legacy calibration data.
+- Sleep fade now starts from the current display brightness instead of always flashing to near-maximum first.
+- The light meter now retries a failed sleep/wake I2C command a couple of times before disabling itself, so one transient bus glitch no longer costs the meter for the rest of the session.
+- The calibration error message ("Unstable reading" etc.) now clears reliably at its hold-time boundary instead of lingering until an unrelated redraw.
+- Per-point calibration capture now cleans up the LiDAR UART afterward, same as the completion step already did.
+- The deferred NVS flush now has a 10 s maximum-postponement backstop, so continuous activity (e.g. winding several frames) can no longer delay the write indefinitely.
+
+### Accuracy review fixes (ToF/measurement chain)
+
+Findings from an independent accuracy review of the measurement chain, all fixed:
+
+- **Focus ring no longer renders against a dead LiDAR reading.** After signal loss or idle standby the distance readout showed a placeholder, but the focus-assist ring (and the parallax fallback) kept comparing the lens position against the last accepted distance — indefinitely. The measurement is now invalidated with the display, and only the aiming reticle draws while no live reading exists.
+- **Light meter displays the nearest standard shutter speed.** The old buckets floored to the faster speed, a systematic 0 to -1 stop (mean half-stop) underexposure for anyone setting the displayed speed. Selection is now nearest-in-stops, with a half-stop courtesy band beyond each end of the 1/1000..1/2 table. *Verify on a test roll or against a reference meter: the lux calibration scale (1.77) was tuned while the old bias existed. If readings now run consistently hot, re-derive the scale — don't revert the rounding.*
+- **Waking from sleep or standby no longer trips a spurious LiDAR recovery.** The first post-wake poll inevitably has no frame yet; with the pre-sleep timestamp still in the recovery state, the timeout fired instantly, running a reset+enable back-to-back with the wake enable (the v10.4.7 hazard) and inflating the Health screen's Recoveries counter on every wake. Recovery timing now restarts on every sensor enable.
+- **Post-wake light readings start fresh.** The lux smoothing EMA survived sleep, so waking in different light blended in up to ~80% pre-sleep level for the first ~1.5 s. The EMA now resets when the meter wakes.
+- **Switching lenses recomputes the focus distance immediately** instead of keeping the previous lens's table mapping until the focus ring moved.
+- **The near-range LiDAR correction survives offset-pref changes.** The 130 cm -> 100 cm anchor was measured at the default 400 mm geometry offset; changing the offset pref shifted the correction's input frame and silently invalidated the anchor. The correction now evaluates in the default-offset frame and re-adds the delta.
+- **Rounding instead of truncation** in the LiDAR mm->cm conversion (0-9 mm short bias on every reading), the lens-table interpolation (up to 1 cm short), and the battery percentage (which could also print "-0%" at power-on).
+- **Boot no longer shows a bogus 1.0 m lens distance.** The lens smoothing window was zero-filled at boot and the spike filter latched the warm-up artefact for ~15 polls; the window is now primed with the first real ADC read.
+- **Far focus marks only snap when the distance is actually close.** The fixed 3-count far deadzone spans metres on sparse tables (a reading interpolating to 8.5 m displayed "10.0m"); snapping now also requires the interpolated distance within 8% of the mark.
+- **Dropouts flag the held reading.** During the 1 s grace window after signal loss the previous distance now shows as "Held:" instead of presenting as live, and the ~2 s calibration-complete celebration no longer leaves the LiDAR UART overflowed. The diagnostics fps count is normalised by the real window length.
+
+### LiDAR driver update (DTS6012M_UART 3.0.0)
+
+Bumped the sensor library dependency to `^3.0.0`. Public signatures, error codes, and the measurement/statistics layouts are unchanged, so the firmware builds and runs against it without code changes; two `DTSConfig` fields are appended. Notable behaviour changes and how the firmware handles them:
+
+- **Quality grading and the median filter now exclude out-of-range readings**, so the sensor's valid-distance limit finally has teeth. The firmware previously set that limit from the frameline parallax cap (`DISTANCE_MAX`, 18 m); with the geometry offset added that clipped genuine far returns ~2 m short of the sensor's rated range. The library's `maxValidDistance_mm` is now set from a dedicated `LIDAR_LIBRARY_MAX_VALID_DISTANCE_MM` (20 m, the sensor's rating), decoupled from both the parallax cap and the 18 m display-to-"Inf." policy (`LIDAR_DISPLAY_INF_THRESHOLD_CM`).
+- **The opt-in ambient-light gate (`maxSunlightBase`) is left disabled, deliberately.** The outdoor-range investigation established that `sunlightBase` reads flat outdoors (it measures ambient at the aperture, not the solar reflection off the target that causes the range cliff), so gating on it would reject valid frames without helping. Documented in `makeLidarConfig()` so it is not naively enabled later.
+- **The median filter now drops POOR/under-threshold samples too.** When too few quality-valid samples remain it returns the invalid sentinel; the firmware already falls back to the raw primary distance in that case, so far/marginal readings still display, just unsmoothed.
+- Carries the accuracy fixes first shipped in 2.8.0: raw distance 0 stays invalid instead of becoming a reading at the offset distance; AUTO CRC byte-order detection survives the host recovery path; and the median history clears on reset/standby so the first post-wake reading is not the previous subject's distance.
+- Plus the 3.0.0 robustness work: a timeout no longer wipes a frame reassembling across `update()` calls (no permanent-TIMEOUT livelock), stale data is invalidated after a comms timeout, `enableSensor()` refreshes the library's own timeout clock, and `errorCount`/`getConsecutiveErrors()` now count timeouts.
+
+### LiDAR driver update (DTS6012M_UART 2.7.0)
+
+- Bumped the sensor library to `^2.7.0`, which fixes the frame-drain bug found during the range investigation (one `update()` now keeps the freshest queued frame instead of the oldest) and makes one-shot commands report real errors instead of false success.
+- **Adapted to the new `update()` contract.** The library now returns `NO_NEW_DATA` (not `TIMEOUT`) whenever no complete frame arrived on a given poll — the normal case every time the loop runs faster than the frame rate. The recovery layer now treats `NO_NEW_DATA` as a benign, time-based event, so a healthy sensor no longer risks tripping spurious recovery. A genuine comms stall still surfaces as `TIMEOUT` after the no-data timeout. Added regression tests for the mapping and for the no-spurious-recovery guarantee.
+
+### LiDAR Diagnostics screen
+
+- The frame-rate line now shows a **measured** frames-per-second count (accepted frames over a rolling one-second window) instead of the sensor's boot-time self-report. The self-report reads 0 on current hardware because the DTS6012M does not answer the frame-rate query, so the old `act:` value was always misleading. The measured count is what confirmed, during the outdoor-range field investigation, that a lower frame rate is genuinely delivered yet does not extend range.
+
+### Focus distance and LiDAR accuracy fixes
+
+- **Lens focus readout fixed for the default 65mm lens.** The focus-distance table stored its sensor readings in descending order while the interpolation expects ascending, so between the calibrated marks the readout snapped to 1m (or `Inf.` at the near stop) instead of interpolating. The default table is now stored ascending, matching the convention the rest of the pipeline assumes, and a regression test guards that every calibrated lens table ascends. Verify against the marked distances on a calibrated 65mm lens.
+- **Near-range correction no longer over-shrinks close subjects.** The single-reference power law pulled sub-metre readings far too low (a raw 65cm read out as 14cm and dropped below the display floor). The correction is now bounded so it can never remove more than 40% of the raw distance — an interim guard until the measured near-range table lands.
+- **Confident far returns get a wide but finite trust margin.** A GOOD/EXCELLENT return past a near focus prior is still trusted, but only out to three times the prior. The sensor grades quality after normalising for distance, so a beam miss onto a bright far background can still read GOOD; a gross overshoot is now rejected regardless of grade.
+- **Dual-peak fusion keeps the stronger reading's confidence.** When the primary and secondary returns agree, the fused confidence now takes the higher of the two (plus the agreement bonus) rather than the average, so a weak secondary can no longer demote a confident primary.
+- **Focus distance interpolates in reciprocal-distance space.** Helicoid extension (what the linear sensor measures) tracks 1/distance, so the old linear-in-distance interpolation over-read across the sparse far marks. The between-mark readout is now physically correct and the far-mark stepping is softer.
+
+### Lens calibration and focus robustness
+
+- **Calibration requires readings that rise with distance.** A backwards-wired focus sensor captured a descending sequence the estimator reads inverted (the same class as the 65mm default bug, but reachable through the UI). Calibration now rejects it with a clear "readings decreasing — sensor wired backward?" prompt instead of silently storing an inverted table.
+- **Uncalibrated lenses show `--` instead of `Inf.`** Selecting a lens with no calibration data previously displayed a believable `Lens: Inf.`; it now shows a neutral placeholder.
+- **New Setup > Lens > Focus offset.** A per-camera focus fine-tune (ADC counts, applied in Main mode only) aligns the readout without a full recalibration and absorbs any Main-vs-calibration bias. Calibration still captures clean, so the stored table is unchanged.
+
+### LiDAR recovery and responsiveness
+
+- **The distance offset survives a partial recovery.** A recovery that reset the sensor but failed to re-enable it left the library distance offset zeroed — a silent ~40 cm short bias until the next fully successful recovery. The calibration profile (scale + offset) is now re-applied unconditionally after every reset.
+- **Faster lens ADC sampling.** The lens-position ADC ran at 128 SPS, so a 3-sample read blocked the cooperative loop for ~24 ms and could delay buttons and the encoder. At 920 SPS the same read blocks ~3 ms; the averaging and spike filters absorb the slightly wider per-sample noise.
+
+## 10.5.0 - 2026-06-21
+
+Long-range LiDAR work: trust confident far returns, show the sensor's full rated range, and add a diagnostics screen so field testers can read back exactly what the sensor reports. Pairs with the v2 (MRF-Pro-v8) breakout's dedicated LiDAR regulator.
+
+### LiDAR long-range behaviour
+
+- **Confident far readings are no longer suppressed.** A GOOD/EXCELLENT return past the lens-focus prior is the sensor locking a real far subject, not a parallax beam miss, so the plausibility gate now trusts it. The allowed overshoot scales with the prior instead of a flat 2m, because beam-miss error grows with distance.
+- **Display ceiling raised to the sensor's rated 18m** (was 10.5m), so genuine far subjects read out instead of collapsing to infinity early.
+
+### LiDAR Diagnostics screen
+
+- New **Setup > LiDAR > Diagnostics** screen showing live raw distance, intensity, sunlight base, SNR, quality, held state, requested vs actual frame rate, and error/recovery counts. It lets a tester read back exactly what the sensor returns while aiming at a target.
+- The screen shows the **telemetry frame age** next to the frame rate (milliseconds when fresh, seconds when stale, `>99s` cap, `--` before the first frame) so stale values can't be mistaken for live ones.
+- The sensor's actual frame rate is read back at boot so a future frame-rate experiment can confirm what was latched.
+
+### Signal-loss readout
+
+- A far-range dropout now shows **`Inf?`** instead of `Inf.`, so a lost signal above 3m is marked as a guess rather than passing for a real 18m measurement. The placeholder persists across a continuing dropout (e.g. aimed at the sky) instead of flickering for a single frame. Standby (`Zzz`) and near dropouts still resolve to `...` so wake starts clean.
+
+### Boot screen
+
+- The boot version text on the external display now shrinks to fit the screen width instead of wrapping, so three-part versions render cleanly.
+
+### Tests
+
+- Added coverage for the gate (confident far reads not suppressed, overshoot scales with prior), the display ceiling, the `Inf?` placeholder helper, and the telemetry-age formatter including `millis()` wrap. Test count: 53 → 66.
+
 ## 10.4.10 - 2026-05-31
 
 ### LiDAR plausibility gate

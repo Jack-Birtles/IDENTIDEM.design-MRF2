@@ -18,6 +18,26 @@ unsigned long computeRecoveryBackoffMs(int consecutiveErrors)
 }
 } // namespace
 
+LidarRecoveryEvent lidarRecoveryEventForUpdateError(DTSError update_error)
+{
+  // NO_NEW_DATA (v2.6.0+) is returned whenever no complete frame arrived this
+  // poll — the normal case every time the loop runs faster than the sensor's
+  // frame rate. Like a genuine TIMEOUT it must map to the TIME-based TIMEOUT
+  // event, which only escalates to recovery after LIDAR_RECOVERY_TIMEOUT_MS of no
+  // valid data. It must NOT map to the COUNT-based ERROR event: three fast no-data
+  // polls would otherwise cross LIDAR_RECOVERY_ERROR_THRESHOLD in milliseconds and
+  // trip spurious recovery on a perfectly healthy sensor. Real frame faults (CRC,
+  // framing, buffer overflow) still map to ERROR.
+  switch (update_error)
+  {
+    case DTSError::NO_NEW_DATA:
+    case DTSError::TIMEOUT:
+      return LidarRecoveryEvent::TIMEOUT;
+    default:
+      return LidarRecoveryEvent::ERROR;
+  }
+}
+
 void resetLidarRecoveryState(LidarRecoveryState &state, unsigned long now_ms)
 {
   state.initialized = true;

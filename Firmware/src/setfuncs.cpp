@@ -48,8 +48,24 @@ struct LidarRuntimeState
   LidarRecoveryState recovery = {};    // error / timeout backoff for sensor recovery attempts
   PlausibilityHoldState plausibilityHold = {}; // overshoot-hold tracking (re-aim vs beam-miss)
   int stableStreakFrames = 0;          // count of consecutive readings within stability delta
+  uint32_t fpsWindowStartMs = 0;       // measured-frame-rate rolling window start (bd n06)
+  uint16_t fpsFrameCount = 0;          // accepted frames inside the current window
 };
 LidarRuntimeState lidarRuntime;
+
+// Called whenever the sensor is (re-)enabled: boot retry, idle-standby wake,
+// sleep wake. The first update() after an enable is inevitably NO_NEW_DATA, and
+// a recovery state still carrying the pre-standby last_valid timestamp would
+// pass LIDAR_RECOVERY_TIMEOUT_MS instantly — running resetState()+enableSensor()
+// back-to-back with the wake enable (the v10.4.7 no-settle hazard) and bumping
+// the Health "Recoveries" counter on every wake. Restart the timeout window and
+// the frame-rate measurement window from "now" instead.
+void noteLidarSensorEnabled()
+{
+  resetLidarRecoveryState(lidarRuntime.recovery, millis());
+  lidarRuntime.fpsWindowStartMs = 0;
+  lidarRuntime.fpsFrameCount = 0;
+}
 
 // Per-frame caches consulted only by this module's sensor pipeline.
 // Previously declared extern in globals.h; kept file-scope so the global
@@ -98,6 +114,11 @@ void clearLidarDisplay(const char *placeholder)
   lidar_quality_level = 0;
   lidar_distance_held = false; // Placeholder shown — nothing is being held.
   prev_distance = 0; // Reset so the next valid reading is not penalised against a stale value.
+  // Invalidate the shared measurement too. The focus-assist ring and the
+  // parallax fallback consume `distance` directly; leaving the last accepted
+  // value in place lets the ring collapse to "in focus" against a measurement
+  // the sensor is no longer making.
+  distance = 0;
 }
 
 // Functions to read values from sensors and set variables
@@ -114,12 +135,47 @@ void setDistance()
 
   const unsigned long now = millis();
 
+  // Measured frame rate (bd n06): the sensor's getFrameRate() self-report reads 0
+  // on this hardware, so count accepted frames over a rolling ~1s window instead.
+  // This is the only trustworthy confirmation that setFrameRate() actually changed
+  // the delivery rate. Valid only while the main loop polls faster than the rate.
+  if (lidarRuntime.fpsWindowStartMs == 0)
+  {
+    lidarRuntime.fpsWindowStartMs = now;
+  }
+  if (now - lidarRuntime.fpsWindowStartMs >= 1000UL)
+  {
+    // Normalise by the actual window length: the window closes on the first
+    // poll past 1000 ms (1000-1025 ms at the 25 ms cadence, longer if polling
+    // stalled), so reporting the raw count over-reads by a few percent.
+    uint32_t window_ms = now - lidarRuntime.fpsWindowStartMs;
+    lidar_frame_rate_measured = static_cast<uint16_t>(
+        (static_cast<uint32_t>(lidarRuntime.fpsFrameCount) * 1000UL + window_ms / 2) / window_ms);
+    lidarRuntime.fpsFrameCount = 0;
+    lidarRuntime.fpsWindowStartMs = now;
+  }
+
   DTSResult lidarUpdateResult = lidar.update();
-  last_lidar_error_code = static_cast<int>(static_cast<DTSError>(lidarUpdateResult));
+  // NO_NEW_DATA is the benign "no frame this poll" case; don't let it overwrite the
+  // last meaningful status shown on the diagnostics screen (so err: reads 0 while
+  // frames flow, and a real code such as TIMEOUT/CRC when something is actually wrong).
+  if (static_cast<DTSError>(lidarUpdateResult) != DTSError::NO_NEW_DATA)
+  {
+    last_lidar_error_code = static_cast<int>(static_cast<DTSError>(lidarUpdateResult));
+  }
   if (lidar.newDataAvailable())
   {
+    lidarRuntime.fpsFrameCount++;
     DTSMeasurement measurement = lidar.getMeasurement();
     lidar_high_sunlight = updateSunlightWarnState(lidar_high_sunlight, measurement.sunlightBase);
+
+    // Live telemetry for the diagnostics screen — the latest raw sensor frame,
+    // captured before the median filter overwrites the primary distance below.
+    lidar_raw_distance_mm = measurement.primaryDistance_mm;
+    lidar_primary_intensity = measurement.primaryIntensity;
+    lidar_sunlight_base = measurement.sunlightBase;
+    lidar_snr_permille = computeSnrPermille(measurement.primaryIntensity, measurement.sunlightBase);
+    lidar_telemetry_ms = now;
 
     // Use the library's median-filtered distance to reduce jitter at near/mid range.
     uint16_t filtered_mm = lidar.getFilteredDistance();
@@ -131,15 +187,26 @@ void setDistance()
     int lens_prior_cm = 0;
     bool has_lens_prior = getLensPriorCm(lens_prior_cm);
 
-    LidarCandidate chosen = chooseBestLidarCandidate(measurement, prev_distance, has_lens_prior, lens_prior_cm);
+    // Near-range correction anchor compensation: the 130->100 anchor was
+    // measured at the default geometry offset, so tell the logic how far the
+    // configured pref has moved from it (offsets step in whole cm).
+    int offset_delta_cm = (lidar_distance_offset_mm - DEFAULT_LIDAR_DISTANCE_OFFSET_MM) / 10;
+    LidarCandidate chosen = chooseBestLidarCandidate(measurement, prev_distance, has_lens_prior, lens_prior_cm, offset_delta_cm);
     if (!chosen.valid)
     {
       // Sensor frame unusable — break any subject-stable streak.
       lidarRuntime.stableStreakFrames = 0;
+      unsigned long since_valid = now - lidarRuntime.recovery.last_valid_measurement_ms;
       // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
-      if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS)
+      if (since_valid > LIDAR_NO_DATA_TIMEOUT_MS)
       {
-        clearLidarDisplay(prev_distance >= LIDAR_FAR_SIGNAL_LOSS_CM ? "Inf." : "...");
+        clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
+      }
+      else if (since_valid > LIDAR_HELD_INDICATION_MS)
+      {
+        // Inside the grace window the previous reading stays on screen; flag
+        // it as held rather than letting it present as a live measurement.
+        lidar_distance_held = true;
       }
       return;
     }
@@ -149,7 +216,7 @@ void setDistance()
     // beam-miss past the framed subject. Hold the previous valid value instead.
     // After a short streak of rejections, fall through so the user can
     // deliberately re-focus past the previous LiDAR target without being stuck.
-    if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm))
+    if (has_lens_prior && isLidarReadingImplausible(chosen.distance_cm, lens_prior_cm, chosen.quality_level))
     {
       lidarRuntime.stableStreakFrames = 0; // Rejection means we are not tracking a stable subject.
       bool release = updatePlausibilityHold(lidarRuntime.plausibilityHold,
@@ -187,7 +254,7 @@ void setDistance()
     lidar_quality_level = chosen.quality_level;
 
     distance = static_cast<int16_t>(blendLidarDistance(prev_distance, chosen.distance_cm, chosen.confidence));
-    if (distance != prev_distance || strcmp(distance_cm, "...") == 0 || strcmp(distance_cm, "Inf.") == 0 || strcmp(distance_cm, "Zzz") == 0)
+    if (distance != prev_distance || strcmp(distance_cm, "...") == 0 || strcmp(distance_cm, "Inf.") == 0 || strcmp(distance_cm, "Inf?") == 0 || strcmp(distance_cm, "Zzz") == 0)
     {
       formatDistanceDisplay(distance, distance_cm, sizeof(distance_cm));
       prev_distance = distance;
@@ -196,14 +263,22 @@ void setDistance()
   }
 
   DTSError lidarUpdateError = static_cast<DTSError>(lidarUpdateResult);
-  LidarRecoveryEvent event = (lidarUpdateError == DTSError::TIMEOUT)
-                                 ? LidarRecoveryEvent::TIMEOUT
-                                 : LidarRecoveryEvent::ERROR;
+  LidarRecoveryEvent event = lidarRecoveryEventForUpdateError(lidarUpdateError);
   LidarRecoveryDecision recoveryDecision = updateLidarRecoveryState(lidarRuntime.recovery, event, now);
+
+  // No frame this poll. Benign between frames; once the gap grows past the
+  // held-indication threshold the on-screen reading is stale — say so.
+  if ((now - lidarRuntime.recovery.last_valid_measurement_ms) > LIDAR_HELD_INDICATION_MS)
+  {
+    lidar_distance_held = true;
+  }
 
   if (recoveryDecision.clear_display)
   {
-    clearLidarDisplay("...");
+    // Preserve a far dropout across a stray timeout/CRC frame: while aimed at the
+    // sky the sensor mostly streams invalid frames (handled above), but an odd
+    // unparseable frame lands here and must not poison "Inf?" back to "...".
+    clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
   }
 
   if (!recoveryDecision.attempt_recovery)
@@ -215,12 +290,31 @@ void setDistance()
   lidar.clearError();
   DTSError resetStatus = lidar.resetState();
   DTSError enableStatus = static_cast<DTSError>(lidar.enableSensor());
+  // resetState() clears the library scale + distance offset. Re-apply the
+  // calibration profile unconditionally (it is idempotent) so a partial recovery
+  // where enableSensor() fails transiently while the sensor keeps streaming can
+  // never leave the offset zeroed — otherwise every later reading is short by the
+  // configured offset (default 40 cm) until a fully successful recovery happens.
+  applyLidarCalibrationProfile();
   bool recovered = (resetStatus == DTSError::NONE && enableStatus == DTSError::NONE);
-  if (recovered)
-  {
-    applyLidarCalibrationProfile();
-  }
   noteLidarRecoveryAttemptResult(lidarRuntime.recovery, recovered, now);
+}
+
+void recoverLidarAfterBlockingUi()
+{
+  if (!hardware.lidarSensor || !lidarEnabled)
+  {
+    return;
+  }
+
+  // A long blocking UI section (calibration-complete celebration) starves the
+  // LiDAR UART past its RX buffer. Drain what survived and clear the overflow
+  // so the next scheduled poll starts clean instead of surfacing a spurious
+  // BUFFER_OVERFLOW error; restart the recovery/fps windows for the same
+  // reason the enable paths do.
+  lidar.update();
+  lidar.clearError();
+  noteLidarSensorEnabled();
 }
 
 // Borrows moving average code from
@@ -250,7 +344,9 @@ int getLensSensorReading()
   int sensorVal = static_cast<int>(adcSampleTotal / LENS_ADC_SAMPLE_COUNT);
   if (ui_mode == UiMode::Main)
   {
-    sensorVal += LENS_ADC_MAIN_OFFSET;
+    // Fixed Main-vs-Calib compensation plus the user's focus fine-tune. Calib
+    // mode captures without either, so the stored table stays reference-clean.
+    sensorVal += LENS_ADC_MAIN_OFFSET + lens_focus_offset;
   }
 
   int smoothedReading = calcMovingAvg(sensorVal);
@@ -261,13 +357,19 @@ void setLensDistance()
 {
   const Lens &lens = lenses[selected_lens];
 
-  if (selected_lens != lensSnap.prevLens)
+  bool lensChanged = (selected_lens != lensSnap.prevLens);
+  if (lensChanged)
   {
     lensSnap.prevLens = selected_lens;
     lensSnap.prevIndex = -1;
   }
 
-  if (lens_sensor_reading == prev_lens_sensor_reading)
+  // A lens change swaps the whole sensor->distance table, so the distance must
+  // be recomputed even when the ADC reading is unchanged. Skipping this kept
+  // the previous lens's mapping (display and LiDAR plausibility prior) alive
+  // until the focus ring physically moved — indefinitely when the reading
+  // stayed quiet.
+  if (!lensChanged && lens_sensor_reading == prev_lens_sensor_reading)
   {
     return;
   }
@@ -299,7 +401,17 @@ void setLensDistance()
 
   if (lens.calibrated && snapIndex >= 0)
   {
-    setLensDistanceFromCm(static_cast<int>(lens.distance[snapIndex] * CM_PER_METER));
+    setLensDistanceFromCm(static_cast<int>(lroundf(lens.distance[snapIndex] * CM_PER_METER)));
+    return;
+  }
+
+  // An uncalibrated lens has no sensor->distance mapping, so estimating would
+  // return a bogus "Inf." for any real reading. Show a neutral placeholder
+  // instead of a believable-looking distance.
+  if (!lens.calibrated)
+  {
+    lens_distance_raw = 0;
+    snprintf(lens_distance_cm, sizeof(lens_distance_cm), "--");
     return;
   }
 
@@ -388,12 +500,15 @@ void setVoltage()
     return;
   }
 
-  bat_per = maxlipo.cellPercent();
-  if (bat_per > BATTERY_PERCENT_MAX)
-  {
-    bat_per = BATTERY_PERCENT_MAX;
-  }
+  // Round rather than truncate (99.9% displayed 99%), and clamp both ends:
+  // the MAX17048 can briefly report small negative or >100 values at power-on
+  // or with no battery, which printed as "-0%".
+  bat_per = constrain(static_cast<int>(lroundf(maxlipo.cellPercent())), 0, BATTERY_PERCENT_MAX);
+}
 
+void resetLightMeterSmoothing()
+{
+  lightMeterSmoothing = {};
 }
 
 void setLightMeter()
@@ -457,6 +572,7 @@ void retryLidarInit()
   hardware.lidarSensor = true;
   lidarEnabled = true;
   applyLidarCalibrationProfile();
+  noteLidarSensorEnabled();
   last_lidar_error_code = 0;
 }
 
@@ -483,6 +599,7 @@ void toggleLidar(bool lidarStatusParam)
     if (lidarStatusParam)
     {
       applyLidarCalibrationProfile();
+      noteLidarSensorEnabled();
     }
   }
 }

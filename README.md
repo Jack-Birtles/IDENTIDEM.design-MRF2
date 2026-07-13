@@ -13,8 +13,10 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 ## 📦 Repo at a Glance
 
 - `Firmware/` – ESP32-S3 Arduino firmware (full details in `Firmware/README.md`)
-- `PCBs/Main PCB/` – KiCad project + production Gerbers for the main board
-- `PCBs/Breakout/` – KiCad project + Gerbers for the sensor breakout board
+- `PCBs/` – KiCad projects + production Gerbers, in two supported revisions (see **Which board version?** below):
+  - `PCBs/v2.0/` (MRF-Pro-v8) – adds a dedicated low-noise LiDAR regulator on the breakout for the sensor's full distance range.
+  - `PCBs/v1.0/` (MRF-Pro-v7.5) – simpler boards; great for short-range and landscape use.
+  - Each revision holds `Main PCB/` (main board) and `Breakout/` (sensor breakout) sub-folders.
 - `3MF/` – Print-ready 3MF files organized by part type (body, accessories, masks, fine parts)
 - `STEP & F3D/` – Full assembly CAD (`MRF2-complete.f3d`) and shared STEP export (`MRF2-complete.step`)
 - `OrcaSlicer/` – Slicer project files/profiles for printing
@@ -24,6 +26,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 - `Documentation/flash-firmware/README.md` – Building and flashing the firmware on macOS, Linux, and Windows (VS Code or CLI)
 - `Documentation/web-updater/README.md` – GitHub Pages browser updater architecture and deployment
 - `Documentation/user-manual/USER_MANUAL.md` – On-device UI and calibration user manual
+- `Documentation/wiring/README.md` – Power-switch/buttons and breakout-to-LiDAR harness wiring diagrams, for both board revisions
 - `Firmware/README.md` – Firmware architecture, configuration, and CLI build commands
 
 ## 📷 Camera Features
@@ -35,9 +38,27 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 - Electronic frame counting using a rotary encoder
 - Battery monitoring and on-device configuration, like in-camera lens calibration
 
+## 🧭 Which board version: v1 or v2?
+
+Two board revisions are supported, and **the latest firmware runs on both, unchanged** — there are no board-specific builds, pin maps, or config flags. The main board, connectors, sensors, displays, optics, and printed parts are common to both; **only the breakout differs.** Choose by the LiDAR range you need:
+
+| | **v1 — MRF-Pro-v7.5** (`PCBs/v1.0/`) | **v2 — MRF-Pro-v8** (`PCBs/v2.0/`) |
+| --- | --- | --- |
+| Breakout | Bare — just the three connectors | Same connectors **+ a dedicated LiDAR LDO** (8 extra SMD parts) |
+| LiDAR power | Shared Feather 3.3 V rail, no decoupling at the sensor | Isolated low-noise 3.3 V regulated **at the sensor** (TLV75533 off VBAT) |
+| LiDAR range | Good up close and at landscape distance; **falls off at mid distance and in bright ambient** | **Full rated range across all lighting** |
+| Power switch | Basic on/off | Reworked **J4 DPDT** — full deterministic shutdown (≤1 µA off) |
+| Build effort | **Lowest** — breakout is a bare board, no SMD assembly | A bit more — breakout is an SMD assembly job (JLCPCB BOM/CPL provided) |
+| Best for | Portraits ~1–3 m and landscapes; the cheapest, easiest build | Full-range focus in any light — the fuller-featured build |
+
+- **Pick v1** for the simplest, cheapest build if you mostly shoot within a few metres or at landscape distances. Its LiDAR range can still be improved with the [hand-solder decoupling stopgap](Documentation/hardware-errata/lidar-stage1-decoupling.md), a v1-only remedy that v2 builds in.
+- **Pick v2** for the sensor's full distance range in all lighting, at the cost of the extra SMD parts on the breakout. The [LiDAR power errata](Documentation/hardware-errata/README.md) explains the why.
+
+Building either? See the **[wiring guide](Documentation/wiring/README.md)** for the power-switch/buttons harness and breakout-to-LiDAR harness diagrams, per revision.
+
 ## 🛠 Build Path (high level)
 
-1. **Order PCBs**: Use the Gerbers in `PCBs/Main PCB/Gerber` and `PCBs/Breakout/Gerber`. The `.gbrjob` files can be uploaded directly to most fabs.
+1. **Order PCBs**: Pick your version (see [Which board version?](#-which-board-version-v1-or-v2)), then upload the Gerbers from that revision's `Main PCB/Gerber` and `Breakout/Gerber` folders — the `.gbrjob` files go straight to most fabs. For v2, the breakout is also an assembly job (the LDO SMD parts); its JLCPCB BOM/CPL live in `PCBs/v2.0/Breakout/JLCPCB/`.
 2. **Assemble electronics**: Populate the main and breakout boards with the BoM below (through-hole and SMT mix), attach the Feather ESP32-S3, and wire the displays/sensors via STEMMA QT/Qwiic where applicable.
 3. **Print the body**: Slice/print the 3MF models (see `3MF/` and any profiles in `OrcaSlicer/`). Fit tolerances may depend on your printer and material.
 4. **Load firmware**: Follow `Documentation/flash-firmware/README.md` (macOS/Linux/Windows, VS Code or CLI), then run first-time calibration.
@@ -52,8 +73,8 @@ Marketplace listings (Amazon/AliExpress) change frequently. Treat those links as
 | Item | Qty | Notes | Example sources |
 | --- | --- | --- | --- |
 | Feather ESP32-S3 (Adafruit 5477) | 1 | Main MCU, MAX17048 fuel gauge, 4MB flash / 2MB PSRAM | [Adafruit](https://www.adafruit.com/product/5477) |
-| MRF2 Main PCB | 1 | Use Gerbers in `PCBs/Main PCB/Gerber` | Any fab |
-| MRF2 Breakout PCB | 1 | Use Gerbers in `PCBs/Breakout/Gerber` | Any fab |
+| MRF2 Main PCB | 1 | Use Gerbers in your chosen revision's `Main PCB/Gerber` (`PCBs/v2.0/` or `PCBs/v1.0/`) | Any fab |
+| MRF2 Breakout PCB | 1 | Use Gerbers in your chosen revision's `Breakout/Gerber`. **v2 breakout is an SMD assembly job** (see the LDO parts below) | Any fab |
 | B-type 8-pin FPC ribbon cable | 1 | Links main PCB to breakout | [Amazon](https://www.amazon.co.uk/sourcing-map-Ribbon-Flexible-Printer/dp/B0F4K1KMKR/) |
 | 8-pin JST-SH cable | 1 | For power switch and buttons, 10cm should be plenty | [AliExpress Search](https://www.aliexpress.com/w/wholesale-8-pin-jst%252525252dsh-cable.html) |
 | 6-pin JST-SH cable | 1 | Connect the LiDAR sensor to the breakout board - some cutting and soldering needed on the connector supplied with the sensor | [AliExpress Search](https://www.aliexpress.com/w/wholesale-6-pin-jst%252525252dsh-cable.html) |
@@ -70,13 +91,31 @@ Marketplace listings (Amazon/AliExpress) change frequently. Treat those links as
 | 8mm momentary button | 2 | Select buttons | [Amazon](https://www.amazon.co.uk/dp/B07S1MNB8C) |
 | 6mm DPDT slide switch | 1 | Power switch | [Amazon](https://www.amazon.co.uk/dp/B07H9VPK1J) |
 
-### Components for custom PCBs
+### Components for custom PCBs — connectors (both versions)
+
+The same connectors populate v1 and v2:
+
 | Item | Qty | Notes | Example sources |
 | --- | --- | --- | --- |
 | 0.5mm pitch 8-pin FPC connector (FPC-05F-8PH20, C2856797) | 2 | One on the main PCB, one on the breakout | [JLCPCB](https://jlcpcb.com/partdetail/XUNPU-FPC_05F8PH20/C2856797) |
-| SH 1.0mm 8-pin connector (ZX-SH1.0-8PWT, C7430450) | 1 | Connects power switch and buttons | [JLCPCB](https://jlcpcb.com/partdetail/Megastar-ZX_SH1_08PWT/C7430450) |
-| SH 1.0mm 6-pin connector (ZX-SH1.0-6PWT, C7430448) | 1 | Connects LiDAR sensor | [JLCPCB](https://jlcpcb.com/partdetail/Megastar-ZX_SH1_06PWT/C7430448) |
-| SH 1.0mm 4-pin connector (ZX-SH1.0-4PWT, C7430446) | 1 | Connects STEMMA QT | [JLCPCB](https://jlcpcb.com/partdetail/Megastar-ZX_SH1_04PWT/C7430446) |
+| SH 1.0mm 8-pin connector (ZX-SH1.0-8PWT, C7430450) | 1 | Main board J4 — power switch and buttons | [JLCPCB](https://jlcpcb.com/partdetail/Megastar-ZX_SH1_08PWT/C7430450) |
+| SH 1.0mm 6-pin connector (ZX-SH1.0-6PWT, C7430448) | 1 | Breakout J7 — LiDAR sensor | [JLCPCB](https://jlcpcb.com/partdetail/Megastar-ZX_SH1_06PWT/C7430448) |
+| SH 1.0mm 4-pin connector (ZX-SH1.0-4PWT, C7430446) | 1 | Breakout J6 — STEMMA QT | [JLCPCB](https://jlcpcb.com/partdetail/Megastar-ZX_SH1_04PWT/C7430446) |
+
+### v2 breakout only — dedicated LiDAR regulator
+
+These SMD parts populate the v2 breakout's LDO (the extra cost/effort over v1). **v1's breakout has none of these** — it just carries the connectors above. Full design background is in the [LiDAR power errata](Documentation/hardware-errata/README.md).
+
+| Ref | Part | LCSC | Role |
+| --- | --- | --- | --- |
+| U1 | TLV75533 LDO, SOT-23-5 | C404027 | Dedicated 3.3 V regulator for the LiDAR |
+| Cin1 | 1 µF, 0402 | C52923 | LDO input decoupling |
+| Cin2 | 10 µF, 0805 | C15850 | LDO input bulk |
+| C1 | 47 µF, 1206 | C96123 | Laser-rail bulk (at the sensor's laser pin) |
+| C2 | 1 µF, 0603 | C15849 | LDO output stability |
+| C3 | 100 nF, 0402 | C1525 | High-frequency bypass |
+| FB1 | 0 Ω jumper, 0805 | C17477 | Splits the logic/laser rails (fit a ferrite later if needed) |
+| R1 | 100 kΩ, 0402 | C25741 | LDO enable pulldown (clean power-off) |
 
 ### Hardware
 
@@ -119,9 +158,9 @@ Assumes single-quantity retail buys (Adafruit/Amazon/AliExpress), optics from Ed
 
 ## 🤖 PCB Notes
 
-- Open the KiCad projects: `PCBs/Main PCB/KiCAD/MRF-Pro-v7.5.kicad_pro` and `PCBs/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_pro`.
+- Open the KiCad projects for your revision: **v2** `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_pro` + `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_pro`; **v1** `PCBs/v1.0/Main PCB/KiCAD/MRF-Pro-v7.5.kicad_pro` + `PCBs/v1.0/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_pro`.
 - Fabrication: the provided Gerber sets include copper, mask, paste, silkscreen, drills, and a `.gbrjob` for auto-detection at most PCB fabs.
-- Rev: current files are labeled v7.5. Check for updates before ordering.
+- Revs: `PCBs/v2.0/` (`MRF-Pro-v8`) adds the dedicated LiDAR LDO on the breakout; `PCBs/v1.0/` (`MRF-Pro-v7.5`) is the simpler original design. See [Which board version?](#-which-board-version-v1-or-v2) and the [LiDAR power errata](Documentation/hardware-errata/README.md) for the design background.
 
 ## 💾 Firmware
 

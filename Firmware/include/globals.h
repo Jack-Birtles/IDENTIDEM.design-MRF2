@@ -26,7 +26,8 @@ enum class UiMode : uint8_t
   ResetConfirm,
   Health,
   FactoryResetConfirm,
-  ReticleAdjust
+  ReticleAdjust,
+  LidarDiagnostics    // Setup > LiDAR > Diagnostics live telemetry screen.
 };
 
 extern Preferences prefs;
@@ -67,6 +68,15 @@ extern bool lidar_high_sunlight;
 extern bool lidar_distance_held;    // True when the plausibility gate is holding a stale reading.
 extern int lidar_distance_offset_mm;
 
+// Live LiDAR telemetry for the diagnostics screen (last accepted measurement).
+extern uint16_t lidar_raw_distance_mm;   // Primary distance after the library scale+offset, before the pipeline near-range correction and median filter.
+extern uint16_t lidar_primary_intensity; // Primary return intensity.
+extern uint16_t lidar_sunlight_base;     // Ambient-light baseline reported by the sensor.
+extern int lidar_snr_permille;           // computeSnrPermille() of the last measurement (-1 if no baseline).
+extern unsigned long lidar_telemetry_ms; // millis() when the telemetry above was captured (0 = no frame yet).
+extern uint16_t lidar_frame_rate_actual; // Frame rate read back from the sensor at boot (0 if unread).
+extern uint16_t lidar_frame_rate_measured; // MEASURED accepted-frames/sec (bd n06 — trustworthy; sensor's self-report via getFrameRate reads 0 on this hardware).
+
 // ---------------------------------------------------------------------------
 // Battery gauge
 // ---------------------------------------------------------------------------
@@ -87,6 +97,7 @@ extern int brightness_manual_pct;
 extern int brightness_auto_top_pct;
 extern bool show_horizon_line;
 extern bool parallaxEnabled;
+extern int lens_focus_offset; // User focus fine-tune in ADC counts (Main mode).
 
 // ---------------------------------------------------------------------------
 // UI mode / navigation state
