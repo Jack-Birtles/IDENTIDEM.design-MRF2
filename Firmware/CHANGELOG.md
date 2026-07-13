@@ -2,6 +2,12 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.6.2 - 2026-07-13
+
+### Slower boot animation
+
+- Slowed the external-display film-advance animation so the film feed is easier to watch: 20 frames at 80 ms plus a 500 ms settle hold (~2.1 s total, up from ~1 s). Timing only — no logic change. Verify the feel on device.
+
 ## 10.6.1 - 2026-07-13
 
 ### External display boot animation
