@@ -1,6 +1,7 @@
 #include "lens_logic.h"
 
 #include <Arduino.h>
+#include <math.h>
 
 #include "mrfconstants.h"
 
@@ -43,7 +44,7 @@ LensDistanceEstimate estimateLensDistance(const Lens &lens, int sensor_reading)
   if (sensor_reading < lens.sensor_reading[0])
   {
     result.valid = true;
-    result.distance_cm = static_cast<int>(lens.distance[0] * CM_PER_METER);
+    result.distance_cm = static_cast<int>(lroundf(lens.distance[0] * CM_PER_METER));
     return result;
   }
 
@@ -61,7 +62,7 @@ LensDistanceEstimate estimateLensDistance(const Lens &lens, int sensor_reading)
     if (sensor_reading == lens.sensor_reading[i])
     {
       result.valid = true;
-      result.distance_cm = static_cast<int>(lens.distance[i] * CM_PER_METER);
+      result.distance_cm = static_cast<int>(lroundf(lens.distance[i] * CM_PER_METER));
       return result;
     }
   }
@@ -84,7 +85,9 @@ LensDistanceEstimate estimateLensDistance(const Lens &lens, int sensor_reading)
       const float inv_right = 1.0f / right_distance;
       const float interpolated = 1.0f / (inv_left + t * (inv_right - inv_left));
       result.valid = true;
-      result.distance_cm = static_cast<int>(interpolated * CM_PER_METER);
+      // Round to the nearest cm; truncation biased every between-marks
+      // estimate up to 1 cm short.
+      result.distance_cm = static_cast<int>(lroundf(interpolated * CM_PER_METER));
       return result;
     }
   }
@@ -92,7 +95,7 @@ LensDistanceEstimate estimateLensDistance(const Lens &lens, int sensor_reading)
   if (sensor_reading >= last_sensor)
   {
     result.valid = true;
-    result.distance_cm = static_cast<int>(lens.distance[last_index] * CM_PER_METER);
+    result.distance_cm = static_cast<int>(lroundf(lens.distance[last_index] * CM_PER_METER));
     return result;
   }
 

@@ -365,7 +365,7 @@ void setLensDistance()
 
   if (lens.calibrated && snapIndex >= 0)
   {
-    setLensDistanceFromCm(static_cast<int>(lens.distance[snapIndex] * CM_PER_METER));
+    setLensDistanceFromCm(static_cast<int>(lroundf(lens.distance[snapIndex] * CM_PER_METER)));
     return;
   }
 

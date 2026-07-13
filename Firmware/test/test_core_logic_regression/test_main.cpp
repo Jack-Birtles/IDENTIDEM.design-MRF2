@@ -948,11 +948,12 @@ void test_lens_logic_ignores_unused_distance_markers()
   TEST_ASSERT_EQUAL_INT(2, findLensSnapIndex(lens, 301));
 
   // Reciprocal-distance interpolation between the 2.5m (200) and 3.0m (300)
-  // marks: sensor 250 -> 1/(1/2.5 + 0.5*(1/3 - 1/2.5)) = 2.727m.
+  // marks: sensor 250 -> 1/(1/2.5 + 0.5*(1/3 - 1/2.5)) = 2.7272m -> 273 cm
+  // rounded to nearest (truncation used to pin this at 272).
   LensDistanceEstimate interpolated = estimateLensDistance(lens, 250);
   TEST_ASSERT_TRUE(interpolated.valid);
   TEST_ASSERT_FALSE(interpolated.is_infinity);
-  TEST_ASSERT_EQUAL_INT(272, interpolated.distance_cm);
+  TEST_ASSERT_EQUAL_INT(273, interpolated.distance_cm);
 
   LensDistanceEstimate infinity = estimateLensDistance(lens, 506);
   TEST_ASSERT_TRUE(infinity.valid);
