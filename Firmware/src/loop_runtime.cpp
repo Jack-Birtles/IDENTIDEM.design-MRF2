@@ -394,6 +394,21 @@ void resetWakeSchedulerAndActivityBaselines(unsigned long nowMs)
   loopState.lastMeterChangeMs = nowMs;
 }
 
+uint8_t computeTargetBrightnessByte()
+{
+  if (brightness_auto)
+  {
+    float topFraction = static_cast<float>(brightness_auto_top_pct) / 100.0f;
+    float minFraction = static_cast<float>(BRIGHTNESS_AUTO_MIN_PCT) / 100.0f * topFraction;
+    uint8_t topByte = static_cast<uint8_t>(topFraction * 0xFF);
+    uint8_t minByte = static_cast<uint8_t>(minFraction * 0xFF);
+    float clampedLux = constrain(lux, 0.0f, BRIGHTNESS_AUTO_LUX_MAX);
+    float scaled = clampedLux / BRIGHTNESS_AUTO_LUX_MAX;
+    return static_cast<uint8_t>(minByte + scaled * (topByte - minByte));
+  }
+  return static_cast<uint8_t>(brightness_manual_pct * 0xFF / 100);
+}
+
 void beginFadeOutMainDisplay(unsigned long nowMs)
 {
   if (!hardware.mainDisplay)
@@ -402,7 +417,10 @@ void beginFadeOutMainDisplay(unsigned long nowMs)
   }
 
   loopState.fade.active = true;
-  loopState.fade.brightness = 0xFF;
+  // Start from the currently applied contrast, not max brightness: in a dark
+  // room with auto-brightness dimmed, starting at 0xFF flashed the display to
+  // near-maximum for the fade duration before going dark.
+  loopState.fade.brightness = computeTargetBrightnessByte();
   loopState.fade.lastStepMs = nowMs;
 }
 
@@ -438,21 +456,6 @@ void stepFadeOutMainDisplay(unsigned long nowMs)
   {
     loopState.fade.active = false;
   }
-}
-
-uint8_t computeTargetBrightnessByte()
-{
-  if (brightness_auto)
-  {
-    float topFraction = static_cast<float>(brightness_auto_top_pct) / 100.0f;
-    float minFraction = static_cast<float>(BRIGHTNESS_AUTO_MIN_PCT) / 100.0f * topFraction;
-    uint8_t topByte = static_cast<uint8_t>(topFraction * 0xFF);
-    uint8_t minByte = static_cast<uint8_t>(minFraction * 0xFF);
-    float clampedLux = constrain(lux, 0.0f, BRIGHTNESS_AUTO_LUX_MAX);
-    float scaled = clampedLux / BRIGHTNESS_AUTO_LUX_MAX;
-    return static_cast<uint8_t>(minByte + scaled * (topByte - minByte));
-  }
-  return static_cast<uint8_t>(brightness_manual_pct * 0xFF / 100);
 }
 
 void applyDisplayBrightness()
