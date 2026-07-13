@@ -14,7 +14,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 
 - `Firmware/` – ESP32-S3 Arduino firmware (full details in `Firmware/README.md`)
 - `PCBs/` – KiCad projects + production Gerbers, in two supported revisions (see **Which board version?** below):
-  - `PCBs/v2.0/` (MRF-Pro-v8) – adds a dedicated low-noise LiDAR regulator on the breakout for the sensor's full distance range.
+  - `PCBs/v2.0/` (MRF-Pro-v8) – adds a dedicated low-noise LiDAR regulator on the breakout, and reworks the main board's FPC power delivery and switch: v1's FPC pins weren't wired to a real power rail at all (one was a spare Feather GPIO); v2 fixes that and adds full deterministic shutdown.
   - `PCBs/v1.0/` (MRF-Pro-v7.5) – simpler boards; great for short-range and landscape use.
   - Each revision holds `Main PCB/` (main board) and `Breakout/` (sensor breakout) sub-folders.
 - `3MF/` – Print-ready 3MF files organized by part type (body, accessories, masks, fine parts)
@@ -40,19 +40,20 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 
 ## 🧭 Which board version: v1 or v2?
 
-Two board revisions are supported, and **the latest firmware runs on both, unchanged** — there are no board-specific builds, pin maps, or config flags. The main board, connectors, sensors, displays, optics, and printed parts are common to both; **only the breakout differs.** Choose by the LiDAR range you need:
+Two board revisions are supported, and **the latest firmware runs on both, unchanged** — there are no board-specific builds, pin maps, or config flags. Connectors, sensors, displays, optics, printed parts, and the main board's component placement and outline are common to both, **but the main board's LiDAR power delivery was significantly reworked, alongside the breakout hardware.** On v1, schematic capture found the FPC connector's power pins weren't wired to a real power rail at all — pin 1 was tied to a Feather **GPIO (D11)** and pin 6 to an undefined private net, so the Feather's actual 3.3 V never reached the breakout, likely worsening the laser-pulse brownout this respin fixes. v2 corrects it: pin 1 now carries real `VBAT`, pin 6 carries a properly gated `3.3OUT`, and the GPIO is freed. Choose by the LiDAR range you need:
 
 | | **v1 — MRF-Pro-v7.5** (`PCBs/v1.0/`) | **v2 — MRF-Pro-v8** (`PCBs/v2.0/`) |
 | --- | --- | --- |
 | Breakout | Bare — just the three connectors | Same connectors **+ a dedicated LiDAR LDO** (8 extra SMD parts) |
+| FPC power delivery (main board) | Pin 1 wired to a Feather **GPIO (D11)**, pin 6 an undefined private net — the Feather's regulated 3.3 V never actually reached the FPC | Pin 1 carries real **`VBAT`**, pin 6 carries a gated, switched **`3.3OUT`** — the breakout's LDO finally gets the power path it needs |
 | LiDAR power | Shared Feather 3.3 V rail, no decoupling at the sensor | Isolated low-noise 3.3 V regulated **at the sensor** (TLV75533 off VBAT) |
-| LiDAR range | Good up close and at landscape distance; **falls off at mid distance and in bright ambient** | **Full rated range across all lighting** |
-| Power switch | Basic on/off | Reworked **J4 DPDT** — full deterministic shutdown (≤1 µA off) |
+| LiDAR range | Good up close and at landscape distance; **falls off at mid distance and in bright ambient** | **Full rated range indoors and in shade; direct sun still caps range** (~3 m on a sunlit target — a sensor optics limitation, not power-related; no board revision or firmware fixes it) |
+| Power switch (main board) | Basic on/off — single shared 3.3 V net through J4 | Reworked **J4 DPDT**, two independent poles (gate `3.3OUT`; hold MCU `EN` low) for full deterministic shutdown (≤1 µA off) — same connector, board outline, and component placement, traces rerouted |
 | Build effort | **Lowest** — breakout is a bare board, no SMD assembly | A bit more — breakout is an SMD assembly job (JLCPCB BOM/CPL provided) |
-| Best for | Portraits ~1–3 m and landscapes; the cheapest, easiest build | Full-range focus in any light — the fuller-featured build |
+| Best for | Portraits ~1–3 m and landscapes; the cheapest, easiest build | Full-range focus indoors and in shade, better (not unlimited) in direct sun — the fuller-featured build |
 
 - **Pick v1** for the simplest, cheapest build if you mostly shoot within a few metres or at landscape distances. Its LiDAR range can still be improved with the [hand-solder decoupling stopgap](Documentation/hardware-errata/lidar-stage1-decoupling.md), a v1-only remedy that v2 builds in.
-- **Pick v2** for the sensor's full distance range in all lighting, at the cost of the extra SMD parts on the breakout. The [LiDAR power errata](Documentation/hardware-errata/README.md) explains the why.
+- **Pick v2** for the sensor's full distance range indoors and in shade, deterministic power-off, and a main board that actually delivers real power to the LiDAR breakout, at the cost of the extra SMD parts on the breakout. Direct bright sun still caps range on either revision — that's the sensor fighting solar infrared at its own wavelength, not a supply problem this board fixes. The [LiDAR power errata](Documentation/hardware-errata/README.md) explains the why, and [field test protocol](Documentation/hardware-errata/lidar-field-test.md) covers all three lighting conditions including direct sun.
 
 Building either? See the **[wiring guide](Documentation/wiring/README.md)** for the power-switch/buttons harness and breakout-to-LiDAR harness diagrams, per revision.
 
@@ -160,7 +161,7 @@ Assumes single-quantity retail buys (Adafruit/Amazon/AliExpress), optics from Ed
 
 - Open the KiCad projects for your revision: **v2** `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_pro` + `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_pro`; **v1** `PCBs/v1.0/Main PCB/KiCAD/MRF-Pro-v7.5.kicad_pro` + `PCBs/v1.0/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_pro`.
 - Fabrication: the provided Gerber sets include copper, mask, paste, silkscreen, drills, and a `.gbrjob` for auto-detection at most PCB fabs.
-- Revs: `PCBs/v2.0/` (`MRF-Pro-v8`) adds the dedicated LiDAR LDO on the breakout; `PCBs/v1.0/` (`MRF-Pro-v7.5`) is the simpler original design. See [Which board version?](#-which-board-version-v1-or-v2) and the [LiDAR power errata](Documentation/hardware-errata/README.md) for the design background.
+- Revs: `PCBs/v2.0/` (`MRF-Pro-v8`) adds the dedicated LiDAR LDO on the breakout and reworks the main board's LiDAR power delivery: v1's FPC pin 1 was wired to a spare Feather GPIO (D11) rather than a real rail and pin 6 was an undefined private net, so the Feather's 3.3 V never reached the breakout; v2 rewires them to `VBAT`/`3.3OUT` and splits the J4 switch into a DPDT for full deterministic shutdown (same component placement and board outline, traces rerouted). `PCBs/v1.0/` (`MRF-Pro-v7.5`) is the simpler, unfixed original design. See [Which board version?](#-which-board-version-v1-or-v2) and the [LiDAR power errata](Documentation/hardware-errata/README.md) for the design background.
 
 ## 💾 Firmware
 
