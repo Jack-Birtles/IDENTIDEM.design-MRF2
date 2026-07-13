@@ -4,6 +4,29 @@ All notable firmware changes by released `FWVERSION`, reconstructed from git his
 
 ## Unreleased
 
+### Accuracy review fixes (ToF/measurement chain)
+
+Findings from an independent accuracy review of the measurement chain, all fixed:
+
+- **Focus ring no longer renders against a dead LiDAR reading.** After signal loss or idle standby the distance readout showed a placeholder, but the focus-assist ring (and the parallax fallback) kept comparing the lens position against the last accepted distance — indefinitely. The measurement is now invalidated with the display, and only the aiming reticle draws while no live reading exists.
+- **Light meter displays the nearest standard shutter speed.** The old buckets floored to the faster speed, a systematic 0 to -1 stop (mean half-stop) underexposure for anyone setting the displayed speed. Selection is now nearest-in-stops, with a half-stop courtesy band beyond each end of the 1/1000..1/2 table. *Verify on a test roll or against a reference meter: the lux calibration scale (1.77) was tuned while the old bias existed. If readings now run consistently hot, re-derive the scale — don't revert the rounding.*
+- **Waking from sleep or standby no longer trips a spurious LiDAR recovery.** The first post-wake poll inevitably has no frame yet; with the pre-sleep timestamp still in the recovery state, the timeout fired instantly, running a reset+enable back-to-back with the wake enable (the v10.4.7 hazard) and inflating the Health screen's Recoveries counter on every wake. Recovery timing now restarts on every sensor enable.
+- **Post-wake light readings start fresh.** The lux smoothing EMA survived sleep, so waking in different light blended in up to ~80% pre-sleep level for the first ~1.5 s. The EMA now resets when the meter wakes.
+- **Switching lenses recomputes the focus distance immediately** instead of keeping the previous lens's table mapping until the focus ring moved.
+- **The near-range LiDAR correction survives offset-pref changes.** The 130 cm -> 100 cm anchor was measured at the default 400 mm geometry offset; changing the offset pref shifted the correction's input frame and silently invalidated the anchor. The correction now evaluates in the default-offset frame and re-adds the delta.
+- **Rounding instead of truncation** in the LiDAR mm->cm conversion (0-9 mm short bias on every reading), the lens-table interpolation (up to 1 cm short), and the battery percentage (which could also print "-0%" at power-on).
+- **Boot no longer shows a bogus 1.0 m lens distance.** The lens smoothing window was zero-filled at boot and the spike filter latched the warm-up artefact for ~15 polls; the window is now primed with the first real ADC read.
+- **Far focus marks only snap when the distance is actually close.** The fixed 3-count far deadzone spans metres on sparse tables (a reading interpolating to 8.5 m displayed "10.0m"); snapping now also requires the interpolated distance within 8% of the mark.
+- **Dropouts flag the held reading.** During the 1 s grace window after signal loss the previous distance now shows as "Held:" instead of presenting as live, and the ~2 s calibration-complete celebration no longer leaves the LiDAR UART overflowed. The diagnostics fps count is normalised by the real window length.
+
+### LiDAR driver update (DTS6012M_UART 2.8.0)
+
+Requires DTS6012M_UART 2.8.0 (publish before building a release):
+
+- **Raw distance 0 is invalid, not "40 cm".** A no-return frame reporting 0 got the geometry offset added library-side and arrived as a plausible reading at exactly the offset distance, defeating the firmware's zero-guard.
+- **CRC byte-order auto-detection survives recovery.** The firmware's recovery path runs every ~3 CRC errors and previously wiped the library's 100-failure detection streak, so an LSB-first sensor variant could never auto-switch and recovery-looped forever (err:4 with Recoveries climbing).
+- **The median-filter history clears on reset/standby**, so the first readings after a wake no longer report the previous subject's distance.
+
 ### LiDAR driver update (DTS6012M_UART 2.7.0)
 
 - Bumped the sensor library to `^2.7.0`, which fixes the frame-drain bug found during the range investigation (one `update()` now keeps the freshest queued frame instead of the oldest) and makes one-shot commands report real errors instead of false success.
