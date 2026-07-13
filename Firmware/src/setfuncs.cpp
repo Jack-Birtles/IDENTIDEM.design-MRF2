@@ -182,7 +182,11 @@ void setDistance()
     int lens_prior_cm = 0;
     bool has_lens_prior = getLensPriorCm(lens_prior_cm);
 
-    LidarCandidate chosen = chooseBestLidarCandidate(measurement, prev_distance, has_lens_prior, lens_prior_cm);
+    // Near-range correction anchor compensation: the 130->100 anchor was
+    // measured at the default geometry offset, so tell the logic how far the
+    // configured pref has moved from it (offsets step in whole cm).
+    int offset_delta_cm = (lidar_distance_offset_mm - DEFAULT_LIDAR_DISTANCE_OFFSET_MM) / 10;
+    LidarCandidate chosen = chooseBestLidarCandidate(measurement, prev_distance, has_lens_prior, lens_prior_cm, offset_delta_cm);
     if (!chosen.valid)
     {
       // Sensor frame unusable — break any subject-stable streak.

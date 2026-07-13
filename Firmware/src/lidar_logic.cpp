@@ -20,11 +20,20 @@ int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base)
                           static_cast<unsigned long>(sunlight_base));
 }
 
-int applyLidarCalibrationCm(int raw_cm)
+int applyLidarCalibrationCm(int raw_cm, int offset_delta_cm)
 {
   if (raw_cm <= 0)
   {
     return raw_cm;
+  }
+
+  // The 130->100 anchor was measured with the default geometry offset already
+  // applied library-side. A different offset pref shifts every reading by the
+  // delta, which would silently invalidate the anchor: evaluate the correction
+  // in the default-offset frame and re-add the delta afterwards.
+  if (offset_delta_cm != 0)
+  {
+    return applyLidarCalibrationCm(raw_cm - offset_delta_cm, 0) + offset_delta_cm;
   }
 
   if (raw_cm >= static_cast<int>(LIDAR_CAL_CUTOFF_CM))
@@ -192,7 +201,8 @@ struct LidarReading
 // distance. Each builder layers its own additional reject checks on top.
 LidarReading prepareLidarReading(uint16_t raw_distance_mm,
                                  uint16_t intensity,
-                                 uint16_t sunlight_base)
+                                 uint16_t sunlight_base,
+                                 int offset_delta_cm)
 {
   LidarReading reading = {false, 0, 0};
   if (raw_distance_mm == DTS_INVALID_DISTANCE)
@@ -211,7 +221,7 @@ LidarReading prepareLidarReading(uint16_t raw_distance_mm,
     return reading;
   }
 
-  int corrected_cm = applyLidarCalibrationCm(raw_cm);
+  int corrected_cm = applyLidarCalibrationCm(raw_cm, offset_delta_cm);
   if (corrected_cm <= 0)
   {
     return reading;
@@ -227,10 +237,11 @@ LidarCandidate buildFallbackLidarCandidate(uint16_t raw_distance_mm,
                                            uint16_t intensity,
                                            uint16_t sunlight_base,
                                            DataQuality quality,
-                                           int previous_distance_cm)
+                                           int previous_distance_cm,
+                                           int offset_delta_cm)
 {
   LidarCandidate candidate = {false, 0, 0, 0};
-  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base, offset_delta_cm);
   if (!reading.valid)
   {
     return candidate;
@@ -275,11 +286,12 @@ LidarCandidate buildLidarCandidate(uint16_t raw_distance_mm,
                                    bool secondary_candidate,
                                    int previous_distance_cm,
                                    bool has_lens_prior,
-                                   int lens_prior_cm)
+                                   int lens_prior_cm,
+                                   int offset_delta_cm)
 {
   LidarCandidate candidate = {false, 0, 0, 0};
 
-  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base);
+  LidarReading reading = prepareLidarReading(raw_distance_mm, intensity, sunlight_base, offset_delta_cm);
   if (!reading.valid)
   {
     return candidate;
@@ -370,7 +382,8 @@ LidarCandidate selectBestPair(const LidarCandidate &primary, const LidarCandidat
 LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                         int previous_distance_cm,
                                         bool has_lens_prior,
-                                        int lens_prior_cm)
+                                        int lens_prior_cm,
+                                        int offset_delta_cm)
 {
   LidarCandidate primary = buildLidarCandidate(measurement.primaryDistance_mm,
                                                measurement.primaryIntensity,
@@ -379,7 +392,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                false,
                                                previous_distance_cm,
                                                has_lens_prior,
-                                               lens_prior_cm);
+                                               lens_prior_cm,
+                                               offset_delta_cm);
 
   // Only build secondary candidate when a dual-peak target is present
   // (valid distance AND non-zero intensity, matching library hasSecondaryTarget() logic).
@@ -401,7 +415,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                     true,
                                     previous_distance_cm,
                                     has_lens_prior,
-                                    lens_prior_cm);
+                                    lens_prior_cm,
+                                    offset_delta_cm);
   }
 
   if (primary.valid || secondary.valid)
@@ -415,7 +430,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                                measurement.primaryIntensity,
                                                                measurement.sunlightBase,
                                                                measurement.primaryQuality,
-                                                               previous_distance_cm);
+                                                               previous_distance_cm,
+                                                               offset_delta_cm);
   if (!has_secondary)
   {
     return fallbackPrimary;
@@ -430,7 +446,8 @@ LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                                                  measurement.secondaryIntensity,
                                                                  measurement.sunlightBase,
                                                                  fb_secondary_quality,
-                                                                 previous_distance_cm);
+                                                                 previous_distance_cm,
+                                                                 offset_delta_cm);
   return selectBestPair(fallbackPrimary, fallbackSecondary);
 }
 

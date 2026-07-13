@@ -802,6 +802,30 @@ void test_near_range_correction_is_bounded_below_by_floor()
   TEST_ASSERT_LESS_OR_EQUAL_INT(120, applyLidarCalibrationCm(120));
 }
 
+void test_near_range_correction_compensates_for_offset_pref_delta()
+{
+  // The 130->100 anchor was measured with the default geometry offset (400 mm,
+  // applied library-side before this correction sees the value). When the user
+  // changes the offset pref by delta, the same physical subject arrives
+  // delta cm higher/lower, so the correction must be evaluated in the
+  // default-offset frame and the delta re-added afterwards. Without this, any
+  // offset change silently invalidates the measured anchor.
+  const int delta_up = 10;   // user offset 500 mm
+  const int delta_down = -5; // user offset 350 mm
+
+  // The anchor subject: default-offset reading 130 -> ~100. With the pref
+  // moved, the same subject reads 130+delta and must correct to ~100+delta.
+  TEST_ASSERT_INT_WITHIN(1, 100 + delta_up, applyLidarCalibrationCm(130 + delta_up, delta_up));
+  TEST_ASSERT_INT_WITHIN(1, 100 + delta_down, applyLidarCalibrationCm(130 + delta_down, delta_down));
+
+  // The cutoff moves with the delta too: a subject at the cutoff passes
+  // through unchanged regardless of the configured offset.
+  TEST_ASSERT_EQUAL_INT(150 + delta_up, applyLidarCalibrationCm(150 + delta_up, delta_up));
+
+  // Zero delta stays byte-for-byte compatible with the single-argument form.
+  TEST_ASSERT_EQUAL_INT(applyLidarCalibrationCm(130), applyLidarCalibrationCm(130, 0));
+}
+
 void test_lidar_fusion_takes_max_confidence_not_average()
 {
   // A strong primary must not be demoted by a weak but agreeing secondary:
@@ -1413,6 +1437,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_dynamic_intensity_threshold_accepts_mid_range);
   RUN_TEST(test_lidar_far_fallback_prevents_dropouts);
   RUN_TEST(test_near_range_correction_is_bounded_below_by_floor);
+  RUN_TEST(test_near_range_correction_compensates_for_offset_pref_delta);
   RUN_TEST(test_lidar_candidate_fusion_when_returns_agree);
   RUN_TEST(test_lidar_fusion_takes_max_confidence_not_average);
   RUN_TEST(test_lidar_lens_prior_is_range_weighted);

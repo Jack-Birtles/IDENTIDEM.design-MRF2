@@ -13,10 +13,14 @@ struct LidarCandidate
   int quality_level; // 1..4 (poor..excellent), 0 when invalid
 };
 
+// offset_delta_cm is the difference between the configured geometry-offset
+// pref and the default it was calibrated with, in cm:
+// (lidar_distance_offset_mm - DEFAULT_LIDAR_DISTANCE_OFFSET_MM) / 10.
 LidarCandidate chooseBestLidarCandidate(const DTSMeasurement &measurement,
                                         int previous_distance_cm,
                                         bool has_lens_prior,
-                                        int lens_prior_cm);
+                                        int lens_prior_cm,
+                                        int offset_delta_cm = 0);
 
 int blendLidarDistance(int previous_distance_cm, int next_distance_cm, int confidence);
 
@@ -32,8 +36,11 @@ int computeSnrPermille(uint16_t intensity, uint16_t sunlight_base);
 // percent of the raw distance (interim guard pending the measured table, bd 4p9),
 // so real sub-metre subjects are not collapsed below the display floor. Values at
 // or above the cutoff pass through unchanged. Exposed for the diagnostics screen
-// and unit tests.
-int applyLidarCalibrationCm(int raw_cm);
+// and unit tests. The correction anchor was measured with the default geometry
+// offset; pass offset_delta_cm (configured minus default, in cm) so the
+// correction is evaluated in the default-offset frame and the delta re-added,
+// keeping the anchor valid when the user tunes the offset pref.
+int applyLidarCalibrationCm(int raw_cm, int offset_delta_cm = 0);
 
 // True when the LiDAR reading is so far beyond the lens focus prior that it is
 // almost certainly a beam-miss (LiDAR found distant background past the framed
