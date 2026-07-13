@@ -462,6 +462,11 @@ void setVoltage()
 
 }
 
+void resetLightMeterSmoothing()
+{
+  lightMeterSmoothing = {};
+}
+
 void setLightMeter()
 {
   if (!hardware.lightMeter)

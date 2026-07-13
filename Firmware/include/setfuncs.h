@@ -15,6 +15,12 @@ void setVoltage();
 
 void setLightMeter();
 
+// Drop the smoothed-lux EMA state so the next reading starts fresh. Called on
+// light-meter wake: ambient light can change arbitrarily while the camera
+// sleeps, and blending pre-sleep lux into the first post-wake readings skews
+// the displayed shutter speed for the ~1.5 s the EMA needs to converge.
+void resetLightMeterSmoothing();
+
 void toggleLidar(bool lidarStatus);
 
 void retryLidarInit();

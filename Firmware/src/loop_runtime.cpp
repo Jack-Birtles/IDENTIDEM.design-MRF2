@@ -330,6 +330,9 @@ void wakeLightMeterFromSleep()
 
   hardware.lightMeter = true;
   loopState.lightMeterSleeping = false;
+  // Ambient light can change arbitrarily during sleep; don't blend the
+  // pre-sleep EMA into the first post-wake exposure readings.
+  resetLightMeterSmoothing();
 }
 
 // Sleep-wake activity baselines are owned by finaliseSleepServices(): it is
