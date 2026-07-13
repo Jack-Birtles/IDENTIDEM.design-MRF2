@@ -23,10 +23,15 @@ const char *PREFS_KEY_SCHEMA = "schema";
 const char *PREFS_KEY_LEGACY_LENSES = "lenses";
 const char *PREFS_KEY_LENS_COUNT = "lc_count";
 const unsigned long PREFS_FLUSH_DELAY_MS = 2000;
+// Backstop: flush this long after the FIRST unflushed change even if activity
+// (e.g. continuous film winding) keeps re-arming the quiet-period timer above,
+// bounding the amount of unsaved state a battery pull could lose.
+const unsigned long PREFS_MAX_DIRTY_AGE_MS = 10000;
 
 bool prefsDirty = false;
 uint8_t prefsDirtyMask = 0;
 unsigned long prefsLastDirtyMs = 0;
+unsigned long prefsFirstDirtyMs = 0;
 
 // Lens-ADC moving-average state. The algorithm (with first-sample priming)
 // lives in lens_spike_logic so the native tests cover it; only the instance
@@ -394,6 +399,10 @@ void savePrefs(bool force, uint8_t dirtyMask)
     return;
   }
 
+  if (!prefsDirty)
+  {
+    prefsFirstDirtyMs = millis();
+  }
   prefsDirty = true;
   prefsDirtyMask |= dirtyMask;
   prefsLastDirtyMs = millis();
@@ -413,7 +422,9 @@ void flushPrefsIfDirty()
   }
 
   unsigned long now = millis();
-  if ((now - prefsLastDirtyMs) < PREFS_FLUSH_DELAY_MS)
+  bool quietPeriodElapsed = (now - prefsLastDirtyMs) >= PREFS_FLUSH_DELAY_MS;
+  bool maxAgeElapsed = (now - prefsFirstDirtyMs) >= PREFS_MAX_DIRTY_AGE_MS;
+  if (!quietPeriodElapsed && !maxAgeElapsed)
   {
     return;
   }
