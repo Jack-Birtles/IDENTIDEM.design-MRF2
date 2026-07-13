@@ -500,12 +500,10 @@ void setVoltage()
     return;
   }
 
-  bat_per = maxlipo.cellPercent();
-  if (bat_per > BATTERY_PERCENT_MAX)
-  {
-    bat_per = BATTERY_PERCENT_MAX;
-  }
-
+  // Round rather than truncate (99.9% displayed 99%), and clamp both ends:
+  // the MAX17048 can briefly report small negative or >100 values at power-on
+  // or with no battery, which printed as "-0%".
+  bat_per = constrain(static_cast<int>(lroundf(maxlipo.cellPercent())), 0, BATTERY_PERCENT_MAX);
 }
 
 void resetLightMeterSmoothing()
