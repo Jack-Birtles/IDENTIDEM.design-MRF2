@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 // Firmware identity and boot behavior
 // ---------------------------------------------------------------------------
-#define FWVERSION "10.6.0"                   // Version shown in UI and release metadata.
+#define FWVERSION "10.6.1"                   // Version shown in UI and release metadata.
 const unsigned long SLEEP_BOOT_GRACE_MS = 15000; // Ignore sleep timer immediately after boot.
 
 // ---------------------------------------------------------------------------
@@ -66,7 +66,13 @@ const int NEOPIXEL_OFF_B = 0;                  // LED-off B channel.
 
 const unsigned long DISPLAY_INIT_DELAY_MS = 1000;      // Main display power-up settle delay.
 const unsigned long DISPLAY_EXT_INIT_DELAY_MS = 500;   // External display settle delay.
-const unsigned long DISPLAY_BOOT_SCREEN_MS = 1000;     // Boot splash hold time.
+const unsigned long DISPLAY_BOOT_SCREEN_MS = 400;      // Post-landing hold after the film settles.
+const int DISPLAY_BOOT_ANIM_FRAMES = 16;               // Number of animated film-advance frames.
+const unsigned long DISPLAY_BOOT_ANIM_FRAME_MS = 40;   // Delay per animation frame (16*40 = 640 ms).
+const int DISPLAY_BOOT_SPROCKET_SPACING = 12;          // Px between sprocket-hole centres.
+const int DISPLAY_BOOT_SPROCKET_STEP = 3;              // Px the perforations shift per frame.
+const int DISPLAY_BOOT_SPROCKET_W = 6;                 // Sprocket-hole width in px.
+const int DISPLAY_BOOT_SPROCKET_H = 4;                 // Sprocket-hole height (top and bottom bands).
 const unsigned long LIDAR_SERIAL_STARTUP_DELAY_MS = 20; // LiDAR serial warm-up delay.
 const uint8_t LIGHTMETER_I2C_ADDR = 0x23;              // BH1750 I2C address.
 const uint8_t LIGHTMETER_CMD_POWER_DOWN = 0x00;        // BH1750 power-down command.

@@ -2,6 +2,12 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.6.1 - 2026-07-13
+
+### External display boot animation
+
+- Replaced the static `MRF X.Y.Z` boot splash on the external OLED with a film-advance animation: sprocket perforations tick along the top and bottom edges while the version rides in from the right and settles centred, like loading a fresh roll. The per-frame geometry lives in a new host-tested `boot_animation_logic` module; the draw loop stays thin. Boot timing is unchanged (~1 s). Verify boot timing and legibility on device.
+
 ## 10.6.0 - 2026-07-13
 
 ### Whole-codebase review fixes (safety, persistence, input, rendering, lifecycle)
