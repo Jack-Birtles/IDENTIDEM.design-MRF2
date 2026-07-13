@@ -280,9 +280,23 @@ bool sendLightMeterCommand(uint8_t command)
     return false;
   }
 
-  Wire.beginTransmission(LIGHTMETER_I2C_ADDR);
-  Wire.write(command);
-  return Wire.endTransmission() == 0;
+  // A single transient I2C NACK during sleep/wake previously disabled the
+  // meter for the rest of the session (no retry path, unlike LiDAR's
+  // Health-screen manual retry). Retry a few times before giving up.
+  for (int attempt = 0; attempt <= LIGHTMETER_I2C_RETRY_COUNT; attempt++)
+  {
+    Wire.beginTransmission(LIGHTMETER_I2C_ADDR);
+    Wire.write(command);
+    if (Wire.endTransmission() == 0)
+    {
+      return true;
+    }
+    if (attempt < LIGHTMETER_I2C_RETRY_COUNT)
+    {
+      delay(LIGHTMETER_I2C_RETRY_DELAY_MS);
+    }
+  }
+  return false;
 }
 
 void powerDownLightMeterForSleep()
