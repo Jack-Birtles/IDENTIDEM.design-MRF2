@@ -145,7 +145,12 @@ void setDistance()
   }
   if (now - lidarRuntime.fpsWindowStartMs >= 1000UL)
   {
-    lidar_frame_rate_measured = lidarRuntime.fpsFrameCount;
+    // Normalise by the actual window length: the window closes on the first
+    // poll past 1000 ms (1000-1025 ms at the 25 ms cadence, longer if polling
+    // stalled), so reporting the raw count over-reads by a few percent.
+    uint32_t window_ms = now - lidarRuntime.fpsWindowStartMs;
+    lidar_frame_rate_measured = static_cast<uint16_t>(
+        (static_cast<uint32_t>(lidarRuntime.fpsFrameCount) * 1000UL + window_ms / 2) / window_ms);
     lidarRuntime.fpsFrameCount = 0;
     lidarRuntime.fpsWindowStartMs = now;
   }
