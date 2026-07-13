@@ -802,6 +802,22 @@ void test_near_range_correction_is_bounded_below_by_floor()
   TEST_ASSERT_LESS_OR_EQUAL_INT(120, applyLidarCalibrationCm(120));
 }
 
+void test_lidar_mm_to_cm_conversion_rounds_to_nearest()
+{
+  // Truncation biased every reading 0-9 mm short (mean -4.5 mm). 1996 mm is
+  // 199.6 cm and must read 200, not 199.
+  DTSMeasurement measurement = makeLidarMeasurement(1996, 200, DataQuality::GOOD);
+  LidarCandidate candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
+  TEST_ASSERT_TRUE(candidate.valid);
+  TEST_ASSERT_EQUAL_INT(200, candidate.distance_cm);
+
+  // Below the .5 boundary still rounds down.
+  measurement = makeLidarMeasurement(1994, 200, DataQuality::GOOD);
+  candidate = chooseBestLidarCandidate(measurement, 0, false, 0);
+  TEST_ASSERT_TRUE(candidate.valid);
+  TEST_ASSERT_EQUAL_INT(199, candidate.distance_cm);
+}
+
 void test_near_range_correction_compensates_for_offset_pref_delta()
 {
   // The 130->100 anchor was measured with the default geometry offset (400 mm,
@@ -1438,6 +1454,7 @@ int main(int, char **)
   RUN_TEST(test_lidar_far_fallback_prevents_dropouts);
   RUN_TEST(test_near_range_correction_is_bounded_below_by_floor);
   RUN_TEST(test_near_range_correction_compensates_for_offset_pref_delta);
+  RUN_TEST(test_lidar_mm_to_cm_conversion_rounds_to_nearest);
   RUN_TEST(test_lidar_candidate_fusion_when_returns_agree);
   RUN_TEST(test_lidar_fusion_takes_max_confidence_not_average);
   RUN_TEST(test_lidar_lens_prior_is_range_weighted);

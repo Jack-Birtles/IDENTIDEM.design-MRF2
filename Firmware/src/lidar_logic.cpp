@@ -210,7 +210,9 @@ LidarReading prepareLidarReading(uint16_t raw_distance_mm,
     return reading;
   }
 
-  int raw_cm = static_cast<int>(raw_distance_mm) / LIDAR_DISTANCE_DIVISOR;
+  // Round to the nearest cm; plain division truncated, biasing every reading
+  // 0-9 mm short.
+  int raw_cm = (static_cast<int>(raw_distance_mm) + LIDAR_DISTANCE_DIVISOR / 2) / LIDAR_DISTANCE_DIVISOR;
   if (raw_cm <= 0)
   {
     return reading;
