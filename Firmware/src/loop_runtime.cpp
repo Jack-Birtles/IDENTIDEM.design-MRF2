@@ -180,6 +180,16 @@ bool shouldDrawPrimaryUi(unsigned long nowMs)
     return true;
   }
 
+  // Clearing calib_capture_status here (rather than inside drawCalibUI) keeps
+  // rendering read-only and guarantees the signature below actually reflects
+  // the expiry, so the redraw-skip cache reliably schedules the redraw that
+  // removes the message instead of leaving it until an unrelated field changes.
+  if (calib_capture_status != CALIB_CAPTURE_STATUS_NONE &&
+      (nowMs - calib_capture_status_ms) >= CALIB_ERROR_HOLD_MS)
+  {
+    calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
+  }
+
   uint32_t signature = buildMenuUiSignature(captureMenuUiSnapshot());
   bool changed = !cache.initialized || cache.lastMode != ui_mode || signature != cache.menuSignature;
   bool healthRefreshDue = (ui_mode == UiMode::Health) &&

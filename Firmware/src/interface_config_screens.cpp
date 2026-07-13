@@ -484,34 +484,30 @@ void drawCalibUI()
     u8g2.setCursor(CALIB_ITEM_X, CALIB_HELP_Y3);
     u8g2.print(F(" (R) to Cancel"));
 
-    // Show error for at least CALIB_ERROR_HOLD_MS, then auto-clear.
-    if (calib_capture_status != CALIB_CAPTURE_STATUS_NONE)
+    // Rendering only: the hold-window expiry that clears calib_capture_status
+    // back to NONE runs in the loop (shouldDrawPrimaryUi), not here, so a
+    // render never mutates state and a menu redraw is reliably scheduled
+    // when the status changes.
+    if (calib_capture_status == CALIB_CAPTURE_STATUS_UNSTABLE)
     {
-      if ((millis() - calib_capture_status_ms) >= CALIB_ERROR_HOLD_MS)
-      {
-        calib_capture_status = CALIB_CAPTURE_STATUS_NONE;
-      }
-      else if (calib_capture_status == CALIB_CAPTURE_STATUS_UNSTABLE)
-      {
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
-        u8g2.print(F(" Unstable reading"));
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
-        u8g2.print(F(" Hold lens still and retry"));
-      }
-      else if (calib_capture_status == CALIB_CAPTURE_STATUS_NON_MONOTONIC)
-      {
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
-        u8g2.print(F(" Out of sequence"));
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
-        u8g2.print(F(" Increase focus distance"));
-      }
-      else if (calib_capture_status == CALIB_CAPTURE_STATUS_WRONG_DIRECTION)
-      {
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
-        u8g2.print(F(" Readings decreasing"));
-        u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
-        u8g2.print(F(" Sensor wired backward?"));
-      }
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+      u8g2.print(F(" Unstable reading"));
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+      u8g2.print(F(" Hold lens still and retry"));
+    }
+    else if (calib_capture_status == CALIB_CAPTURE_STATUS_NON_MONOTONIC)
+    {
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+      u8g2.print(F(" Out of sequence"));
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+      u8g2.print(F(" Increase focus distance"));
+    }
+    else if (calib_capture_status == CALIB_CAPTURE_STATUS_WRONG_DIRECTION)
+    {
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y1);
+      u8g2.print(F(" Readings decreasing"));
+      u8g2.setCursor(CALIB_ITEM_X, CALIB_STATUS_Y2);
+      u8g2.print(F(" Sensor wired backward?"));
     }
   }
 
