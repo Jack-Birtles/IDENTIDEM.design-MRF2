@@ -305,7 +305,13 @@ void handleReticleAdjustLongPress()
 
 void handleLeftButtonLongPress()
 {
+  bool wasSleeping = sleepMode;
   registerActivity();
+  if (wasSleeping)
+  {
+    return;
+  }
+
   if (ui_mode == UiMode::ReticleAdjust)
   {
     handleReticleAdjustLongPress();
@@ -314,7 +320,13 @@ void handleLeftButtonLongPress()
 
 void handleRightButtonLongPress()
 {
+  bool wasSleeping = sleepMode;
   registerActivity();
+  if (wasSleeping)
+  {
+    return;
+  }
+
   if (ui_mode == UiMode::Main)
   {
     ui_mode = UiMode::Config;
