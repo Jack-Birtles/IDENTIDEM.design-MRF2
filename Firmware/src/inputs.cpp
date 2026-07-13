@@ -191,7 +191,13 @@ void handleLeftButtonShortPress()
       {
         const int calibrationPointCount = getCalibrationPointCountForLens(lenses[calib_lens]);
         int averagedReading = 0;
-        if (!captureStableCalibReading(averagedReading))
+        bool captureOk = captureStableCalibReading(averagedReading);
+        // The capture above blocks for ~160ms (8 ADC samples) with the LiDAR
+        // UART still streaming in Calib mode; clean up afterward the same way
+        // the longer calibration-complete block already does, regardless of
+        // whether this particular reading was accepted.
+        recoverLidarAfterBlockingUi();
+        if (!captureOk)
         {
           calib_capture_status = CALIB_CAPTURE_STATUS_UNSTABLE;
           calib_capture_status_ms = millis();
