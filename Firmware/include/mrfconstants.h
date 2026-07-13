@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 // Firmware identity and boot behavior
 // ---------------------------------------------------------------------------
-#define FWVERSION "10.6.2"                   // Version shown in UI and release metadata.
+#define FWVERSION "10.6.3"                   // Version shown in UI and release metadata.
 const unsigned long SLEEP_BOOT_GRACE_MS = 15000; // Ignore sleep timer immediately after boot.
 
 // ---------------------------------------------------------------------------
@@ -66,9 +66,9 @@ const int NEOPIXEL_OFF_B = 0;                  // LED-off B channel.
 
 const unsigned long DISPLAY_INIT_DELAY_MS = 1000;      // Main display power-up settle delay.
 const unsigned long DISPLAY_EXT_INIT_DELAY_MS = 500;   // External display settle delay.
-const unsigned long DISPLAY_BOOT_SCREEN_MS = 500;      // Post-landing hold after the film settles.
+const unsigned long DISPLAY_BOOT_SCREEN_MS = 400;      // Post-landing hold after the film settles.
 const int DISPLAY_BOOT_ANIM_FRAMES = 20;               // Number of animated film-advance frames.
-const unsigned long DISPLAY_BOOT_ANIM_FRAME_MS = 80;   // Delay per animation frame (20*80 = 1600 ms).
+const unsigned long DISPLAY_BOOT_ANIM_FRAME_MS = 65;   // Delay per animation frame (20*65 = 1300 ms).
 const int DISPLAY_BOOT_SPROCKET_SPACING = 12;          // Px between sprocket-hole centres.
 const int DISPLAY_BOOT_SPROCKET_STEP = 3;              // Px the perforations shift per frame.
 const int DISPLAY_BOOT_SPROCKET_W = 6;                 // Sprocket-hole width in px.

@@ -145,6 +145,11 @@ void showBootScreenOnExternalDisplay()
 
   display_ext.clearDisplay();
   display_ext.setTextColor(SSD1306_WHITE);
+  // Text wrap must be off: the animation deliberately positions the version
+  // off the right edge at the start of the roll. With Adafruit_GFX's default
+  // wrap enabled, an off-screen cursor resets to x=0 one text line lower,
+  // painting stray glyphs along the bottom of the panel. Wrap off clips them.
+  display_ext.setTextWrap(false);
 
   char bootText[24];
   snprintf(bootText, sizeof(bootText), "MRF %s", FWVERSION);
