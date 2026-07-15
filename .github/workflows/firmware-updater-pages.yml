@@ -169,6 +169,13 @@ jobs:
             cp "$BOOT_APP0_BIN" "$output_dir/boot_app0.bin"
             cp "$TINYUF2_BIN" "$output_dir/tinyuf2.bin"
             cp "$build_dir/firmware.bin" "$output_dir/firmware.bin"
+
+            # Published checksums make binary tampering detectable: anyone can
+            # compare what the site serves against these, and the CI log keeps
+            # an independent record of what each build produced.
+            (cd "$output_dir" && sha256sum ./*.bin > sha256sums.txt)
+            echo "SHA-256 for $output_dir:"
+            cat "$output_dir/sha256sums.txt"
           }
 
           write_manifest() {
