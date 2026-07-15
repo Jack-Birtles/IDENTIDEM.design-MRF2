@@ -4,27 +4,17 @@
 
 #include "mrfconstants.h"
 
-FilmCounterEstimate estimateFilmCounter(
-    const FilmFormat &film_format,
-    int encoder_value,
-    int frame_one_offset,
-    int frame_spacing_offset)
+namespace
 {
-  FilmCounterEstimate result = {false, 0, 0.0f};
-
-  int frame_count = sizeof(film_format.sensor) / sizeof(film_format.sensor[0]);
-  while (frame_count > 1 && film_format.sensor[frame_count - 1] == 0 && film_format.frame[frame_count - 1] == 0)
-  {
-    frame_count--;
-  }
-  if (frame_count < 2)
-  {
-    return result;
-  }
-  const int last_frame_index = frame_count - 1;
-  int adjusted_sensor_points[FILM_FORMAT_POINT_CAPACITY] = {};
+// Single source of truth for the frame-tuning offset formula. The monotonic
+// clamp guarantees consecutive points strictly ascend even at the most
+// negative spacing offset; cyclefuncs.cpp used to carry an unclamped copy.
+void fillAdjustedSensorPoints(const FilmFormat &film_format, int frame_count,
+                              int frame_one_offset, int frame_spacing_offset,
+                              int (&adjusted_sensor_points)[FILM_FORMAT_POINT_CAPACITY])
+{
   adjusted_sensor_points[0] = film_format.sensor[0];
-  for (int i = 1; i <= last_frame_index; i++)
+  for (int i = 1; i < frame_count; i++)
   {
     long adjusted = static_cast<long>(film_format.sensor[i]) +
                     static_cast<long>(frame_one_offset) +
@@ -36,6 +26,52 @@ FilmCounterEstimate estimateFilmCounter(
     }
     adjusted_sensor_points[i] = static_cast<int>(adjusted);
   }
+}
+} // namespace
+
+int adjustedSensorPointForIndex(
+    const FilmFormat &film_format,
+    int point_index,
+    int frame_one_offset,
+    int frame_spacing_offset)
+{
+  const int frame_count = getFilmFormatPointCount(film_format);
+  if (frame_count <= 0)
+  {
+    return 0;
+  }
+  if (point_index < 0)
+  {
+    point_index = 0;
+  }
+  if (point_index >= frame_count)
+  {
+    point_index = frame_count - 1;
+  }
+
+  int adjusted_sensor_points[FILM_FORMAT_POINT_CAPACITY] = {};
+  fillAdjustedSensorPoints(film_format, frame_count, frame_one_offset,
+                           frame_spacing_offset, adjusted_sensor_points);
+  return adjusted_sensor_points[point_index];
+}
+
+FilmCounterEstimate estimateFilmCounter(
+    const FilmFormat &film_format,
+    int encoder_value,
+    int frame_one_offset,
+    int frame_spacing_offset)
+{
+  FilmCounterEstimate result = {false, 0, 0.0f};
+
+  const int frame_count = getFilmFormatPointCount(film_format);
+  if (frame_count < 2)
+  {
+    return result;
+  }
+  const int last_frame_index = frame_count - 1;
+  int adjusted_sensor_points[FILM_FORMAT_POINT_CAPACITY] = {};
+  fillAdjustedSensorPoints(film_format, frame_count, frame_one_offset,
+                           frame_spacing_offset, adjusted_sensor_points);
 
   if (encoder_value >= adjusted_sensor_points[last_frame_index])
   {

@@ -1595,6 +1595,55 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+void test_cycle_seed_points_roundtrip_to_the_same_frame_across_tuning_range()
+{
+  // Manually cycling the frame counter seeds the encoder with an adjusted
+  // sensor point; estimateFilmCounter must map that exact point back to the
+  // same frame for every format and every corner of the tuning range.
+  // cyclefuncs.cpp used to duplicate the offset formula without the monotonic
+  // clamp, so a negative spacing offset could seed frame N and display N-1.
+  const int tuning_values[] = {FRAME_TUNING_MIN, 0, FRAME_TUNING_MAX};
+
+  for (size_t format_index = 0; format_index < NUM_FILM_FORMATS; format_index++)
+  {
+    const FilmFormat &fmt = film_formats[format_index];
+    const int point_count = getFilmFormatPointCount(fmt);
+
+    for (int f1 : tuning_values)
+    {
+      for (int fs : tuning_values)
+      {
+        for (int i = 0; i < point_count; i++)
+        {
+          const int seeded = adjustedSensorPointForIndex(fmt, i, f1, fs);
+          const FilmCounterEstimate est = estimateFilmCounter(fmt, seeded, f1, fs);
+          TEST_ASSERT_TRUE_MESSAGE(est.valid, fmt.name);
+          TEST_ASSERT_EQUAL_INT_MESSAGE(fmt.frame[i], est.frame, fmt.name);
+        }
+      }
+    }
+  }
+}
+
+void test_adjusted_sensor_points_stay_monotonic_with_negative_spacing()
+{
+  // The monotonic clamp is the difference between the two former copies of
+  // the formula: consecutive seeded points must always strictly increase,
+  // even at the most negative spacing offset.
+  for (size_t format_index = 0; format_index < NUM_FILM_FORMATS; format_index++)
+  {
+    const FilmFormat &fmt = film_formats[format_index];
+    const int point_count = getFilmFormatPointCount(fmt);
+    int prev = adjustedSensorPointForIndex(fmt, 0, FRAME_TUNING_MIN, FRAME_TUNING_MIN);
+    for (int i = 1; i < point_count; i++)
+    {
+      const int current = adjustedSensorPointForIndex(fmt, i, FRAME_TUNING_MIN, FRAME_TUNING_MIN);
+      TEST_ASSERT_TRUE_MESSAGE(current > prev, fmt.name);
+      prev = current;
+    }
+  }
+}
+
 void test_all_nvs_prefs_keys_fit_the_15_char_limit()
 {
   // ESP32 NVS silently fails on keys longer than 15 characters; v10.3.5
@@ -1713,5 +1762,7 @@ int main(int, char **)
   RUN_TEST(test_boot_sprocket_offset_spacing_guard);
   RUN_TEST(test_all_nvs_prefs_keys_fit_the_15_char_limit);
   RUN_TEST(test_all_nvs_prefs_keys_are_unique);
+  RUN_TEST(test_cycle_seed_points_roundtrip_to_the_same_frame_across_tuning_range);
+  RUN_TEST(test_adjusted_sensor_points_stay_monotonic_with_negative_spacing);
   return UNITY_END();
 }

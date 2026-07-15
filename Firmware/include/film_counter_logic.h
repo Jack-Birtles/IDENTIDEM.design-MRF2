@@ -30,6 +30,13 @@ FilmCounterEstimate estimateFilmCounter(
     int encoder_value,
     int frame_one_offset = 0,
     int frame_spacing_offset = 0);
+// Adjusted (tuning offsets applied, monotonic-clamped) sensor point for a
+// table index; the same points estimateFilmCounter maps back to frames.
+int adjustedSensorPointForIndex(
+    const FilmFormat &film_format,
+    int point_index,
+    int frame_one_offset = 0,
+    int frame_spacing_offset = 0);
 void resetEncoderFilterState(EncoderFilterState &state, int initial_position, unsigned long now_ms);
 EncoderFilterDecision updateEncoderFilter(
     EncoderFilterState &state, int raw_position, unsigned long now_ms, bool allow_rewind);

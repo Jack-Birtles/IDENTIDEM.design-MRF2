@@ -6,6 +6,7 @@
 #include "hardware.h"
 #include "mrfconstants.h"
 #include "lenses.h" // Provides Lens struct, lenses array, and NUM_LENSES
+#include "film_counter_logic.h" // For adjustedSensorPointForIndex
 #include "formats.h"  // Provides FilmFormat struct, film_formats array, and NUM_FILM_FORMATS
 #include "helpers.h" // For savePrefs
 
@@ -44,26 +45,11 @@ int cycleValueWrapping(int current, int step, int minVal, int maxVal)
 
 int getAdjustedSensorPoint(const FilmFormat &film_format, int point_index)
 {
-  int frame_count = getFilmFormatPointCount(film_format);
-  if (frame_count <= 0)
-  {
-    return 0;
-  }
-
-  if (point_index <= 0)
-  {
-    return film_format.sensor[0];
-  }
-
-  if (point_index >= frame_count)
-  {
-    point_index = frame_count - 1;
-  }
-
-  long adjusted = static_cast<long>(film_format.sensor[point_index]) +
-                  static_cast<long>(frame_one_offset) +
-                  static_cast<long>(frame_spacing_offset) * static_cast<long>(point_index - 1);
-  return static_cast<int>(adjusted);
+  // Delegates to film_counter_logic so the seeded encoder position always
+  // matches what estimateFilmCounter will map back to a frame. This used to
+  // be an unclamped copy of the formula.
+  return adjustedSensorPointForIndex(film_format, point_index,
+                                     frame_one_offset, frame_spacing_offset);
 }
 
 int getAdjustedSensorPointForFrame(const FilmFormat &film_format, int frame_value, int fallback_encoder_position)
