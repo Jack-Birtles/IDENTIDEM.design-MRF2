@@ -34,8 +34,9 @@ void cycleLevelTrimPortraitNeg();
 void toggleHorizonLine();
 void cycleBrightnessMode();
 void cycleBrightnessValue();
-const char *getSleepTimeoutModeLabel(int timeout_mode);
-unsigned long getSleepTimeoutModeMs(int timeout_mode);
+// getSleepTimeoutModeLabel / getSleepTimeoutModeMs moved to the pure
+// sleep_timeout_logic module so the native suite tests the real tables.
+#include "sleep_timeout_logic.h"
 // ---------------------
 
 #endif // CYCLEFUNCS_H
