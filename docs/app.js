@@ -523,7 +523,17 @@
     const manifest = normalizeManifestPath(manifestPath);
     if (!manifest) return null;
     const version = normalizeVersionString(rawVersion) || inferVersionFromManifestPath(manifest);
-    return { version, manifest };
+    const tag = typeof entry.tag === "string" ? entry.tag.trim() : "";
+    const commit = typeof entry.commit === "string" ? entry.commit.trim() : "";
+    return { version, manifest, tag, commit };
+  }
+
+  function isUnreleasedMainEntry(entry) {
+    return !!entry && entry.tag === "main";
+  }
+
+  function describeUnreleasedMainEntry(entry) {
+    return entry.commit ? `unreleased main @ ${entry.commit}` : "unreleased main";
   }
 
   function setInstallManifest(manifestPath) {
@@ -558,8 +568,16 @@
       const option = document.createElement("option");
       option.value = entry.manifest;
       const baseLabel = entry.version || "Latest";
-      option.textContent =
-        latestVersion && entry.version === latestVersion ? `${baseLabel} (Latest)` : baseLabel;
+      const qualifiers = [];
+      if (latestVersion && entry.version === latestVersion) {
+        qualifiers.push("Latest");
+      }
+      if (isUnreleasedMainEntry(entry)) {
+        qualifiers.push(describeUnreleasedMainEntry(entry));
+      }
+      option.textContent = qualifiers.length
+        ? `${baseLabel} (${qualifiers.join(", ")})`
+        : baseLabel;
       versionSelectEl.appendChild(option);
     });
 
@@ -591,9 +609,13 @@
         latestVersion = entries[0].version;
       }
 
-      versionEl.textContent = latestVersion || "Available";
+      const latestEntry = entries.find((entry) => entry.version === latestVersion) || null;
+      versionEl.textContent = isUnreleasedMainEntry(latestEntry)
+        ? `${latestVersion} (${describeUnreleasedMainEntry(latestEntry)})`
+        : latestVersion || "Available";
       debug.log("version-catalog-load-success", {
         latestVersion,
+        latestTag: latestEntry ? latestEntry.tag : "",
         versionCount: entries.length,
       });
       return { entries, latestVersion };

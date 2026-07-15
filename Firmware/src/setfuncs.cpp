@@ -15,6 +15,7 @@
 #include "lens_spike_logic.h"
 #include "lenses.h"
 #include "lidar_logic.h"
+#include "lidar_recovery_actions.h"
 #include "lidar_recovery_logic.h"
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
@@ -99,13 +100,10 @@ void setLensDistanceFromCm(int distance_cm)
 
 void applyLidarCalibrationProfile()
 {
-  // Re-apply library-side distance correction after sensor state changes.
-  // Frame rate is set once at boot in initializeLidarSensor(); the sensor retains
-  // it across enable/disable cycles. Re-sending setFrameRate immediately after
-  // enableSensor() in the recovery path destabilises some DTS6012M units and
-  // causes a self-perpetuating recovery loop (see v10.4.7 changelog).
-  lidar.setDistanceScale(LIDAR_LIBRARY_DISTANCE_SCALE);
-  lidar.setDistanceOffset(static_cast<int16_t>(lidar_distance_offset_mm));
+  // Sequence lives in lidar_recovery_actions.h so the native suite can pin
+  // the v10.4.7 invariant (no setFrameRate outside boot) against a fake.
+  applyLidarCalibrationProfileTo(lidar, LIDAR_LIBRARY_DISTANCE_SCALE,
+                                 static_cast<int16_t>(lidar_distance_offset_mm));
 }
 
 void clearLidarDisplay(const char *placeholder)
@@ -196,8 +194,12 @@ void setDistance()
     {
       // Sensor frame unusable — break any subject-stable streak.
       lidarRuntime.stableStreakFrames = 0;
+      // The frame itself proves the link is healthy: tell the recovery state
+      // machine, or interleaved no-frame polls would escalate to TIMEOUT
+      // recovery and reset a working sensor about every 1.5s while aimed at
+      // sky/far/hard sun (climbing the Health screen Recoveries counter).
+      updateLidarRecoveryState(lidarRuntime.recovery, LidarRecoveryEvent::NO_VALID_MEASUREMENT, now);
       unsigned long since_valid = now - lidarRuntime.recovery.last_valid_measurement_ms;
-      // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
       if (since_valid > LIDAR_NO_DATA_TIMEOUT_MS)
       {
         clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
@@ -227,6 +229,9 @@ void setDistance()
       lidar_distance_held = !release;
       if (!release)
       {
+        // Same link-health note as the invalid-candidate path: a plausibility
+        // hold can outlast the recovery timeout while the sensor streams fine.
+        updateLidarRecoveryState(lidarRuntime.recovery, LidarRecoveryEvent::NO_VALID_MEASUREMENT, now);
         return; // Hold the previous valid reading until the overshoot settles or caps out.
       }
       // Released: the user has deliberately re-aimed past the previous target.
@@ -287,16 +292,7 @@ void setDistance()
   }
 
   lidar_recovery_count++;
-  lidar.clearError();
-  DTSError resetStatus = lidar.resetState();
-  DTSError enableStatus = static_cast<DTSError>(lidar.enableSensor());
-  // resetState() clears the library scale + distance offset. Re-apply the
-  // calibration profile unconditionally (it is idempotent) so a partial recovery
-  // where enableSensor() fails transiently while the sensor keeps streaming can
-  // never leave the offset zeroed — otherwise every later reading is short by the
-  // configured offset (default 40 cm) until a fully successful recovery happens.
-  applyLidarCalibrationProfile();
-  bool recovered = (resetStatus == DTSError::NONE && enableStatus == DTSError::NONE);
+  bool recovered = performLidarRecoveryAttempt(lidar, applyLidarCalibrationProfile);
   noteLidarRecoveryAttemptResult(lidarRuntime.recovery, recovered, now);
 }
 
@@ -518,6 +514,11 @@ void setLightMeter()
     lux = 0.0f;
     ev_readout = NAN;
     snprintf(shutter_speed, sizeof(shutter_speed), "No meter");
+    // Sync the pending-settings markers or getLightMeterIntervalMs sees a
+    // permanent aperture/iso change and latches the fast 100ms cadence
+    // forever, redrawing "No meter" at 10Hz on builds without a BH1750.
+    prev_aperture = aperture;
+    prev_iso = iso;
     return;
   }
 

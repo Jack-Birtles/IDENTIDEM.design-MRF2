@@ -2,6 +2,41 @@
 
 All notable firmware changes by released `FWVERSION`, reconstructed from git history.
 
+## 10.7.0 - 2026-07-15
+
+### Repo-wide review: LiDAR recovery fixes, regression guards, delivery-pipeline hardening
+
+Findings from a five-track review (security, correctness, tests, CI/release, docs), all fixed. Verified on device including a test roll.
+
+Firmware fixes:
+
+- **LiDAR recovery no longer resets a healthy sensor while the scene is unmeasurable.** Aiming at open sky, past 18 m, or into hard sun streams valid frames whose candidates are all filtered out; those paths fed no event to the recovery state machine, so the first poll landing between frames escalated to a full reset/enable cycle roughly every 1.5 s and climbed the Health screen `Recoveries:` counter for as long as the drought lasted. Well-formed-but-filtered frames now count as link-healthy; the display behavior (`Inf?`, held readings) is unchanged, and true sensor silence still recovers.
+- **LiDAR recovery backoff now actually gates retries.** Every timeout/error event rewrote the next-attempt deadline to "now", so the 250 ms - 2 s exponential backoff never applied; a genuinely failing sensor would have been reset at the 25 ms poll cadence with no settle time. The deadline now arms only on the transition into recovery and survives millis() rollover.
+- **Health screen no longer reports downgraded prefs as "Defaults".** After flashing a newer firmware and rolling back, settings load best-effort but the Prefs line fell through to `Defaults`, pointing support triage the wrong way. It now reads `vN newer`.
+- **Builds without a light meter no longer latch the meter task at its fast 100 ms cadence.** A single aperture or ISO change looked permanently "pending" because the no-meter path never synced the change markers; it now decays back to the normal 500 ms poll.
+- Manual frame cycling now seeds the encoder through the same monotonic-clamped tuning-offset formula the frame estimator uses. The two copies had drifted (cyclefuncs lacked the clamp); divergence was latent within today's format tables but is now structurally impossible.
+- Sign-compare hardening in the ISO/lens/format cycle functions: a negative index can no longer wrap past the bounds reset.
+
+Documentation:
+
+- **Setup > Lens > Focus offset (shipped in 10.6.0) is now in the user manual** and the lens-menu mockup.
+- Fixed the manual's defaults table (sleep timeout is `1m30s`) and the PANO frame range (`0..20`). Refreshed the firmware README's project tree and library list.
+
+Regression guards (native suite grows 86 to 106 cases):
+
+- All NVS preference keys hoisted into `prefs_keys.h` with tests pinning the 15-char NVS limit (`selected_format` sits exactly at it) and key uniqueness — the v10.3.5 silent-persistence bug class.
+- The v10.4.7 "setFrameRate is boot-only" rule is now a tested invariant: the recovery attempt sequence lives in a host-testable unit driven by a call-recording fake that asserts zero frame-rate writes and that the calibration profile is re-applied even when enable fails.
+- Per-field mutation tests for the Main and Menu redraw-skip signatures — the v10.6.0 stale-menu bug class; a field dropped from either hash now names itself in a failing test.
+- The runtime state-machine suite compiles the production sleep-timeout tables instead of a hand-maintained copy; the loaded-prefs clamp (the only defense against corrupted NVS indexing arrays) is extracted into `prefs_clamp_logic` and driven with corrupted inputs; light-meter EV-compensation direction, EV100 reference points, smoothing-mode clamps, and the iso=0 display cap are pinned; the frame cycle/estimate roundtrip is pinned across every format and the full tuning range; prefs downgrade and legacy-migration branches are pinned.
+
+Delivery pipeline:
+
+- **CI now exists.** Every pull request and push to main runs the native test suite, the ESP32 build, and a version-consistency check across the six release files; the web-updater deploy is gated on the tests passing.
+- **update.mrf2.com now self-hosts the flasher.** esp-web-tools 10.2.1 is vendored into the site (previously loaded from the unpkg CDN with no integrity protection, meaning a CDN compromise could have served builders modified flashing code). `scripts/vendor-esp-web-tools.sh` regenerates the bundle for upgrades.
+- **Reproducible builds.** PlatformIO and all thirteen libraries are exact-pinned, GitHub Actions are pinned to commit SHAs, and every published build ships a `sha256sums.txt` (also printed in the CI log) so binary tampering is detectable.
+- **Tagged releases own their version slot on the updater.** A commit landing on main after a tag without a version bump can no longer silently replace the tagged binary, and unreleased main builds are labeled `unreleased main @ <sha>` in the version picker and the Latest Build row.
+- Internal planning notes under `docs/` are no longer published to the public site.
+
 ## 10.6.3 - 2026-07-13
 
 ### Boot animation: fix bottom-edge text artifacts, tune speed

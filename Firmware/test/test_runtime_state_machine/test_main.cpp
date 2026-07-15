@@ -13,26 +13,9 @@ unsigned long millis()
   return fakeMillis;
 }
 
-unsigned long getSleepTimeoutModeMs(int timeout_mode)
-{
-  switch (timeout_mode)
-  {
-  case SLEEP_TIMEOUT_MODE_OFF:
-    return 0;
-  case SLEEP_TIMEOUT_MODE_15S:
-    return 15000;
-  case SLEEP_TIMEOUT_MODE_30S:
-    return 30000;
-  case SLEEP_TIMEOUT_MODE_1M:
-    return 60000;
-  case SLEEP_TIMEOUT_MODE_1M30S:
-    return 90000;
-  case SLEEP_TIMEOUT_MODE_2M:
-    return 120000;
-  default:
-    return 60000;
-  }
-}
+// The real mode->ms table, not a hand-maintained copy: a wrong entry in
+// production must fail these tests.
+#include "../../src/sleep_timeout_logic.cpp"
 
 Preferences prefs;
 UiMode ui_mode = UiMode::Main;

@@ -17,6 +17,7 @@
 #include "lenses.h"
 #include "lens_logic.h"
 #include "lidar_logic.h"
+#include "prefs_migration_logic.h" // selectPrefsHealthLabel for the Health screen
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
 
@@ -559,19 +560,28 @@ void drawHealthUI()
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 1));
   u8g2.print(F("Prefs: "));
-  if (prefsSchemaValid)
+  switch (selectPrefsHealthLabel(prefsSchemaValid, prefsLoadedLegacy,
+                                 static_cast<uint16_t>(prefsSchemaVersionLoaded),
+                                 PREFS_SCHEMA_VERSION))
   {
+  case PrefsHealthLabel::SCHEMA_OK:
     u8g2.print(F("v"));
     u8g2.print(prefsSchemaVersionLoaded);
     u8g2.print(F(" OK"));
-  }
-  else if (prefsLoadedLegacy)
-  {
+    break;
+  case PrefsHealthLabel::LEGACY_MIGRATED:
     u8g2.print(F("Legacy migrated"));
-  }
-  else
-  {
+    break;
+  case PrefsHealthLabel::NEWER_SCHEMA_LOADED:
+    // Firmware downgrade: stored schema is newer than this build, values
+    // loaded best-effort. Not defaults — say so, or triage goes wrong.
+    u8g2.print(F("v"));
+    u8g2.print(prefsSchemaVersionLoaded);
+    u8g2.print(F(" newer"));
+    break;
+  case PrefsHealthLabel::DEFAULTS:
     u8g2.print(F("Defaults"));
+    break;
   }
 
   u8g2.setCursor(HEALTH_ITEM_X, HEALTH_ITEM_Y_START + (HEALTH_ITEM_Y_STEP * 2));

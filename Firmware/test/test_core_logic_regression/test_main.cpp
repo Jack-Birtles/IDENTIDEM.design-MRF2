@@ -14,12 +14,16 @@
 #include "lidar_recovery_logic.h"
 #include "lidar_logic.h"
 #include "lightmeter_logic.h"
+#include "lidar_recovery_actions.h"
 #include "mrfconstants.h"
+#include "prefs_clamp_logic.h"
+#include "prefs_keys.h"
 #include "prefs_migration_logic.h"
 #include "ui_signature_logic.h"
 
 // Limit the test scope to the core logic modules only.
 #include "../../src/boot_animation_logic.cpp"
+#include "../../src/prefs_clamp_logic.cpp"
 #include "../../src/calibration_logic.cpp"
 #include "../../src/film_counter_logic.cpp"
 #include "../../src/formats.cpp"
@@ -1426,6 +1430,60 @@ void test_ui_signature_hash_cstring_treats_null_as_empty()
 
 namespace
 {
+MainUiSnapshot baselineMainSnapshot()
+{
+  MainUiSnapshot s = {};
+  s.ui_mode = 0;
+  s.selected_lens = 2;
+  s.selected_format = 1;
+  s.iso = 400;
+  s.aperture = 8.0f;
+  s.show_ev_readout = false;
+  s.ev_readout = 11.0f;
+  s.shutter_speed = "1/125 sec.";
+  s.distance_cm = "123";
+  s.lens_distance_cm = "456";
+  s.distance = 123;
+  s.lens_distance_raw = 456;
+  s.lidar_quality_level = 3;
+  s.lidar_high_sunlight = false;
+  s.parallaxEnabled = true;
+  s.reticle_offset_x = 0;
+  s.reticle_offset_y = 0;
+  s.show_horizon_line = true;
+  return s;
+}
+
+struct MainUiFieldMutation
+{
+  const char *name;
+  void (*apply)(MainUiSnapshot &);
+};
+
+// One entry per MainUiSnapshot field. A field missing from the hash leaves
+// the main shooting screen showing stale values (the shipped v10.6.x menu
+// bug class), so every field must flip the signature.
+const MainUiFieldMutation MAIN_UI_FIELD_MUTATIONS[] = {
+    {"ui_mode", [](MainUiSnapshot &s) { s.ui_mode = 5; }},
+    {"selected_lens", [](MainUiSnapshot &s) { s.selected_lens = 9; }},
+    {"selected_format", [](MainUiSnapshot &s) { s.selected_format = 9; }},
+    {"iso", [](MainUiSnapshot &s) { s.iso = 800; }},
+    {"aperture", [](MainUiSnapshot &s) { s.aperture = 11.0f; }},
+    {"show_ev_readout", [](MainUiSnapshot &s) { s.show_ev_readout = true; }},
+    {"ev_readout", [](MainUiSnapshot &s) { s.ev_readout = 12.5f; }},
+    {"shutter_speed", [](MainUiSnapshot &s) { s.shutter_speed = "1/250 sec."; }},
+    {"distance_cm", [](MainUiSnapshot &s) { s.distance_cm = "999"; }},
+    {"lens_distance_cm", [](MainUiSnapshot &s) { s.lens_distance_cm = "999"; }},
+    {"distance", [](MainUiSnapshot &s) { s.distance = 999; }},
+    {"lens_distance_raw", [](MainUiSnapshot &s) { s.lens_distance_raw = 999; }},
+    {"lidar_quality_level", [](MainUiSnapshot &s) { s.lidar_quality_level = 1; }},
+    {"lidar_high_sunlight", [](MainUiSnapshot &s) { s.lidar_high_sunlight = true; }},
+    {"parallaxEnabled", [](MainUiSnapshot &s) { s.parallaxEnabled = false; }},
+    {"reticle_offset_x", [](MainUiSnapshot &s) { s.reticle_offset_x = 4; }},
+    {"reticle_offset_y", [](MainUiSnapshot &s) { s.reticle_offset_y = -4; }},
+    {"show_horizon_line", [](MainUiSnapshot &s) { s.show_horizon_line = false; }},
+};
+
 ExternalUiSnapshot baselineExternalSnapshot()
 {
   return {/* selected_format */ 1,
@@ -1487,7 +1545,95 @@ MenuUiSnapshot baselineMenuSnapshot()
           /* prefsLoadedLegacy                */ false,
           /* prefsSchemaVersionLoaded         */ 2};
 }
+
+struct MenuUiFieldMutation
+{
+  const char *name;
+  void (*apply)(MenuUiSnapshot &);
+};
+
+// One entry per MenuUiSnapshot field, same guard as the Main table.
+const MenuUiFieldMutation MENU_UI_FIELD_MUTATIONS[] = {
+    {"ui_mode", [](MenuUiSnapshot &s) { s.ui_mode = 4; }},
+    {"config_step", [](MenuUiSnapshot &s) { s.config_step = 7; }},
+    {"calib_step", [](MenuUiSnapshot &s) { s.calib_step = 1; }},
+    {"selected_lens", [](MenuUiSnapshot &s) { s.selected_lens = 9; }},
+    {"selected_format", [](MenuUiSnapshot &s) { s.selected_format = 9; }},
+    {"calib_lens", [](MenuUiSnapshot &s) { s.calib_lens = 2; }},
+    {"current_calib_distance", [](MenuUiSnapshot &s) { s.current_calib_distance = 3; }},
+    {"calib_capture_status", [](MenuUiSnapshot &s) { s.calib_capture_status = 1; }},
+    {"calib_capture_status_ms", [](MenuUiSnapshot &s) { s.calib_capture_status_ms = 12345ul; }},
+    {"lens_sensor_reading", [](MenuUiSnapshot &s) { s.lens_sensor_reading = 999; }},
+    {"lens_focus_offset", [](MenuUiSnapshot &s) { s.lens_focus_offset = -5; }},
+    {"iso", [](MenuUiSnapshot &s) { s.iso = 800; }},
+    {"aperture", [](MenuUiSnapshot &s) { s.aperture = 11.0f; }},
+    {"exposure_comp_thirds", [](MenuUiSnapshot &s) { s.exposure_comp_thirds = 3; }},
+    {"meter_smoothing_mode", [](MenuUiSnapshot &s) { s.meter_smoothing_mode = 2; }},
+    {"show_ev_readout", [](MenuUiSnapshot &s) { s.show_ev_readout = true; }},
+    {"parallaxEnabled", [](MenuUiSnapshot &s) { s.parallaxEnabled = false; }},
+    {"sleep_timeout_mode", [](MenuUiSnapshot &s) { s.sleep_timeout_mode = 3; }},
+    {"lidar_idle_timeout_mode", [](MenuUiSnapshot &s) { s.lidar_idle_timeout_mode = 2; }},
+    {"lidar_distance_offset_mm", [](MenuUiSnapshot &s) { s.lidar_distance_offset_mm = 500; }},
+    {"level_trim_landscape_deci_deg", [](MenuUiSnapshot &s) { s.level_trim_landscape_deci_deg = 15; }},
+    {"level_trim_portrait_pos_deci_deg", [](MenuUiSnapshot &s) { s.level_trim_portrait_pos_deci_deg = 15; }},
+    {"level_trim_portrait_neg_deci_deg", [](MenuUiSnapshot &s) { s.level_trim_portrait_neg_deci_deg = -15; }},
+    {"reticle_offset_x", [](MenuUiSnapshot &s) { s.reticle_offset_x = 4; }},
+    {"reticle_offset_y", [](MenuUiSnapshot &s) { s.reticle_offset_y = -4; }},
+    {"reticle_adjust_step", [](MenuUiSnapshot &s) { s.reticle_adjust_step = 1; }},
+    {"brightness_auto", [](MenuUiSnapshot &s) { s.brightness_auto = false; }},
+    {"brightness_manual_pct", [](MenuUiSnapshot &s) { s.brightness_manual_pct = 80; }},
+    {"brightness_auto_top_pct", [](MenuUiSnapshot &s) { s.brightness_auto_top_pct = 60; }},
+    {"show_horizon_line", [](MenuUiSnapshot &s) { s.show_horizon_line = false; }},
+    {"frame_one_offset", [](MenuUiSnapshot &s) { s.frame_one_offset = 5; }},
+    {"frame_spacing_offset", [](MenuUiSnapshot &s) { s.frame_spacing_offset = -5; }},
+    {"film_counter", [](MenuUiSnapshot &s) { s.film_counter = 6; }},
+    {"last_lidar_error_code", [](MenuUiSnapshot &s) { s.last_lidar_error_code = 6; }},
+    {"lidar_recovery_count", [](MenuUiSnapshot &s) { s.lidar_recovery_count = 2; }},
+    {"lidarEnabled", [](MenuUiSnapshot &s) { s.lidarEnabled = false; }},
+    {"adsReady", [](MenuUiSnapshot &s) { s.adsReady = false; }},
+    {"mpuReady", [](MenuUiSnapshot &s) { s.mpuReady = false; }},
+    {"mainDisplayReady", [](MenuUiSnapshot &s) { s.mainDisplayReady = false; }},
+    {"externalDisplayReady", [](MenuUiSnapshot &s) { s.externalDisplayReady = false; }},
+    {"batteryGaugeReady", [](MenuUiSnapshot &s) { s.batteryGaugeReady = false; }},
+    {"lightMeterReady", [](MenuUiSnapshot &s) { s.lightMeterReady = false; }},
+    {"statusPixelReady", [](MenuUiSnapshot &s) { s.statusPixelReady = false; }},
+    {"encoderReady", [](MenuUiSnapshot &s) { s.encoderReady = false; }},
+    {"lidarSensorReady", [](MenuUiSnapshot &s) { s.lidarSensorReady = false; }},
+    {"prefsSchemaValid", [](MenuUiSnapshot &s) { s.prefsSchemaValid = false; }},
+    {"prefsLoadedLegacy", [](MenuUiSnapshot &s) { s.prefsLoadedLegacy = true; }},
+    {"prefsSchemaVersionLoaded", [](MenuUiSnapshot &s) { s.prefsSchemaVersionLoaded = 3; }},
+};
 } // namespace
+
+void test_ui_signature_main_changes_when_any_field_changes()
+{
+  const MainUiSnapshot base = baselineMainSnapshot();
+  const uint32_t baseline = buildMainUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildMainUiSignature(baselineMainSnapshot()));
+
+  for (const MainUiFieldMutation &mutation : MAIN_UI_FIELD_MUTATIONS)
+  {
+    MainUiSnapshot mutated = base;
+    mutation.apply(mutated);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(baseline, buildMainUiSignature(mutated), mutation.name);
+  }
+}
+
+void test_ui_signature_menu_changes_when_any_field_changes()
+{
+  const MenuUiSnapshot base = baselineMenuSnapshot();
+  const uint32_t baseline = buildMenuUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildMenuUiSignature(baselineMenuSnapshot()));
+
+  for (const MenuUiFieldMutation &mutation : MENU_UI_FIELD_MUTATIONS)
+  {
+    MenuUiSnapshot mutated = base;
+    mutation.apply(mutated);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(baseline, buildMenuUiSignature(mutated), mutation.name);
+  }
+}
 
 void test_ui_signature_external_changes_when_any_field_changes()
 {
@@ -1594,6 +1740,432 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+namespace
+{
+// Call-recording fake for the recovery-sequence guard. Only the methods the
+// recovery path may touch exist here; the assertions pin the exact sequence.
+struct FakeLidarSensor
+{
+  int clear_error_calls = 0;
+  int reset_state_calls = 0;
+  int enable_sensor_calls = 0;
+  int set_frame_rate_calls = 0;
+  int set_distance_scale_calls = 0;
+  int set_distance_offset_calls = 0;
+  int call_counter = 0;
+  int reset_order = 0;
+  int enable_order = 0;
+  int last_profile_order = 0;
+  DTSError reset_result = DTSError::NONE;
+  DTSError enable_result = DTSError::NONE;
+
+  void clearError() { clear_error_calls++; call_counter++; }
+  DTSError resetState()
+  {
+    reset_state_calls++;
+    reset_order = ++call_counter;
+    return reset_result;
+  }
+  DTSError enableSensor()
+  {
+    enable_sensor_calls++;
+    enable_order = ++call_counter;
+    return enable_result;
+  }
+  void setFrameRate(int) { set_frame_rate_calls++; call_counter++; }
+  void setDistanceScale(float)
+  {
+    set_distance_scale_calls++;
+    last_profile_order = ++call_counter;
+  }
+  void setDistanceOffset(int16_t)
+  {
+    set_distance_offset_calls++;
+    last_profile_order = ++call_counter;
+  }
+};
+} // namespace
+
+void test_lidar_recovery_attempt_never_touches_frame_rate()
+{
+  // The v10.4.7 incident: re-sending setFrameRate right after enableSensor()
+  // in the recovery path destabilises some DTS6012M units into a
+  // self-perpetuating recovery loop. The whole recovery attempt — sequence
+  // plus calibration profile — must never touch the frame rate, and the
+  // profile must be re-applied after enable (resetState clears it).
+  FakeLidarSensor fake;
+  bool recovered = performLidarRecoveryAttempt(fake, [&]() {
+    applyLidarCalibrationProfileTo(fake, 1.0f, static_cast<int16_t>(400));
+  });
+
+  TEST_ASSERT_TRUE(recovered);
+  TEST_ASSERT_EQUAL_INT(0, fake.set_frame_rate_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.clear_error_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.reset_state_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.enable_sensor_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_scale_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_offset_calls);
+  TEST_ASSERT_TRUE(fake.reset_order < fake.enable_order);
+  TEST_ASSERT_TRUE(fake.enable_order < fake.last_profile_order);
+}
+
+void test_lidar_recovery_attempt_reapplies_profile_even_on_failure()
+{
+  // A partial recovery where enableSensor() fails transiently must still
+  // re-apply scale + offset, or every later reading is short by the
+  // configured offset until a fully successful recovery.
+  FakeLidarSensor fake;
+  fake.enable_result = DTSError::TIMEOUT;
+  bool recovered = performLidarRecoveryAttempt(fake, [&]() {
+    applyLidarCalibrationProfileTo(fake, 1.0f, static_cast<int16_t>(400));
+  });
+
+  TEST_ASSERT_FALSE(recovered);
+  TEST_ASSERT_EQUAL_INT(0, fake.set_frame_rate_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_scale_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_offset_calls);
+}
+
+namespace
+{
+LoadedPrefsState corruptedPrefsState()
+{
+  LoadedPrefsState s = {};
+  s.iso_index = 999;
+  s.selected_lens = -3;
+  s.selected_format = 999;
+  s.aperture_index = -1;
+  s.film_counter = -5;
+  s.encoder_value = -100;
+  s.prev_encoder_value = -100;
+  s.exposure_comp_thirds = 999;
+  s.meter_smoothing_mode = 99;
+  s.sleep_timeout_mode = -9;
+  s.lidar_idle_timeout_mode = 99;
+  s.level_trim_landscape_deci_deg = 9999;
+  s.level_trim_portrait_pos_deci_deg = -9999;
+  s.level_trim_portrait_neg_deci_deg = LEVEL_TRIM_MIN_DECI_DEG + (LEVEL_TRIM_STEP_DECI_DEG / 2) + 1;
+  s.reticle_offset_x = 999;
+  s.reticle_offset_y = -999;
+  s.brightness_manual_pct = 999;
+  s.brightness_auto_top_pct = -1;
+  s.frame_one_offset = 99;
+  s.frame_spacing_offset = -99;
+  s.lens_focus_offset = 999;
+  return s;
+}
+} // namespace
+
+void test_clamp_loaded_prefs_recovers_from_corrupted_nvs_values()
+{
+  // This clamp is the firmware's only defense against corrupted or legacy
+  // NVS values feeding array indices (ISOS[], lenses[], film_formats[],
+  // METER_SMOOTHING_ALPHA[]). Every field must come back in range.
+  LoadedPrefsState s = corruptedPrefsState();
+  clampLoadedPrefsState(s);
+
+  TEST_ASSERT_EQUAL_INT(DEFAULT_ISO_INDEX, s.iso_index);
+  TEST_ASSERT_EQUAL_INT(ISOS[DEFAULT_ISO_INDEX], s.iso);
+  TEST_ASSERT_TRUE(s.selected_lens >= 0 && s.selected_lens < static_cast<int>(NUM_LENSES));
+  TEST_ASSERT_TRUE(s.selected_format >= 0 && s.selected_format < static_cast<int>(NUM_FILM_FORMATS));
+  TEST_ASSERT_TRUE(s.aperture_index >= 0 && s.aperture_index < LENS_APERTURE_COUNT);
+  TEST_ASSERT_TRUE(lenses[s.selected_lens].apertures[s.aperture_index] != 0.0f ||
+                   s.aperture_index == 0);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, lenses[s.selected_lens].apertures[s.aperture_index], s.aperture);
+  TEST_ASSERT_EQUAL_INT(0, s.film_counter);
+  TEST_ASSERT_EQUAL_INT(0, s.encoder_value);
+  TEST_ASSERT_EQUAL_INT(0, s.prev_encoder_value);
+  TEST_ASSERT_EQUAL_INT(LIGHTMETER_EV_COMP_MAX_THIRDS, s.exposure_comp_thirds);
+  TEST_ASSERT_EQUAL_INT(LIGHTMETER_SMOOTHING_MODE_MAX, s.meter_smoothing_mode);
+  TEST_ASSERT_EQUAL_INT(SLEEP_TIMEOUT_MODE_MIN, s.sleep_timeout_mode);
+  TEST_ASSERT_EQUAL_INT(SLEEP_TIMEOUT_MODE_MAX, s.lidar_idle_timeout_mode);
+  TEST_ASSERT_EQUAL_INT(LEVEL_TRIM_MAX_DECI_DEG, s.level_trim_landscape_deci_deg);
+  TEST_ASSERT_EQUAL_INT(LEVEL_TRIM_MIN_DECI_DEG, s.level_trim_portrait_pos_deci_deg);
+  TEST_ASSERT_EQUAL_INT(RETICLE_OFFSET_MAX, s.reticle_offset_x);
+  TEST_ASSERT_EQUAL_INT(RETICLE_OFFSET_MIN, s.reticle_offset_y);
+  TEST_ASSERT_EQUAL_INT(BRIGHTNESS_PCT_MAX, s.brightness_manual_pct);
+  TEST_ASSERT_EQUAL_INT(BRIGHTNESS_AUTO_TOP_MIN_PCT, s.brightness_auto_top_pct);
+  TEST_ASSERT_EQUAL_INT(FRAME_TUNING_MAX, s.frame_one_offset);
+  TEST_ASSERT_EQUAL_INT(FRAME_TUNING_MIN, s.frame_spacing_offset);
+  TEST_ASSERT_EQUAL_INT(LENS_FOCUS_OFFSET_MAX, s.lens_focus_offset);
+
+  // Level trim snaps to the step grid: min + step/2 + 1 rounds up one step.
+  TEST_ASSERT_EQUAL_INT(LEVEL_TRIM_MIN_DECI_DEG + LEVEL_TRIM_STEP_DECI_DEG,
+                        s.level_trim_portrait_neg_deci_deg);
+}
+
+void test_clamp_loaded_prefs_leaves_valid_state_untouched()
+{
+  LoadedPrefsState s = {};
+  s.iso_index = 5;
+  s.selected_lens = 0;
+  s.selected_format = 1;
+  s.aperture_index = -1; // will resolve to the lens's first valid aperture
+  clampLoadedPrefsState(s);
+  const LoadedPrefsState before = s;
+
+  clampLoadedPrefsState(s); // idempotent: a second pass changes nothing
+  TEST_ASSERT_EQUAL_INT(before.iso_index, s.iso_index);
+  TEST_ASSERT_EQUAL_INT(before.aperture_index, s.aperture_index);
+  TEST_ASSERT_EQUAL_INT(before.selected_lens, s.selected_lens);
+  TEST_ASSERT_EQUAL_INT(before.selected_format, s.selected_format);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, before.aperture, s.aperture);
+}
+
+void test_prefs_load_mode_covers_downgrade_and_legacy_branches()
+{
+  const size_t expected_blob = expectedLegacyLensBlobSize(4);
+
+  // Matching schema loads normally.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_SCHEMA,
+                        (int)selectPrefsLoadMode(2, 2, 0, expected_blob));
+  // Downgrade (stored schema newer than firmware, e.g. web-updater rollback):
+  // values still load best-effort rather than being wiped to defaults.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_SCHEMA,
+                        (int)selectPrefsLoadMode(3, 2, 0, expected_blob));
+  // Old firmware data with an intact legacy blob migrates.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::MIGRATE_LEGACY,
+                        (int)selectPrefsLoadMode(0, 2, expected_blob, expected_blob));
+  // No legacy blob, or a size-mismatched one, falls back to defaults.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_DEFAULTS,
+                        (int)selectPrefsLoadMode(0, 2, 0, expected_blob));
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_DEFAULTS,
+                        (int)selectPrefsLoadMode(0, 2, expected_blob - 1, expected_blob));
+}
+
+void test_prefs_health_label_distinguishes_downgrade_from_defaults()
+{
+  // After a firmware downgrade the values DID load (LOAD_SCHEMA), but the
+  // Health screen used to fall through to "Defaults", sending support triage
+  // down the wrong path.
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::SCHEMA_OK,
+                        (int)selectPrefsHealthLabel(true, false, 2, 2));
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::LEGACY_MIGRATED,
+                        (int)selectPrefsHealthLabel(false, true, 2, 2));
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::NEWER_SCHEMA_LOADED,
+                        (int)selectPrefsHealthLabel(false, false, 3, 2));
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::DEFAULTS,
+                        (int)selectPrefsHealthLabel(false, false, 0, 2));
+}
+
+void test_exposure_compensation_direction_and_magnitude()
+{
+  // Sign convention: positive EC means deliberate overexposure, so effective
+  // lux must DROP (longer computed shutter). An inverted sign here is a
+  // silent full-roll exposure error, which is why the direction is pinned.
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 500.0f, applyExposureCompensationToLux(1000.0f, 1.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 2000.0f, applyExposureCompensationToLux(1000.0f, -1.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 793.70f, applyExposureCompensationToLux(1000.0f, 1.0f / 3.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, applyExposureCompensationToLux(0.0f, 1.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, applyExposureCompensationToLux(-5.0f, -2.0f));
+}
+
+void test_calculate_ev100_reference_points_and_dark_guard()
+{
+  // EV100 = log2(lux * 100 / K) with K = 12.5: lux 0.125 -> EV 0, lux 32 -> EV 8.
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, calculateEV100(0.125f));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 8.0f, calculateEV100(32.0f));
+  TEST_ASSERT_FLOAT_IS_NAN(calculateEV100(0.0f));
+  TEST_ASSERT_FLOAT_IS_NAN(calculateEV100(-10.0f));
+}
+
+void test_meter_smoothing_mode_clamps_out_of_range()
+{
+  // A corrupted prefs value indexes METER_SMOOTHING_ALPHA/LABELS; the clamp
+  // is the only bounds defense, so out-of-range modes must map to the edges.
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, getMeterSmoothingAlpha(0), getMeterSmoothingAlpha(-1));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, getMeterSmoothingAlpha(LIGHTMETER_SMOOTHING_MODE_MAX),
+                           getMeterSmoothingAlpha(99));
+  TEST_ASSERT_EQUAL_STRING("Off", getMeterSmoothingLabel(-5));
+  TEST_ASSERT_EQUAL_STRING("High", getMeterSmoothingLabel(99));
+  TEST_ASSERT_EQUAL_STRING("Medium", getMeterSmoothingLabel(2));
+}
+
+void test_format_shutter_speed_iso_zero_caps_at_max()
+{
+  // iso=0 makes the computed speed infinite; the max-speed cap must absorb it
+  // and render the 25-minute ceiling instead of garbage or a crash.
+  char buffer[16] = {0};
+  formatShutterSpeed(1000.0f, 8.0f, 0, buffer, sizeof(buffer));
+  TEST_ASSERT_EQUAL_STRING("25m0s", buffer);
+}
+
+void test_lidar_backoff_survives_continued_timeout_and_error_events()
+{
+  // During a sustained outage every poll feeds TIMEOUT (or ERROR past the
+  // threshold), and each event used to rewrite next_recovery_attempt_ms to
+  // now — so the exponential backoff never gated anything and a permanently
+  // failing sensor would be reset at the raw poll cadence with no settle
+  // time, the exact hazard the v10.4.7 note warns about.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, 1700);
+  noteLidarRecoveryAttemptResult(state, false, 1700);
+  const unsigned long deadline = state.next_recovery_attempt_ms;
+  TEST_ASSERT_GREATER_THAN_UINT32(1700, deadline);
+
+  // Continued timeouts inside the backoff window must not re-arm early.
+  LidarRecoveryDecision duringBackoff =
+      updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, 1800);
+  TEST_ASSERT_FALSE(duringBackoff.attempt_recovery);
+  TEST_ASSERT_EQUAL_UINT32(deadline, state.next_recovery_attempt_ms);
+
+  // Errors past the threshold must not re-arm early either.
+  state.consecutive_errors = LIDAR_RECOVERY_ERROR_THRESHOLD;
+  LidarRecoveryDecision errorDuringBackoff =
+      updateLidarRecoveryState(state, LidarRecoveryEvent::ERROR, 1850);
+  TEST_ASSERT_FALSE(errorDuringBackoff.attempt_recovery);
+
+  // Once the deadline passes, the next event releases the attempt.
+  LidarRecoveryDecision afterBackoff =
+      updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, deadline);
+  TEST_ASSERT_TRUE(afterBackoff.attempt_recovery);
+}
+
+void test_lidar_rejected_frames_prevent_timeout_recovery()
+{
+  // A camera aimed at open sky (or >18m, or hard sun) streams healthy frames
+  // whose candidates are all gated out. Those frames prove the link works, so
+  // interleaved no-frame polls must never escalate to TIMEOUT recovery — the
+  // sensor is fine, only the scene is unmeasurable. This used to reset a
+  // working sensor about every 1.5s and climb the Health screen Recoveries
+  // counter for as long as the drought lasted.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  bool sawClearDisplay = false;
+  for (unsigned long now = 100; now <= 10000; now += 100)
+  {
+    // Frame arrives, candidate rejected.
+    updateLidarRecoveryState(state, LidarRecoveryEvent::NO_VALID_MEASUREMENT, now);
+    // A poll lands between frames.
+    LidarRecoveryDecision decision = updateLidarRecoveryState(
+        state, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA), now + 10);
+    TEST_ASSERT_FALSE(decision.attempt_recovery);
+    TEST_ASSERT_FALSE(state.recovering);
+    sawClearDisplay = sawClearDisplay || decision.clear_display;
+  }
+
+  // Display staleness still keys off accepted measurements: with nothing
+  // accepted for 10s the placeholder decision must have fired.
+  TEST_ASSERT_TRUE(sawClearDisplay);
+}
+
+void test_lidar_rejected_frame_stands_down_active_recovery()
+{
+  // If timeouts already escalated to recovery and frames then resume (still
+  // gated), the link is healthy again: recovery must stand down instead of
+  // resetting a streaming sensor.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, LIDAR_RECOVERY_TIMEOUT_MS + 1);
+  TEST_ASSERT_TRUE(state.recovering);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::NO_VALID_MEASUREMENT,
+                           LIDAR_RECOVERY_TIMEOUT_MS + 2);
+  TEST_ASSERT_FALSE(state.recovering);
+  TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
+}
+
+void test_lidar_true_silence_still_escalates_to_recovery()
+{
+  // Rejected frames must not weaken the genuine-failure path: total silence
+  // past LIDAR_RECOVERY_TIMEOUT_MS still recovers.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::NO_VALID_MEASUREMENT, 100);
+  LidarRecoveryDecision decision = updateLidarRecoveryState(
+      state, LidarRecoveryEvent::TIMEOUT, 100 + LIDAR_RECOVERY_TIMEOUT_MS + 1);
+  TEST_ASSERT_TRUE(decision.attempt_recovery);
+  TEST_ASSERT_TRUE(state.recovering);
+}
+
+void test_cycle_seed_points_roundtrip_to_the_same_frame_across_tuning_range()
+{
+  // Manually cycling the frame counter seeds the encoder with an adjusted
+  // sensor point; estimateFilmCounter must map that exact point back to the
+  // same frame for every format and every corner of the tuning range.
+  // cyclefuncs.cpp used to duplicate the offset formula without the monotonic
+  // clamp, so a negative spacing offset could seed frame N and display N-1.
+  const int tuning_values[] = {FRAME_TUNING_MIN, 0, FRAME_TUNING_MAX};
+
+  for (size_t format_index = 0; format_index < NUM_FILM_FORMATS; format_index++)
+  {
+    const FilmFormat &fmt = film_formats[format_index];
+    const int point_count = getFilmFormatPointCount(fmt);
+
+    for (int f1 : tuning_values)
+    {
+      for (int fs : tuning_values)
+      {
+        for (int i = 0; i < point_count; i++)
+        {
+          const int seeded = adjustedSensorPointForIndex(fmt, i, f1, fs);
+          const FilmCounterEstimate est = estimateFilmCounter(fmt, seeded, f1, fs);
+          TEST_ASSERT_TRUE_MESSAGE(est.valid, fmt.name);
+          TEST_ASSERT_EQUAL_INT_MESSAGE(fmt.frame[i], est.frame, fmt.name);
+        }
+      }
+    }
+  }
+}
+
+void test_adjusted_sensor_points_stay_monotonic_with_negative_spacing()
+{
+  // The monotonic clamp is the difference between the two former copies of
+  // the formula: consecutive seeded points must always strictly increase,
+  // even at the most negative spacing offset.
+  for (size_t format_index = 0; format_index < NUM_FILM_FORMATS; format_index++)
+  {
+    const FilmFormat &fmt = film_formats[format_index];
+    const int point_count = getFilmFormatPointCount(fmt);
+    int prev = adjustedSensorPointForIndex(fmt, 0, FRAME_TUNING_MIN, FRAME_TUNING_MIN);
+    for (int i = 1; i < point_count; i++)
+    {
+      const int current = adjustedSensorPointForIndex(fmt, i, FRAME_TUNING_MIN, FRAME_TUNING_MIN);
+      TEST_ASSERT_TRUE_MESSAGE(current > prev, fmt.name);
+      prev = current;
+    }
+  }
+}
+
+void test_all_nvs_prefs_keys_fit_the_15_char_limit()
+{
+  // ESP32 NVS silently fails on keys longer than 15 characters; v10.3.5
+  // shipped that bug. Every key must live in prefs_keys.h so this guard
+  // sees it. "selected_format" sits exactly at the limit today.
+  for (size_t i = 0; i < PREFS_STATIC_KEY_COUNT; i++)
+  {
+    TEST_ASSERT_NOT_NULL(PREFS_ALL_STATIC_KEYS[i]);
+    TEST_ASSERT_LESS_OR_EQUAL_UINT(PREFS_NVS_MAX_KEY_LEN, strlen(PREFS_ALL_STATIC_KEYS[i]));
+  }
+
+  // Dynamic per-lens keys must fit with the highest real lens index.
+  char lensKey[32] = {0};
+  snprintf(lensKey, sizeof(lensKey), PREFS_KEY_PATTERN_LENS_READINGS,
+           static_cast<unsigned int>(NUM_LENSES - 1));
+  TEST_ASSERT_LESS_OR_EQUAL_UINT(PREFS_NVS_MAX_KEY_LEN, strlen(lensKey));
+  snprintf(lensKey, sizeof(lensKey), PREFS_KEY_PATTERN_LENS_CALIBRATED,
+           static_cast<unsigned int>(NUM_LENSES - 1));
+  TEST_ASSERT_LESS_OR_EQUAL_UINT(PREFS_NVS_MAX_KEY_LEN, strlen(lensKey));
+}
+
+void test_all_nvs_prefs_keys_are_unique()
+{
+  // A duplicated key means two settings silently share one NVS slot.
+  for (size_t i = 0; i < PREFS_STATIC_KEY_COUNT; i++)
+  {
+    for (size_t j = i + 1; j < PREFS_STATIC_KEY_COUNT; j++)
+    {
+      TEST_ASSERT_TRUE_MESSAGE(strcmp(PREFS_ALL_STATIC_KEYS[i], PREFS_ALL_STATIC_KEYS[j]) != 0,
+                               PREFS_ALL_STATIC_KEYS[i]);
+    }
+  }
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -1608,6 +2180,20 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
   RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
   RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
+  RUN_TEST(test_lidar_recovery_attempt_never_touches_frame_rate);
+  RUN_TEST(test_lidar_recovery_attempt_reapplies_profile_even_on_failure);
+  RUN_TEST(test_prefs_load_mode_covers_downgrade_and_legacy_branches);
+  RUN_TEST(test_prefs_health_label_distinguishes_downgrade_from_defaults);
+  RUN_TEST(test_clamp_loaded_prefs_recovers_from_corrupted_nvs_values);
+  RUN_TEST(test_clamp_loaded_prefs_leaves_valid_state_untouched);
+  RUN_TEST(test_exposure_compensation_direction_and_magnitude);
+  RUN_TEST(test_calculate_ev100_reference_points_and_dark_guard);
+  RUN_TEST(test_meter_smoothing_mode_clamps_out_of_range);
+  RUN_TEST(test_format_shutter_speed_iso_zero_caps_at_max);
+  RUN_TEST(test_lidar_backoff_survives_continued_timeout_and_error_events);
+  RUN_TEST(test_lidar_rejected_frames_prevent_timeout_recovery);
+  RUN_TEST(test_lidar_rejected_frame_stands_down_active_recovery);
+  RUN_TEST(test_lidar_true_silence_still_escalates_to_recovery);
   RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_ascending_calibration_requires_increasing_readings);
@@ -1676,5 +2262,11 @@ int main(int, char **)
   RUN_TEST(test_boot_text_single_frame_guard);
   RUN_TEST(test_boot_sprocket_offset_within_spacing_and_advances);
   RUN_TEST(test_boot_sprocket_offset_spacing_guard);
+  RUN_TEST(test_all_nvs_prefs_keys_fit_the_15_char_limit);
+  RUN_TEST(test_all_nvs_prefs_keys_are_unique);
+  RUN_TEST(test_cycle_seed_points_roundtrip_to_the_same_frame_across_tuning_range);
+  RUN_TEST(test_adjusted_sensor_points_stay_monotonic_with_negative_spacing);
+  RUN_TEST(test_ui_signature_main_changes_when_any_field_changes);
+  RUN_TEST(test_ui_signature_menu_changes_when_any_field_changes);
   return UNITY_END();
 }

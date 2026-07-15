@@ -13,15 +13,14 @@
 #include "lens_spike_logic.h" // LensMovingAverageState
 #include "lenses.h"       // Now includes NUM_LENSES
 #include "mrfconstants.h" // For SMOOTHING_WINDOW_SIZE
+#include "prefs_clamp_logic.h" // Loaded-prefs sanitization rules
+#include "prefs_keys.h"   // All NVS keys; guarded by the native suite
 #include "prefs_migration_logic.h"
 
 static const char *PREFS_NAMESPACE = "mrf";
 
 namespace
 {
-const char *PREFS_KEY_SCHEMA = "schema";
-const char *PREFS_KEY_LEGACY_LENSES = "lenses";
-const char *PREFS_KEY_LENS_COUNT = "lc_count";
 const unsigned long PREFS_FLUSH_DELAY_MS = 2000;
 // Backstop: flush this long after the FIRST unflushed change even if activity
 // (e.g. continuous film winding) keeps re-arming the quiet-period timer above,
@@ -40,12 +39,12 @@ LensMovingAverageState lensMovingAvg;
 
 void getLensReadingsKey(size_t lensIndex, char *buffer, size_t bufferSize)
 {
-  snprintf(buffer, bufferSize, "lc_sr_%u", static_cast<unsigned int>(lensIndex));
+  snprintf(buffer, bufferSize, PREFS_KEY_PATTERN_LENS_READINGS, static_cast<unsigned int>(lensIndex));
 }
 
 void getLensCalibratedKey(size_t lensIndex, char *buffer, size_t bufferSize)
 {
-  snprintf(buffer, bufferSize, "lc_ok_%u", static_cast<unsigned int>(lensIndex));
+  snprintf(buffer, bufferSize, PREFS_KEY_PATTERN_LENS_CALIBRATED, static_cast<unsigned int>(lensIndex));
 }
 
 void writeLensCalibrationPrefs()
@@ -66,40 +65,40 @@ void writeLensCalibrationPrefs()
 
 void writeSettingsPrefs()
 {
-  prefs.putInt("iso", iso);
-  prefs.putInt("iso_index", iso_index);
-  prefs.putFloat("aperture", aperture);
-  prefs.putInt("aperture_index", aperture_index);
-  prefs.putInt("selected_format", selected_format);
-  prefs.putInt("selected_lens", selected_lens);
-  prefs.putBool("parallax", parallaxEnabled);
-  prefs.putInt("lens_foc_off", lens_focus_offset);
-  prefs.putInt("ev_comp_thirds", exposure_comp_thirds);
-  prefs.putInt("meter_smooth", meter_smoothing_mode);
-  prefs.putBool("show_ev", show_ev_readout);
-  prefs.putInt("sleep_to_mode", sleep_timeout_mode);
-  prefs.putInt("lidar_idle_to", lidar_idle_timeout_mode);
-  prefs.putInt("lvl_trim_l10", level_trim_landscape_deci_deg);
-  prefs.putInt("lvl_trim_pp10", level_trim_portrait_pos_deci_deg);
-  prefs.putInt("lvl_trim_pn10", level_trim_portrait_neg_deci_deg);
-  prefs.putInt("reticle_x", reticle_offset_x);
-  prefs.putInt("reticle_y", reticle_offset_y);
-  prefs.putInt("lidar_off", lidar_distance_offset_mm);
-  prefs.putBool("bright_auto", brightness_auto);
-  prefs.putInt("bright_man_pct", brightness_manual_pct);
-  prefs.putInt("bright_top_pct", brightness_auto_top_pct);
-  prefs.putBool("show_horizon", show_horizon_line);
+  prefs.putInt(PREFS_KEY_ISO, iso);
+  prefs.putInt(PREFS_KEY_ISO_INDEX, iso_index);
+  prefs.putFloat(PREFS_KEY_APERTURE, aperture);
+  prefs.putInt(PREFS_KEY_APERTURE_INDEX, aperture_index);
+  prefs.putInt(PREFS_KEY_SELECTED_FORMAT, selected_format);
+  prefs.putInt(PREFS_KEY_SELECTED_LENS, selected_lens);
+  prefs.putBool(PREFS_KEY_PARALLAX, parallaxEnabled);
+  prefs.putInt(PREFS_KEY_LENS_FOCUS_OFFSET, lens_focus_offset);
+  prefs.putInt(PREFS_KEY_EV_COMP_THIRDS, exposure_comp_thirds);
+  prefs.putInt(PREFS_KEY_METER_SMOOTHING, meter_smoothing_mode);
+  prefs.putBool(PREFS_KEY_SHOW_EV, show_ev_readout);
+  prefs.putInt(PREFS_KEY_SLEEP_TIMEOUT_MODE, sleep_timeout_mode);
+  prefs.putInt(PREFS_KEY_LIDAR_IDLE_TIMEOUT, lidar_idle_timeout_mode);
+  prefs.putInt(PREFS_KEY_LEVEL_TRIM_L10, level_trim_landscape_deci_deg);
+  prefs.putInt(PREFS_KEY_LEVEL_TRIM_PP10, level_trim_portrait_pos_deci_deg);
+  prefs.putInt(PREFS_KEY_LEVEL_TRIM_PN10, level_trim_portrait_neg_deci_deg);
+  prefs.putInt(PREFS_KEY_RETICLE_X, reticle_offset_x);
+  prefs.putInt(PREFS_KEY_RETICLE_Y, reticle_offset_y);
+  prefs.putInt(PREFS_KEY_LIDAR_OFFSET, lidar_distance_offset_mm);
+  prefs.putBool(PREFS_KEY_BRIGHTNESS_AUTO, brightness_auto);
+  prefs.putInt(PREFS_KEY_BRIGHTNESS_MANUAL_PCT, brightness_manual_pct);
+  prefs.putInt(PREFS_KEY_BRIGHTNESS_TOP_PCT, brightness_auto_top_pct);
+  prefs.putBool(PREFS_KEY_SHOW_HORIZON, show_horizon_line);
 }
 
 void writeFilmPrefs()
 {
-  prefs.putInt("film_counter", film_counter);
-  prefs.putInt("encoder_value", encoder_value);
+  prefs.putInt(PREFS_KEY_FILM_COUNTER, film_counter);
+  prefs.putInt(PREFS_KEY_ENCODER_VALUE, encoder_value);
   // NVS keys are capped at 15 chars; "prev_encoder_value" (18) silently failed
   // every write and always read back the 0 default.
-  prefs.putInt("prev_enc_val", prev_encoder_value);
-  prefs.putInt("frame1_offset", frame_one_offset);
-  prefs.putInt("frame_spacing", frame_spacing_offset);
+  prefs.putInt(PREFS_KEY_PREV_ENCODER_VALUE, prev_encoder_value);
+  prefs.putInt(PREFS_KEY_FRAME_ONE_OFFSET, frame_one_offset);
+  prefs.putInt(PREFS_KEY_FRAME_SPACING, frame_spacing_offset);
 }
 
 void writePrefsToOpenNamespace(uint8_t dirtyMask)
@@ -148,91 +147,58 @@ void markPrefsClean()
 
 void clampLoadedState()
 {
-  if (iso_index < 0 || iso_index >= static_cast<int>(sizeof(ISOS) / sizeof(ISOS[0])))
-  {
-    iso_index = DEFAULT_ISO_INDEX;
-  }
-  iso = ISOS[iso_index];
+  // The rules live in prefs_clamp_logic so the native suite can drive them
+  // with corrupted inputs; this wrapper just moves globals in and out.
+  LoadedPrefsState s = {};
+  s.iso_index = iso_index;
+  s.iso = iso;
+  s.selected_lens = selected_lens;
+  s.selected_format = selected_format;
+  s.aperture_index = aperture_index;
+  s.aperture = aperture;
+  s.film_counter = film_counter;
+  s.encoder_value = encoder_value;
+  s.prev_encoder_value = prev_encoder_value;
+  s.exposure_comp_thirds = exposure_comp_thirds;
+  s.meter_smoothing_mode = meter_smoothing_mode;
+  s.sleep_timeout_mode = sleep_timeout_mode;
+  s.lidar_idle_timeout_mode = lidar_idle_timeout_mode;
+  s.level_trim_landscape_deci_deg = level_trim_landscape_deci_deg;
+  s.level_trim_portrait_pos_deci_deg = level_trim_portrait_pos_deci_deg;
+  s.level_trim_portrait_neg_deci_deg = level_trim_portrait_neg_deci_deg;
+  s.reticle_offset_x = reticle_offset_x;
+  s.reticle_offset_y = reticle_offset_y;
+  s.brightness_manual_pct = brightness_manual_pct;
+  s.brightness_auto_top_pct = brightness_auto_top_pct;
+  s.frame_one_offset = frame_one_offset;
+  s.frame_spacing_offset = frame_spacing_offset;
+  s.lens_focus_offset = lens_focus_offset;
 
-  if (selected_lens < 0 || selected_lens >= static_cast<int>(NUM_LENSES))
-  {
-    selected_lens = (DEFAULT_SELECTED_LENS >= 0 && DEFAULT_SELECTED_LENS < static_cast<int>(NUM_LENSES))
-                        ? DEFAULT_SELECTED_LENS
-                        : 0;
-  }
+  clampLoadedPrefsState(s);
 
-  if (selected_format < 0 || selected_format >= static_cast<int>(NUM_FILM_FORMATS))
-  {
-    selected_format = (DEFAULT_SELECTED_FORMAT >= 0 && DEFAULT_SELECTED_FORMAT < static_cast<int>(NUM_FILM_FORMATS))
-                          ? DEFAULT_SELECTED_FORMAT
-                          : 0;
-  }
-
-  const int aperture_count = LENS_APERTURE_COUNT;
-  int fallback_aperture_index = getFirstNonZeroAperture();
-  if (fallback_aperture_index < 0)
-  {
-    fallback_aperture_index = 0;
-  }
-
-  if (aperture_index < 0 || aperture_index >= aperture_count || lenses[selected_lens].apertures[aperture_index] == 0)
-  {
-    aperture_index = fallback_aperture_index;
-  }
-  aperture = lenses[selected_lens].apertures[aperture_index];
-
-  if (film_counter < 0)
-  {
-    film_counter = 0;
-  }
-  if (encoder_value < 0)
-  {
-    encoder_value = 0;
-  }
-  if (prev_encoder_value < 0)
-  {
-    prev_encoder_value = 0;
-  }
-
-  exposure_comp_thirds = constrain(
-      exposure_comp_thirds,
-      LIGHTMETER_EV_COMP_MIN_THIRDS,
-      LIGHTMETER_EV_COMP_MAX_THIRDS);
-
-  meter_smoothing_mode = constrain(
-      meter_smoothing_mode,
-      LIGHTMETER_SMOOTHING_MODE_MIN,
-      LIGHTMETER_SMOOTHING_MODE_MAX);
-
-  sleep_timeout_mode = constrain(
-      sleep_timeout_mode,
-      SLEEP_TIMEOUT_MODE_MIN,
-      SLEEP_TIMEOUT_MODE_MAX);
-
-  lidar_idle_timeout_mode = constrain(
-      lidar_idle_timeout_mode,
-      SLEEP_TIMEOUT_MODE_MIN,
-      SLEEP_TIMEOUT_MODE_MAX);
-
-  auto snapLevelTrimDeciDeg = [](int value) {
-    int clamped = constrain(value, LEVEL_TRIM_MIN_DECI_DEG, LEVEL_TRIM_MAX_DECI_DEG);
-    int normalized = clamped - LEVEL_TRIM_MIN_DECI_DEG;
-    int snappedSteps = (normalized + (LEVEL_TRIM_STEP_DECI_DEG / 2)) / LEVEL_TRIM_STEP_DECI_DEG;
-    return LEVEL_TRIM_MIN_DECI_DEG + (snappedSteps * LEVEL_TRIM_STEP_DECI_DEG);
-  };
-
-  level_trim_landscape_deci_deg = snapLevelTrimDeciDeg(level_trim_landscape_deci_deg);
-  level_trim_portrait_pos_deci_deg = snapLevelTrimDeciDeg(level_trim_portrait_pos_deci_deg);
-  level_trim_portrait_neg_deci_deg = snapLevelTrimDeciDeg(level_trim_portrait_neg_deci_deg);
-
-  reticle_offset_x = constrain(reticle_offset_x, RETICLE_OFFSET_MIN, RETICLE_OFFSET_MAX);
-  reticle_offset_y = constrain(reticle_offset_y, RETICLE_OFFSET_MIN, RETICLE_OFFSET_MAX);
-  brightness_manual_pct = constrain(brightness_manual_pct, BRIGHTNESS_MANUAL_MIN_PCT, BRIGHTNESS_PCT_MAX);
-  brightness_auto_top_pct = constrain(brightness_auto_top_pct, BRIGHTNESS_AUTO_TOP_MIN_PCT, BRIGHTNESS_PCT_MAX);
-
-  frame_one_offset = constrain(frame_one_offset, FRAME_TUNING_MIN, FRAME_TUNING_MAX);
-  frame_spacing_offset = constrain(frame_spacing_offset, FRAME_TUNING_MIN, FRAME_TUNING_MAX);
-  lens_focus_offset = constrain(lens_focus_offset, LENS_FOCUS_OFFSET_MIN, LENS_FOCUS_OFFSET_MAX);
+  iso_index = s.iso_index;
+  iso = s.iso;
+  selected_lens = s.selected_lens;
+  selected_format = s.selected_format;
+  aperture_index = s.aperture_index;
+  aperture = s.aperture;
+  film_counter = s.film_counter;
+  encoder_value = s.encoder_value;
+  prev_encoder_value = s.prev_encoder_value;
+  exposure_comp_thirds = s.exposure_comp_thirds;
+  meter_smoothing_mode = s.meter_smoothing_mode;
+  sleep_timeout_mode = s.sleep_timeout_mode;
+  lidar_idle_timeout_mode = s.lidar_idle_timeout_mode;
+  level_trim_landscape_deci_deg = s.level_trim_landscape_deci_deg;
+  level_trim_portrait_pos_deci_deg = s.level_trim_portrait_pos_deci_deg;
+  level_trim_portrait_neg_deci_deg = s.level_trim_portrait_neg_deci_deg;
+  reticle_offset_x = s.reticle_offset_x;
+  reticle_offset_y = s.reticle_offset_y;
+  brightness_manual_pct = s.brightness_manual_pct;
+  brightness_auto_top_pct = s.brightness_auto_top_pct;
+  frame_one_offset = s.frame_one_offset;
+  frame_spacing_offset = s.frame_spacing_offset;
+  lens_focus_offset = s.lens_focus_offset;
 }
 
 void loadLensCalibrationSchemaV2()
@@ -321,38 +287,38 @@ void loadPrefs()
 {
   prefs.begin(PREFS_NAMESPACE, false);
 
-  iso_index = prefs.getInt("iso_index", DEFAULT_ISO_INDEX);
-  iso = prefs.getInt("iso", DEFAULT_ISO);
-  aperture_index = prefs.getInt("aperture_index", 0);
-  aperture = prefs.getFloat("aperture", 0.0f);
-  lens_focus_offset = prefs.getInt("lens_foc_off", DEFAULT_LENS_FOCUS_OFFSET);
-  selected_lens = prefs.getInt("selected_lens", DEFAULT_SELECTED_LENS);
-  selected_format = prefs.getInt("selected_format", DEFAULT_SELECTED_FORMAT);
-  parallaxEnabled = prefs.getBool("parallax", true);
-  exposure_comp_thirds = prefs.getInt("ev_comp_thirds", DEFAULT_EXPOSURE_COMP_THIRDS);
-  meter_smoothing_mode = prefs.getInt("meter_smooth", DEFAULT_METER_SMOOTHING_MODE);
-  show_ev_readout = prefs.getBool("show_ev", DEFAULT_SHOW_EV_READOUT);
-  sleep_timeout_mode = prefs.getInt("sleep_to_mode", DEFAULT_SLEEP_TIMEOUT_MODE);
-  lidar_idle_timeout_mode = prefs.getInt("lidar_idle_to", DEFAULT_LIDAR_IDLE_TIMEOUT_MODE);
-  int legacy_trim_l = prefs.getInt("lvl_trim_l", DEFAULT_LEVEL_TRIM_LANDSCAPE_DECI_DEG / 10);
-  int legacy_trim_pp = prefs.getInt("lvl_trim_pp", DEFAULT_LEVEL_TRIM_PORTRAIT_POS_DECI_DEG / 10);
-  int legacy_trim_pn = prefs.getInt("lvl_trim_pn", DEFAULT_LEVEL_TRIM_PORTRAIT_NEG_DECI_DEG / 10);
-  level_trim_landscape_deci_deg = prefs.getInt("lvl_trim_l10", legacy_trim_l * 10);
-  level_trim_portrait_pos_deci_deg = prefs.getInt("lvl_trim_pp10", legacy_trim_pp * 10);
-  level_trim_portrait_neg_deci_deg = prefs.getInt("lvl_trim_pn10", legacy_trim_pn * 10);
-  reticle_offset_x = prefs.getInt("reticle_x", DEFAULT_RETICLE_OFFSET_X);
-  reticle_offset_y = prefs.getInt("reticle_y", DEFAULT_RETICLE_OFFSET_Y);
-  lidar_distance_offset_mm = prefs.getInt("lidar_off", DEFAULT_LIDAR_DISTANCE_OFFSET_MM);
+  iso_index = prefs.getInt(PREFS_KEY_ISO_INDEX, DEFAULT_ISO_INDEX);
+  iso = prefs.getInt(PREFS_KEY_ISO, DEFAULT_ISO);
+  aperture_index = prefs.getInt(PREFS_KEY_APERTURE_INDEX, 0);
+  aperture = prefs.getFloat(PREFS_KEY_APERTURE, 0.0f);
+  lens_focus_offset = prefs.getInt(PREFS_KEY_LENS_FOCUS_OFFSET, DEFAULT_LENS_FOCUS_OFFSET);
+  selected_lens = prefs.getInt(PREFS_KEY_SELECTED_LENS, DEFAULT_SELECTED_LENS);
+  selected_format = prefs.getInt(PREFS_KEY_SELECTED_FORMAT, DEFAULT_SELECTED_FORMAT);
+  parallaxEnabled = prefs.getBool(PREFS_KEY_PARALLAX, true);
+  exposure_comp_thirds = prefs.getInt(PREFS_KEY_EV_COMP_THIRDS, DEFAULT_EXPOSURE_COMP_THIRDS);
+  meter_smoothing_mode = prefs.getInt(PREFS_KEY_METER_SMOOTHING, DEFAULT_METER_SMOOTHING_MODE);
+  show_ev_readout = prefs.getBool(PREFS_KEY_SHOW_EV, DEFAULT_SHOW_EV_READOUT);
+  sleep_timeout_mode = prefs.getInt(PREFS_KEY_SLEEP_TIMEOUT_MODE, DEFAULT_SLEEP_TIMEOUT_MODE);
+  lidar_idle_timeout_mode = prefs.getInt(PREFS_KEY_LIDAR_IDLE_TIMEOUT, DEFAULT_LIDAR_IDLE_TIMEOUT_MODE);
+  int legacy_trim_l = prefs.getInt(PREFS_KEY_LEGACY_LEVEL_TRIM_L, DEFAULT_LEVEL_TRIM_LANDSCAPE_DECI_DEG / 10);
+  int legacy_trim_pp = prefs.getInt(PREFS_KEY_LEGACY_LEVEL_TRIM_PP, DEFAULT_LEVEL_TRIM_PORTRAIT_POS_DECI_DEG / 10);
+  int legacy_trim_pn = prefs.getInt(PREFS_KEY_LEGACY_LEVEL_TRIM_PN, DEFAULT_LEVEL_TRIM_PORTRAIT_NEG_DECI_DEG / 10);
+  level_trim_landscape_deci_deg = prefs.getInt(PREFS_KEY_LEVEL_TRIM_L10, legacy_trim_l * 10);
+  level_trim_portrait_pos_deci_deg = prefs.getInt(PREFS_KEY_LEVEL_TRIM_PP10, legacy_trim_pp * 10);
+  level_trim_portrait_neg_deci_deg = prefs.getInt(PREFS_KEY_LEVEL_TRIM_PN10, legacy_trim_pn * 10);
+  reticle_offset_x = prefs.getInt(PREFS_KEY_RETICLE_X, DEFAULT_RETICLE_OFFSET_X);
+  reticle_offset_y = prefs.getInt(PREFS_KEY_RETICLE_Y, DEFAULT_RETICLE_OFFSET_Y);
+  lidar_distance_offset_mm = prefs.getInt(PREFS_KEY_LIDAR_OFFSET, DEFAULT_LIDAR_DISTANCE_OFFSET_MM);
   lidar_distance_offset_mm = constrain(lidar_distance_offset_mm, LIDAR_DISTANCE_OFFSET_MIN_MM, LIDAR_DISTANCE_OFFSET_MAX_MM);
-  brightness_auto = prefs.getBool("bright_auto", DEFAULT_BRIGHTNESS_AUTO);
-  brightness_manual_pct = prefs.getInt("bright_man_pct", DEFAULT_BRIGHTNESS_MANUAL_PCT);
-  brightness_auto_top_pct = prefs.getInt("bright_top_pct", DEFAULT_BRIGHTNESS_AUTO_TOP_PCT);
-  show_horizon_line = prefs.getBool("show_horizon", DEFAULT_SHOW_HORIZON_LINE);
-  film_counter = prefs.getInt("film_counter", 0);
-  encoder_value = prefs.getInt("encoder_value", 0);
-  prev_encoder_value = prefs.getInt("prev_enc_val", 0);
-  frame_one_offset = prefs.getInt("frame1_offset", DEFAULT_FRAME_ONE_OFFSET);
-  frame_spacing_offset = prefs.getInt("frame_spacing", DEFAULT_FRAME_SPACING_OFFSET);
+  brightness_auto = prefs.getBool(PREFS_KEY_BRIGHTNESS_AUTO, DEFAULT_BRIGHTNESS_AUTO);
+  brightness_manual_pct = prefs.getInt(PREFS_KEY_BRIGHTNESS_MANUAL_PCT, DEFAULT_BRIGHTNESS_MANUAL_PCT);
+  brightness_auto_top_pct = prefs.getInt(PREFS_KEY_BRIGHTNESS_TOP_PCT, DEFAULT_BRIGHTNESS_AUTO_TOP_PCT);
+  show_horizon_line = prefs.getBool(PREFS_KEY_SHOW_HORIZON, DEFAULT_SHOW_HORIZON_LINE);
+  film_counter = prefs.getInt(PREFS_KEY_FILM_COUNTER, 0);
+  encoder_value = prefs.getInt(PREFS_KEY_ENCODER_VALUE, 0);
+  prev_encoder_value = prefs.getInt(PREFS_KEY_PREV_ENCODER_VALUE, 0);
+  frame_one_offset = prefs.getInt(PREFS_KEY_FRAME_ONE_OFFSET, DEFAULT_FRAME_ONE_OFFSET);
+  frame_spacing_offset = prefs.getInt(PREFS_KEY_FRAME_SPACING, DEFAULT_FRAME_SPACING_OFFSET);
 
   uint16_t schemaVersion = prefs.getUShort(PREFS_KEY_SCHEMA, 0);
   size_t legacyBytes = prefs.getBytesLength(PREFS_KEY_LEGACY_LENSES);

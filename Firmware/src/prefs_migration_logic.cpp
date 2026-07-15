@@ -27,6 +27,27 @@ PrefsLoadMode selectPrefsLoadMode(
   return PrefsLoadMode::LOAD_DEFAULTS;
 }
 
+PrefsHealthLabel selectPrefsHealthLabel(
+    bool schema_valid,
+    bool loaded_legacy,
+    uint16_t loaded_version,
+    uint16_t current_version)
+{
+  if (schema_valid)
+  {
+    return PrefsHealthLabel::SCHEMA_OK;
+  }
+  if (loaded_legacy)
+  {
+    return PrefsHealthLabel::LEGACY_MIGRATED;
+  }
+  if (loaded_version > current_version)
+  {
+    return PrefsHealthLabel::NEWER_SCHEMA_LOADED;
+  }
+  return PrefsHealthLabel::DEFAULTS;
+}
+
 bool applyLegacyLensBlob(
     const uint8_t *legacy_blob,
     size_t legacy_blob_bytes,

@@ -1,6 +1,6 @@
 # MRF2 User Manual
 
-**Firmware version:** 10.6.3
+**Firmware version:** 10.7.0
 
 This manual covers how to operate the MRF2 firmware user interface, including the on-device displays, buttons, calibration flow, and film counter behavior. It is written for everyday use, not just for builders.
 
@@ -213,7 +213,7 @@ The header reads **Setup > Film** so you always know where you are.
 
 Current frame ranges are format-bound:
 
-- **PANO**: `0..21`
+- **PANO**: `0..20`
 - **3x6**: `0..21`
 - **6x4.5**: `0..16`
 - **6x6**: `0..12`
@@ -227,8 +227,9 @@ Current frame ranges are format-bound:
 
 1. **Lens**: cycles calibrated lenses only.
 2. **Parallax correction**: toggle on/off.
-3. **Lens Calibration >**: enter calibration workflow.
-4. **Back <<**: return to setup root menu.
+3. **Focus offset**: per-camera focus fine-tune in ADC counts (`-25` to `+25`, default `0`), applied in Main mode only. Aligns the distance readout without a full recalibration; the stored calibration table is unchanged.
+4. **Lens Calibration >**: enter calibration workflow.
+5. **Back <<**: return to setup root menu.
 
 ### Light Meter submenu
 
@@ -451,7 +452,7 @@ Wake the device by pressing any button or moving the lens/advance lever (any act
 - Format: **6x7**
 - Lens: **65/6.3** (pre-calibrated)
 - Parallax correction: **On**
-- Sleep timeout: **1m**
+- Sleep timeout: **1m30s**
 - LiDAR idle timeout: **1m**
 
 ## Troubleshooting

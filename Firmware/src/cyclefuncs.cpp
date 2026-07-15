@@ -6,32 +6,12 @@
 #include "hardware.h"
 #include "mrfconstants.h"
 #include "lenses.h" // Provides Lens struct, lenses array, and NUM_LENSES
+#include "film_counter_logic.h" // For adjustedSensorPointForIndex
 #include "formats.h"  // Provides FilmFormat struct, film_formats array, and NUM_FILM_FORMATS
 #include "helpers.h" // For savePrefs
 
 namespace
 {
-const char *SLEEP_TIMEOUT_MODE_LABELS[SLEEP_TIMEOUT_MODE_COUNT] = {
-    "Off",
-    "15s",
-    "30sec",
-    "1m",
-    "1m30s",
-    "2m"};
-
-const unsigned long SLEEP_TIMEOUT_MODE_MS[SLEEP_TIMEOUT_MODE_COUNT] = {
-    0,
-    15000,
-    30000,
-    60000,
-    90000,
-    120000};
-
-int clampSleepTimeoutMode(int timeout_mode)
-{
-  return constrain(timeout_mode, SLEEP_TIMEOUT_MODE_MIN, SLEEP_TIMEOUT_MODE_MAX);
-}
-
 int cycleValueWrapping(int current, int step, int minVal, int maxVal)
 {
   current += step;
@@ -44,26 +24,11 @@ int cycleValueWrapping(int current, int step, int minVal, int maxVal)
 
 int getAdjustedSensorPoint(const FilmFormat &film_format, int point_index)
 {
-  int frame_count = getFilmFormatPointCount(film_format);
-  if (frame_count <= 0)
-  {
-    return 0;
-  }
-
-  if (point_index <= 0)
-  {
-    return film_format.sensor[0];
-  }
-
-  if (point_index >= frame_count)
-  {
-    point_index = frame_count - 1;
-  }
-
-  long adjusted = static_cast<long>(film_format.sensor[point_index]) +
-                  static_cast<long>(frame_one_offset) +
-                  static_cast<long>(frame_spacing_offset) * static_cast<long>(point_index - 1);
-  return static_cast<int>(adjusted);
+  // Delegates to film_counter_logic so the seeded encoder position always
+  // matches what estimateFilmCounter will map back to a frame. This used to
+  // be an unclamped copy of the formula.
+  return adjustedSensorPointForIndex(film_format, point_index,
+                                     frame_one_offset, frame_spacing_offset);
 }
 
 int getAdjustedSensorPointForFrame(const FilmFormat &film_format, int frame_value, int fallback_encoder_position)
@@ -120,7 +85,7 @@ void cycleApertures(CycleDirection direction)
 void cycleISOs()
 {
   iso_index++;
-  if (iso_index >= sizeof(ISOS) / sizeof(ISOS[0]))
+  if (iso_index >= static_cast<int>(sizeof(ISOS) / sizeof(ISOS[0])))
   {
     iso_index = 0;
   }
@@ -148,7 +113,7 @@ void cycleLenses()
   do {
     selected_lens++;
     // Use the NUM_LENSES constant
-    if (selected_lens >= NUM_LENSES)
+    if (selected_lens >= static_cast<int>(NUM_LENSES))
     {
       selected_lens = 0;
     }
@@ -168,7 +133,7 @@ void cycleCalibLenses()
 {
   calib_lens++;
   // Use the NUM_LENSES constant
-  if (calib_lens >= NUM_LENSES)
+  if (calib_lens >= static_cast<int>(NUM_LENSES))
   {
     calib_lens = 0;
   }
@@ -178,7 +143,7 @@ void cycleFormats()
 {
   selected_format++;
   // Use the NUM_FILM_FORMATS constant
-  if (selected_format >= NUM_FILM_FORMATS)
+  if (selected_format >= static_cast<int>(NUM_FILM_FORMATS))
   {
     selected_format = 0;
   }
@@ -338,15 +303,4 @@ void cycleLidarDistanceOffset()
   savePrefs(false, PREFS_DIRTY_SETTINGS);
 }
 
-const char *getSleepTimeoutModeLabel(int timeout_mode)
-{
-  int clampedMode = clampSleepTimeoutMode(timeout_mode);
-  return SLEEP_TIMEOUT_MODE_LABELS[clampedMode];
-}
-
-unsigned long getSleepTimeoutModeMs(int timeout_mode)
-{
-  int clampedMode = clampSleepTimeoutMode(timeout_mode);
-  return SLEEP_TIMEOUT_MODE_MS[clampedMode];
-}
 // ---------------------
