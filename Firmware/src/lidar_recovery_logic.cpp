@@ -78,7 +78,11 @@ LidarRecoveryDecision updateLidarRecoveryState(
   else if (event == LidarRecoveryEvent::ERROR)
   {
     state.consecutive_errors++;
-    if (state.consecutive_errors >= LIDAR_RECOVERY_ERROR_THRESHOLD)
+    // Arm the deadline only on the transition into recovery: during a
+    // sustained outage every poll lands here, and rewriting the deadline each
+    // time clobbered the failed-attempt backoff set by
+    // noteLidarRecoveryAttemptResult, hammering reset/enable at poll cadence.
+    if (state.consecutive_errors >= LIDAR_RECOVERY_ERROR_THRESHOLD && !state.recovering)
     {
       state.recovering = true;
       state.next_recovery_attempt_ms = now_ms;
@@ -86,7 +90,7 @@ LidarRecoveryDecision updateLidarRecoveryState(
   }
   else if (event == LidarRecoveryEvent::TIMEOUT)
   {
-    if ((now_ms - state.last_frame_ms) > LIDAR_RECOVERY_TIMEOUT_MS)
+    if ((now_ms - state.last_frame_ms) > LIDAR_RECOVERY_TIMEOUT_MS && !state.recovering)
     {
       state.recovering = true;
       state.next_recovery_attempt_ms = now_ms;
@@ -94,7 +98,9 @@ LidarRecoveryDecision updateLidarRecoveryState(
   }
 
   bool clearDisplay = (now_ms - state.last_valid_measurement_ms) > LIDAR_NO_DATA_TIMEOUT_MS;
-  bool attemptRecovery = state.recovering && now_ms >= state.next_recovery_attempt_ms;
+  // Signed-difference compare so the deadline survives millis() rollover.
+  bool attemptRecovery = state.recovering &&
+                         static_cast<long>(now_ms - state.next_recovery_attempt_ms) >= 0;
   return {clearDisplay, attemptRecovery};
 }
 

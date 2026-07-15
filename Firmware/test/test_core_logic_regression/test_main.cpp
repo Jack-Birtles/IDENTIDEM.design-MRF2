@@ -1902,6 +1902,39 @@ void test_format_shutter_speed_iso_zero_caps_at_max()
   TEST_ASSERT_EQUAL_STRING("25m0s", buffer);
 }
 
+void test_lidar_backoff_survives_continued_timeout_and_error_events()
+{
+  // During a sustained outage every poll feeds TIMEOUT (or ERROR past the
+  // threshold), and each event used to rewrite next_recovery_attempt_ms to
+  // now — so the exponential backoff never gated anything and a permanently
+  // failing sensor would be reset at the raw poll cadence with no settle
+  // time, the exact hazard the v10.4.7 note warns about.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, 1700);
+  noteLidarRecoveryAttemptResult(state, false, 1700);
+  const unsigned long deadline = state.next_recovery_attempt_ms;
+  TEST_ASSERT_GREATER_THAN_UINT32(1700, deadline);
+
+  // Continued timeouts inside the backoff window must not re-arm early.
+  LidarRecoveryDecision duringBackoff =
+      updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, 1800);
+  TEST_ASSERT_FALSE(duringBackoff.attempt_recovery);
+  TEST_ASSERT_EQUAL_UINT32(deadline, state.next_recovery_attempt_ms);
+
+  // Errors past the threshold must not re-arm early either.
+  state.consecutive_errors = LIDAR_RECOVERY_ERROR_THRESHOLD;
+  LidarRecoveryDecision errorDuringBackoff =
+      updateLidarRecoveryState(state, LidarRecoveryEvent::ERROR, 1850);
+  TEST_ASSERT_FALSE(errorDuringBackoff.attempt_recovery);
+
+  // Once the deadline passes, the next event releases the attempt.
+  LidarRecoveryDecision afterBackoff =
+      updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, deadline);
+  TEST_ASSERT_TRUE(afterBackoff.attempt_recovery);
+}
+
 void test_lidar_rejected_frames_prevent_timeout_recovery()
 {
   // A camera aimed at open sky (or >18m, or hard sun) streams healthy frames
@@ -2067,6 +2100,7 @@ int main(int, char **)
   RUN_TEST(test_calculate_ev100_reference_points_and_dark_guard);
   RUN_TEST(test_meter_smoothing_mode_clamps_out_of_range);
   RUN_TEST(test_format_shutter_speed_iso_zero_caps_at_max);
+  RUN_TEST(test_lidar_backoff_survives_continued_timeout_and_error_events);
   RUN_TEST(test_lidar_rejected_frames_prevent_timeout_recovery);
   RUN_TEST(test_lidar_rejected_frame_stands_down_active_recovery);
   RUN_TEST(test_lidar_true_silence_still_escalates_to_recovery);
