@@ -16,12 +16,14 @@
 #include "lightmeter_logic.h"
 #include "lidar_recovery_actions.h"
 #include "mrfconstants.h"
+#include "prefs_clamp_logic.h"
 #include "prefs_keys.h"
 #include "prefs_migration_logic.h"
 #include "ui_signature_logic.h"
 
 // Limit the test scope to the core logic modules only.
 #include "../../src/boot_animation_logic.cpp"
+#include "../../src/prefs_clamp_logic.cpp"
 #include "../../src/calibration_logic.cpp"
 #include "../../src/film_counter_logic.cpp"
 #include "../../src/formats.cpp"
@@ -1824,6 +1826,92 @@ void test_lidar_recovery_attempt_reapplies_profile_even_on_failure()
   TEST_ASSERT_EQUAL_INT(1, fake.set_distance_offset_calls);
 }
 
+namespace
+{
+LoadedPrefsState corruptedPrefsState()
+{
+  LoadedPrefsState s = {};
+  s.iso_index = 999;
+  s.selected_lens = -3;
+  s.selected_format = 999;
+  s.aperture_index = -1;
+  s.film_counter = -5;
+  s.encoder_value = -100;
+  s.prev_encoder_value = -100;
+  s.exposure_comp_thirds = 999;
+  s.meter_smoothing_mode = 99;
+  s.sleep_timeout_mode = -9;
+  s.lidar_idle_timeout_mode = 99;
+  s.level_trim_landscape_deci_deg = 9999;
+  s.level_trim_portrait_pos_deci_deg = -9999;
+  s.level_trim_portrait_neg_deci_deg = LEVEL_TRIM_MIN_DECI_DEG + (LEVEL_TRIM_STEP_DECI_DEG / 2) + 1;
+  s.reticle_offset_x = 999;
+  s.reticle_offset_y = -999;
+  s.brightness_manual_pct = 999;
+  s.brightness_auto_top_pct = -1;
+  s.frame_one_offset = 99;
+  s.frame_spacing_offset = -99;
+  s.lens_focus_offset = 999;
+  return s;
+}
+} // namespace
+
+void test_clamp_loaded_prefs_recovers_from_corrupted_nvs_values()
+{
+  // This clamp is the firmware's only defense against corrupted or legacy
+  // NVS values feeding array indices (ISOS[], lenses[], film_formats[],
+  // METER_SMOOTHING_ALPHA[]). Every field must come back in range.
+  LoadedPrefsState s = corruptedPrefsState();
+  clampLoadedPrefsState(s);
+
+  TEST_ASSERT_EQUAL_INT(DEFAULT_ISO_INDEX, s.iso_index);
+  TEST_ASSERT_EQUAL_INT(ISOS[DEFAULT_ISO_INDEX], s.iso);
+  TEST_ASSERT_TRUE(s.selected_lens >= 0 && s.selected_lens < static_cast<int>(NUM_LENSES));
+  TEST_ASSERT_TRUE(s.selected_format >= 0 && s.selected_format < static_cast<int>(NUM_FILM_FORMATS));
+  TEST_ASSERT_TRUE(s.aperture_index >= 0 && s.aperture_index < LENS_APERTURE_COUNT);
+  TEST_ASSERT_TRUE(lenses[s.selected_lens].apertures[s.aperture_index] != 0.0f ||
+                   s.aperture_index == 0);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, lenses[s.selected_lens].apertures[s.aperture_index], s.aperture);
+  TEST_ASSERT_EQUAL_INT(0, s.film_counter);
+  TEST_ASSERT_EQUAL_INT(0, s.encoder_value);
+  TEST_ASSERT_EQUAL_INT(0, s.prev_encoder_value);
+  TEST_ASSERT_EQUAL_INT(LIGHTMETER_EV_COMP_MAX_THIRDS, s.exposure_comp_thirds);
+  TEST_ASSERT_EQUAL_INT(LIGHTMETER_SMOOTHING_MODE_MAX, s.meter_smoothing_mode);
+  TEST_ASSERT_EQUAL_INT(SLEEP_TIMEOUT_MODE_MIN, s.sleep_timeout_mode);
+  TEST_ASSERT_EQUAL_INT(SLEEP_TIMEOUT_MODE_MAX, s.lidar_idle_timeout_mode);
+  TEST_ASSERT_EQUAL_INT(LEVEL_TRIM_MAX_DECI_DEG, s.level_trim_landscape_deci_deg);
+  TEST_ASSERT_EQUAL_INT(LEVEL_TRIM_MIN_DECI_DEG, s.level_trim_portrait_pos_deci_deg);
+  TEST_ASSERT_EQUAL_INT(RETICLE_OFFSET_MAX, s.reticle_offset_x);
+  TEST_ASSERT_EQUAL_INT(RETICLE_OFFSET_MIN, s.reticle_offset_y);
+  TEST_ASSERT_EQUAL_INT(BRIGHTNESS_PCT_MAX, s.brightness_manual_pct);
+  TEST_ASSERT_EQUAL_INT(BRIGHTNESS_AUTO_TOP_MIN_PCT, s.brightness_auto_top_pct);
+  TEST_ASSERT_EQUAL_INT(FRAME_TUNING_MAX, s.frame_one_offset);
+  TEST_ASSERT_EQUAL_INT(FRAME_TUNING_MIN, s.frame_spacing_offset);
+  TEST_ASSERT_EQUAL_INT(LENS_FOCUS_OFFSET_MAX, s.lens_focus_offset);
+
+  // Level trim snaps to the step grid: min + step/2 + 1 rounds up one step.
+  TEST_ASSERT_EQUAL_INT(LEVEL_TRIM_MIN_DECI_DEG + LEVEL_TRIM_STEP_DECI_DEG,
+                        s.level_trim_portrait_neg_deci_deg);
+}
+
+void test_clamp_loaded_prefs_leaves_valid_state_untouched()
+{
+  LoadedPrefsState s = {};
+  s.iso_index = 5;
+  s.selected_lens = 0;
+  s.selected_format = 1;
+  s.aperture_index = -1; // will resolve to the lens's first valid aperture
+  clampLoadedPrefsState(s);
+  const LoadedPrefsState before = s;
+
+  clampLoadedPrefsState(s); // idempotent: a second pass changes nothing
+  TEST_ASSERT_EQUAL_INT(before.iso_index, s.iso_index);
+  TEST_ASSERT_EQUAL_INT(before.aperture_index, s.aperture_index);
+  TEST_ASSERT_EQUAL_INT(before.selected_lens, s.selected_lens);
+  TEST_ASSERT_EQUAL_INT(before.selected_format, s.selected_format);
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, before.aperture, s.aperture);
+}
+
 void test_prefs_load_mode_covers_downgrade_and_legacy_branches()
 {
   const size_t expected_blob = expectedLegacyLensBlobSize(4);
@@ -2096,6 +2184,8 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_attempt_reapplies_profile_even_on_failure);
   RUN_TEST(test_prefs_load_mode_covers_downgrade_and_legacy_branches);
   RUN_TEST(test_prefs_health_label_distinguishes_downgrade_from_defaults);
+  RUN_TEST(test_clamp_loaded_prefs_recovers_from_corrupted_nvs_values);
+  RUN_TEST(test_clamp_loaded_prefs_leaves_valid_state_untouched);
   RUN_TEST(test_exposure_compensation_direction_and_magnitude);
   RUN_TEST(test_calculate_ev100_reference_points_and_dark_guard);
   RUN_TEST(test_meter_smoothing_mode_clamps_out_of_range);
