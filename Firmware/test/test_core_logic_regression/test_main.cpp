@@ -15,6 +15,7 @@
 #include "lidar_logic.h"
 #include "lightmeter_logic.h"
 #include "mrfconstants.h"
+#include "prefs_keys.h"
 #include "prefs_migration_logic.h"
 #include "ui_signature_logic.h"
 
@@ -1594,6 +1595,40 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+void test_all_nvs_prefs_keys_fit_the_15_char_limit()
+{
+  // ESP32 NVS silently fails on keys longer than 15 characters; v10.3.5
+  // shipped that bug. Every key must live in prefs_keys.h so this guard
+  // sees it. "selected_format" sits exactly at the limit today.
+  for (size_t i = 0; i < PREFS_STATIC_KEY_COUNT; i++)
+  {
+    TEST_ASSERT_NOT_NULL(PREFS_ALL_STATIC_KEYS[i]);
+    TEST_ASSERT_LESS_OR_EQUAL_UINT(PREFS_NVS_MAX_KEY_LEN, strlen(PREFS_ALL_STATIC_KEYS[i]));
+  }
+
+  // Dynamic per-lens keys must fit with the highest real lens index.
+  char lensKey[32] = {0};
+  snprintf(lensKey, sizeof(lensKey), PREFS_KEY_PATTERN_LENS_READINGS,
+           static_cast<unsigned int>(NUM_LENSES - 1));
+  TEST_ASSERT_LESS_OR_EQUAL_UINT(PREFS_NVS_MAX_KEY_LEN, strlen(lensKey));
+  snprintf(lensKey, sizeof(lensKey), PREFS_KEY_PATTERN_LENS_CALIBRATED,
+           static_cast<unsigned int>(NUM_LENSES - 1));
+  TEST_ASSERT_LESS_OR_EQUAL_UINT(PREFS_NVS_MAX_KEY_LEN, strlen(lensKey));
+}
+
+void test_all_nvs_prefs_keys_are_unique()
+{
+  // A duplicated key means two settings silently share one NVS slot.
+  for (size_t i = 0; i < PREFS_STATIC_KEY_COUNT; i++)
+  {
+    for (size_t j = i + 1; j < PREFS_STATIC_KEY_COUNT; j++)
+    {
+      TEST_ASSERT_TRUE_MESSAGE(strcmp(PREFS_ALL_STATIC_KEYS[i], PREFS_ALL_STATIC_KEYS[j]) != 0,
+                               PREFS_ALL_STATIC_KEYS[i]);
+    }
+  }
+}
+
 int main(int, char **)
 {
   UNITY_BEGIN();
@@ -1676,5 +1711,7 @@ int main(int, char **)
   RUN_TEST(test_boot_text_single_frame_guard);
   RUN_TEST(test_boot_sprocket_offset_within_spacing_and_advances);
   RUN_TEST(test_boot_sprocket_offset_spacing_guard);
+  RUN_TEST(test_all_nvs_prefs_keys_fit_the_15_char_limit);
+  RUN_TEST(test_all_nvs_prefs_keys_are_unique);
   return UNITY_END();
 }
