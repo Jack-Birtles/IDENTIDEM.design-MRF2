@@ -190,6 +190,7 @@ jobs:
             local fw_version="$1"
             local build_dir="$2"
             local source_tag="$3"
+            local source_commit="${4:-}"
 
             if [ -z "$fw_version" ] || [ "$fw_version" = "unknown" ]; then
               echo "Skipping artifacts with unknown version from '$source_tag'"
@@ -205,24 +206,26 @@ jobs:
             copy_build_outputs "$build_dir" "$version_dir"
             write_manifest "$version_dir" "$fw_version"
             VERSION_SEEN["$fw_version"]=1
-            printf '%s|%s|%s\n' "$fw_version" "./firmware/versions/$fw_version/manifest.json" "$source_tag" >> "$VERSION_ROWS_FILE"
+            printf '%s|%s|%s|%s\n' "$fw_version" "./firmware/versions/$fw_version/manifest.json" "$source_tag" "$source_commit" >> "$VERSION_ROWS_FILE"
           }
 
-          # 1. Build and publish the current (main) version as "latest"
+          # 1. Publish the current (main) build as the "latest" channel
           CURRENT_FW_VERSION="$(extract_fw_version Firmware)"
           copy_build_outputs "$BUILD_DIR" "$LATEST_DIR"
           write_manifest "$LATEST_DIR" "$CURRENT_FW_VERSION"
-          add_version_artifacts "$CURRENT_FW_VERSION" "$BUILD_DIR" "main"
 
-          # 2. Restore previous version builds and only build missing ones
+          # 2. Restore or build tagged releases first, so a tagged build always
+          #    owns its version slot. Previously main was registered first and
+          #    an unbumped post-tag commit silently replaced the tagged binary
+          #    under the same version string.
           mapfile -t RELEASE_TAGS < <(git tag -l --sort=-v:refname | grep -E '^v?[0-9]+(\.[0-9]+)*$' || true)
 
           for tag in "${RELEASE_TAGS[@]}"; do
             TAG_FW_VERSION="${tag#v}"
 
-            # Skip if this version was already added (e.g. current main)
+            # Skip if this version was already added by an earlier tag
             if [ -n "${VERSION_SEEN[$TAG_FW_VERSION]:-}" ]; then
-              echo "Skipping tag '$tag': version '$TAG_FW_VERSION' already present from main."
+              echo "Skipping tag '$tag': version '$TAG_FW_VERSION' already present."
               continue
             fi
 
@@ -231,7 +234,7 @@ jobs:
               echo "Reusing cached build for version '$TAG_FW_VERSION' from previous deployment."
               cp -R "$PREV_VERSIONS_DIR/$TAG_FW_VERSION" "$VERSIONS_DIR/$TAG_FW_VERSION"
               VERSION_SEEN["$TAG_FW_VERSION"]=1
-              printf '%s|%s|%s\n' "$TAG_FW_VERSION" "./firmware/versions/$TAG_FW_VERSION/manifest.json" "$tag" >> "$VERSION_ROWS_FILE"
+              printf '%s|%s|%s|%s\n' "$TAG_FW_VERSION" "./firmware/versions/$TAG_FW_VERSION/manifest.json" "$tag" "" >> "$VERSION_ROWS_FILE"
               continue
             fi
 
@@ -250,7 +253,44 @@ jobs:
             git worktree remove --force "$TAG_WORKTREE"
           done
 
-          VERSION_ROWS_FILE="$VERSION_ROWS_FILE" VERSION_INDEX_PATH="$VERSION_INDEX_PATH" python3 -c 'import json,os; rows_path=os.environ["VERSION_ROWS_FILE"]; index_path=os.environ["VERSION_INDEX_PATH"]; rows=[]; handle=open(rows_path,"r",encoding="utf-8"); [rows.append({"version":v,"manifest":m,"tag":t}) for raw in handle if (line:=raw.strip()) and (v:=line.split("|",2)[0]) is not None and (m:=line.split("|",2)[1]) is not None and (t:=line.split("|",2)[2]) is not None]; handle.close(); rows.sort(key=lambda item:[(0,int(part)) if part.isdigit() else (1,part) for part in item["version"].split(".")], reverse=True); latest_version=rows[0]["version"] if rows else ""; payload={"latest":latest_version,"versions":rows}; open(index_path,"w",encoding="utf-8").write(json.dumps(payload, indent=2)+"\n")'
+          # 3. Add main's build to the version list only if no tag published
+          #    this version, i.e. it is a genuinely unreleased build.
+          add_version_artifacts "$CURRENT_FW_VERSION" "$BUILD_DIR" "main" "$BUILD_SHA_SHORT"
+
+          VERSION_ROWS_FILE="$VERSION_ROWS_FILE" VERSION_INDEX_PATH="$VERSION_INDEX_PATH" python3 - <<'PY'
+          import json
+          import os
+
+          rows = []
+          with open(os.environ["VERSION_ROWS_FILE"], "r", encoding="utf-8") as handle:
+              for raw in handle:
+                  line = raw.strip()
+                  if not line:
+                      continue
+                  parts = line.split("|", 3)
+                  while len(parts) < 4:
+                      parts.append("")
+                  rows.append(
+                      {
+                          "version": parts[0],
+                          "manifest": parts[1],
+                          "tag": parts[2],
+                          "commit": parts[3],
+                      }
+                  )
+
+          rows.sort(
+              key=lambda item: [
+                  (0, int(part)) if part.isdigit() else (1, part)
+                  for part in item["version"].split(".")
+              ],
+              reverse=True,
+          )
+          latest_version = rows[0]["version"] if rows else ""
+          payload = {"latest": latest_version, "versions": rows}
+          with open(os.environ["VERSION_INDEX_PATH"], "w", encoding="utf-8") as out:
+              out.write(json.dumps(payload, indent=2) + "\n")
+          PY
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
