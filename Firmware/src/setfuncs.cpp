@@ -196,8 +196,12 @@ void setDistance()
     {
       // Sensor frame unusable — break any subject-stable streak.
       lidarRuntime.stableStreakFrames = 0;
+      // The frame itself proves the link is healthy: tell the recovery state
+      // machine, or interleaved no-frame polls would escalate to TIMEOUT
+      // recovery and reset a working sensor about every 1.5s while aimed at
+      // sky/far/hard sun (climbing the Health screen Recoveries counter).
+      updateLidarRecoveryState(lidarRuntime.recovery, LidarRecoveryEvent::NO_VALID_MEASUREMENT, now);
       unsigned long since_valid = now - lidarRuntime.recovery.last_valid_measurement_ms;
-      // Keep main-branch behavior: do not force recovery on filtered/noisy frames.
       if (since_valid > LIDAR_NO_DATA_TIMEOUT_MS)
       {
         clearLidarDisplay(lidarSignalLossPlaceholder(prev_distance, distance_cm));
@@ -227,6 +231,9 @@ void setDistance()
       lidar_distance_held = !release;
       if (!release)
       {
+        // Same link-health note as the invalid-candidate path: a plausibility
+        // hold can outlast the recovery timeout while the sensor streams fine.
+        updateLidarRecoveryState(lidarRuntime.recovery, LidarRecoveryEvent::NO_VALID_MEASUREMENT, now);
         return; // Hold the previous valid reading until the overshoot settles or caps out.
       }
       // Released: the user has deliberately re-aimed past the previous target.

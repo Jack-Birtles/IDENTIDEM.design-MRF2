@@ -23,6 +23,12 @@ struct LidarRecoveryState
   bool recovering;
   int consecutive_errors;
   unsigned long last_valid_measurement_ms;
+  // Last time any well-formed frame arrived, accepted or not. TIMEOUT
+  // escalation keys off this: frames whose candidates are gated out (sky,
+  // >18m, hard sun) prove the link is healthy, so they must not let no-frame
+  // polls escalate to recovery. Display staleness keeps keying off
+  // last_valid_measurement_ms.
+  unsigned long last_frame_ms;
   unsigned long next_recovery_attempt_ms;
 };
 

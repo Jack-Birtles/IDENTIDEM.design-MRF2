@@ -1737,6 +1737,66 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+void test_lidar_rejected_frames_prevent_timeout_recovery()
+{
+  // A camera aimed at open sky (or >18m, or hard sun) streams healthy frames
+  // whose candidates are all gated out. Those frames prove the link works, so
+  // interleaved no-frame polls must never escalate to TIMEOUT recovery — the
+  // sensor is fine, only the scene is unmeasurable. This used to reset a
+  // working sensor about every 1.5s and climb the Health screen Recoveries
+  // counter for as long as the drought lasted.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  bool sawClearDisplay = false;
+  for (unsigned long now = 100; now <= 10000; now += 100)
+  {
+    // Frame arrives, candidate rejected.
+    updateLidarRecoveryState(state, LidarRecoveryEvent::NO_VALID_MEASUREMENT, now);
+    // A poll lands between frames.
+    LidarRecoveryDecision decision = updateLidarRecoveryState(
+        state, lidarRecoveryEventForUpdateError(DTSError::NO_NEW_DATA), now + 10);
+    TEST_ASSERT_FALSE(decision.attempt_recovery);
+    TEST_ASSERT_FALSE(state.recovering);
+    sawClearDisplay = sawClearDisplay || decision.clear_display;
+  }
+
+  // Display staleness still keys off accepted measurements: with nothing
+  // accepted for 10s the placeholder decision must have fired.
+  TEST_ASSERT_TRUE(sawClearDisplay);
+}
+
+void test_lidar_rejected_frame_stands_down_active_recovery()
+{
+  // If timeouts already escalated to recovery and frames then resume (still
+  // gated), the link is healthy again: recovery must stand down instead of
+  // resetting a streaming sensor.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::TIMEOUT, LIDAR_RECOVERY_TIMEOUT_MS + 1);
+  TEST_ASSERT_TRUE(state.recovering);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::NO_VALID_MEASUREMENT,
+                           LIDAR_RECOVERY_TIMEOUT_MS + 2);
+  TEST_ASSERT_FALSE(state.recovering);
+  TEST_ASSERT_EQUAL_INT(0, state.consecutive_errors);
+}
+
+void test_lidar_true_silence_still_escalates_to_recovery()
+{
+  // Rejected frames must not weaken the genuine-failure path: total silence
+  // past LIDAR_RECOVERY_TIMEOUT_MS still recovers.
+  LidarRecoveryState state = {};
+  resetLidarRecoveryState(state, 0);
+
+  updateLidarRecoveryState(state, LidarRecoveryEvent::NO_VALID_MEASUREMENT, 100);
+  LidarRecoveryDecision decision = updateLidarRecoveryState(
+      state, LidarRecoveryEvent::TIMEOUT, 100 + LIDAR_RECOVERY_TIMEOUT_MS + 1);
+  TEST_ASSERT_TRUE(decision.attempt_recovery);
+  TEST_ASSERT_TRUE(state.recovering);
+}
+
 void test_cycle_seed_points_roundtrip_to_the_same_frame_across_tuning_range()
 {
   // Manually cycling the frame counter seeds the encoder with an adjusted
@@ -1834,6 +1894,9 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
   RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
   RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
+  RUN_TEST(test_lidar_rejected_frames_prevent_timeout_recovery);
+  RUN_TEST(test_lidar_rejected_frame_stands_down_active_recovery);
+  RUN_TEST(test_lidar_true_silence_still_escalates_to_recovery);
   RUN_TEST(test_calibration_logic_rejects_invalid_input_shapes);
   RUN_TEST(test_calibration_validation_stable_and_monotonic);
   RUN_TEST(test_ascending_calibration_requires_increasing_readings);
