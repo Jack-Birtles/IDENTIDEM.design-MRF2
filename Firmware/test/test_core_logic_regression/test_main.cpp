@@ -1737,6 +1737,42 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+void test_prefs_load_mode_covers_downgrade_and_legacy_branches()
+{
+  const size_t expected_blob = expectedLegacyLensBlobSize(4);
+
+  // Matching schema loads normally.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_SCHEMA,
+                        (int)selectPrefsLoadMode(2, 2, 0, expected_blob));
+  // Downgrade (stored schema newer than firmware, e.g. web-updater rollback):
+  // values still load best-effort rather than being wiped to defaults.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_SCHEMA,
+                        (int)selectPrefsLoadMode(3, 2, 0, expected_blob));
+  // Old firmware data with an intact legacy blob migrates.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::MIGRATE_LEGACY,
+                        (int)selectPrefsLoadMode(0, 2, expected_blob, expected_blob));
+  // No legacy blob, or a size-mismatched one, falls back to defaults.
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_DEFAULTS,
+                        (int)selectPrefsLoadMode(0, 2, 0, expected_blob));
+  TEST_ASSERT_EQUAL_INT((int)PrefsLoadMode::LOAD_DEFAULTS,
+                        (int)selectPrefsLoadMode(0, 2, expected_blob - 1, expected_blob));
+}
+
+void test_prefs_health_label_distinguishes_downgrade_from_defaults()
+{
+  // After a firmware downgrade the values DID load (LOAD_SCHEMA), but the
+  // Health screen used to fall through to "Defaults", sending support triage
+  // down the wrong path.
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::SCHEMA_OK,
+                        (int)selectPrefsHealthLabel(true, false, 2, 2));
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::LEGACY_MIGRATED,
+                        (int)selectPrefsHealthLabel(false, true, 2, 2));
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::NEWER_SCHEMA_LOADED,
+                        (int)selectPrefsHealthLabel(false, false, 3, 2));
+  TEST_ASSERT_EQUAL_INT((int)PrefsHealthLabel::DEFAULTS,
+                        (int)selectPrefsHealthLabel(false, false, 0, 2));
+}
+
 void test_exposure_compensation_direction_and_magnitude()
 {
   // Sign convention: positive EC means deliberate overexposure, so effective
@@ -1936,6 +1972,8 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
   RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
   RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
+  RUN_TEST(test_prefs_load_mode_covers_downgrade_and_legacy_branches);
+  RUN_TEST(test_prefs_health_label_distinguishes_downgrade_from_defaults);
   RUN_TEST(test_exposure_compensation_direction_and_magnitude);
   RUN_TEST(test_calculate_ev100_reference_points_and_dark_guard);
   RUN_TEST(test_meter_smoothing_mode_clamps_out_of_range);
