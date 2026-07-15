@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check version references agree with FWVERSION
+        run: ./scripts/check-version-consistency.sh
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-native-${{ runner.os }}-${{ hashFiles('Firmware/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio==6.1.19
+
+      - name: Run native unit tests
+        run: pio test -d Firmware -e native_core_tests
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-esp32s3-${{ runner.os }}-${{ hashFiles('Firmware/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio==6.1.19
+
+      - name: Build firmware
+        run: pio run -d Firmware -e adafruit_feather_esp32s3
