@@ -85,7 +85,7 @@ void cycleApertures(CycleDirection direction)
 void cycleISOs()
 {
   iso_index++;
-  if (iso_index >= sizeof(ISOS) / sizeof(ISOS[0]))
+  if (iso_index >= static_cast<int>(sizeof(ISOS) / sizeof(ISOS[0])))
   {
     iso_index = 0;
   }
@@ -113,7 +113,7 @@ void cycleLenses()
   do {
     selected_lens++;
     // Use the NUM_LENSES constant
-    if (selected_lens >= NUM_LENSES)
+    if (selected_lens >= static_cast<int>(NUM_LENSES))
     {
       selected_lens = 0;
     }
@@ -133,7 +133,7 @@ void cycleCalibLenses()
 {
   calib_lens++;
   // Use the NUM_LENSES constant
-  if (calib_lens >= NUM_LENSES)
+  if (calib_lens >= static_cast<int>(NUM_LENSES))
   {
     calib_lens = 0;
   }
@@ -143,7 +143,7 @@ void cycleFormats()
 {
   selected_format++;
   // Use the NUM_FILM_FORMATS constant
-  if (selected_format >= NUM_FILM_FORMATS)
+  if (selected_format >= static_cast<int>(NUM_FILM_FORMATS))
   {
     selected_format = 0;
   }
