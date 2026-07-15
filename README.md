@@ -4,13 +4,13 @@
 
 MRF2 is version two of an open hardware / open firmware medium-format rangefinder camera for **Mamiya Press / Universal Press lenses**. It combines custom PCBs, ESP32-S3 firmware, LiDAR-based lens coupled focusing, dual OLED displays, and printed mechanical parts so you can build a fully featured medium-format shooter with configurable lens profiles and film formats.
 
-It is based on the [Panomicron Thulium](https://www.panomicron.com/thulium) designed by Oscar Oweson, has been heavily modified, but has kept the best ideas from that camera. 😉
+It is based on the [Panomicron Thulium](https://www.panomicron.com/thulium) designed by Oscar Oweson, has been heavily modified, but has kept the best ideas from that camera.
 
 Keep checking back regularly as I keep making improvements as I use my own copy of this camera. 
 You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just show me your builds and the photos you're making with the camera!
 
 
-## 📦 Repo at a Glance
+## Repo at a Glance
 
 - `Firmware/` – ESP32-S3 Arduino firmware (full details in `Firmware/README.md`)
 - `PCBs/` – KiCad projects + production Gerbers, in two supported revisions (see **Which board version?** below):
@@ -21,7 +21,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 - `STEP & F3D/` – Full assembly CAD (`MRF2-complete.f3d`) and shared STEP export (`MRF2-complete.step`)
 - `OrcaSlicer/` – Slicer project files/profiles for printing
 
-## 📚 Documentation Index
+## Documentation Index
 
 - `Documentation/flash-firmware/README.md` – Building and flashing the firmware on macOS, Linux, and Windows (VS Code or CLI)
 - `Documentation/web-updater/README.md` – GitHub Pages browser updater architecture and deployment
@@ -29,7 +29,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 - `Documentation/wiring/README.md` – Power-switch/buttons and breakout-to-LiDAR harness wiring diagrams, for both board revisions
 - `Firmware/README.md` – Firmware architecture, configuration, and CLI build commands
 
-## 📷 Camera Features
+## Camera Features
 
 - "LiDAR" distance measurement for accurate focus
 - Dual OLED UI: 128×128 main in-viewfinder display + 128×32 external status display
@@ -38,7 +38,7 @@ You can [support me on Patreon](https://patreon.com/IDENTIDEMdesign), or just sh
 - Electronic frame counting using a rotary encoder
 - Battery monitoring and on-device configuration, like in-camera lens calibration
 
-## 🧭 Which board version: v1 or v2?
+## Which board version: v1 or v2?
 
 Two board revisions are supported, and **the latest firmware runs on both, unchanged** — there are no board-specific builds, pin maps, or config flags. Connectors, sensors, displays, optics, printed parts, and the main board's component placement and outline are common to both, **but the main board's LiDAR power delivery was significantly reworked, alongside the breakout hardware.** On v1, schematic capture found the FPC connector's power pins weren't wired to a real power rail at all — pin 1 was tied to a Feather **GPIO (D11)** and pin 6 to an undefined private net, so the Feather's actual 3.3 V never reached the breakout, likely worsening the laser-pulse brownout this respin fixes. v2 corrects it: pin 1 now carries real `VBAT`, pin 6 carries a properly gated `3.3OUT`, and the GPIO is freed. Choose by the LiDAR range you need:
 
@@ -57,15 +57,15 @@ Two board revisions are supported, and **the latest firmware runs on both, uncha
 
 Building either? See the **[wiring guide](Documentation/wiring/README.md)** for the power-switch/buttons harness and breakout-to-LiDAR harness diagrams, per revision.
 
-## 🛠 Build Path (high level)
+## Build Path (high level)
 
-1. **Order PCBs**: Pick your version (see [Which board version?](#-which-board-version-v1-or-v2)), then upload the Gerbers from that revision's `Main PCB/Gerber` and `Breakout/Gerber` folders — the `.gbrjob` files go straight to most fabs. For v2, the breakout is also an assembly job (the LDO SMD parts); its JLCPCB BOM/CPL live in `PCBs/v2.0/Breakout/JLCPCB/`.
+1. **Order PCBs**: Pick your version (see [Which board version?](#which-board-version-v1-or-v2)), then upload the Gerbers from that revision's `Main PCB/Gerber` and `Breakout/Gerber` folders — the `.gbrjob` files go straight to most fabs. For v2, the breakout is also an assembly job (the LDO SMD parts); its JLCPCB BOM/CPL live in `PCBs/v2.0/Breakout/JLCPCB/`.
 2. **Assemble electronics**: Populate the main and breakout boards with the BoM below (through-hole and SMT mix), attach the Feather ESP32-S3, and wire the displays/sensors via STEMMA QT/Qwiic where applicable.
 3. **Print the body**: Slice/print the 3MF models (see `3MF/` and any profiles in `OrcaSlicer/`). Fit tolerances may depend on your printer and material.
 4. **Load firmware**: Follow `Documentation/flash-firmware/README.md` (macOS/Linux/Windows, VS Code or CLI), then run first-time calibration.
 5. **Integrate**: Install the PCBs and displays into the printed parts, route wiring, and verify focus/meters on the bench before loading film.
 
-## 🧱 Bill of Materials
+## Bill of Materials
 
 Marketplace listings (Amazon/AliExpress) change frequently. Treat those links as examples and verify specs before ordering.
 
@@ -141,7 +141,7 @@ These SMD parts populate the v2 breakout's LDO (the extra cost/effort over v1). 
 | 30x30x1.1mm 50R/50T beam splitter | 1 | Sits between front and rear optics | [AliExpress Search](https://www.aliexpress.com/w/wholesale-30x30x1.1-50R%25252F50T-beam-splitter.html) |
 
 
-## 💰 Cost Estimate (ballpark)
+## Cost Estimate (ballpark)
 
 Assumes single-quantity retail buys (Adafruit/Amazon/AliExpress), optics from Edmund Optics, and a rough USD/GBP conversion; excludes shipping/VAT/import and assembly labor.
 
@@ -152,18 +152,18 @@ Assumes single-quantity retail buys (Adafruit/Amazon/AliExpress), optics from Ed
 - Printed parts material: ~$25 / ~£20
 - Rough per-build total: ~$300 / ~£235 (add shipping/taxes and any PCB batch overhead you keep)
 
-## 🖨 CAD & Printed Parts
+## CAD & Printed Parts
 
 - Full assembly in `STEP & F3D/MRF2-complete.f3d` (Fusion 360) and `MRF2-complete.step` (generic).
 - Print-ready 3MFs are grouped by function under `3MF/`. Use provided slicer profiles in `OrcaSlicer/` as a starting point and tweak for your printer/material.
 
-## 🤖 PCB Notes
+## PCB Notes
 
 - Open the KiCad projects for your revision: **v2** `PCBs/v2.0/Main PCB/KiCAD/MRF-Pro-v8.kicad_pro` + `PCBs/v2.0/Breakout/KiCAD/MRF-Pro-v8-breakout.kicad_pro`; **v1** `PCBs/v1.0/Main PCB/KiCAD/MRF-Pro-v7.5.kicad_pro` + `PCBs/v1.0/Breakout/KiCAD/MRF-Pro-v7.5-breakout.kicad_pro`.
 - Fabrication: the provided Gerber sets include copper, mask, paste, silkscreen, drills, and a `.gbrjob` for auto-detection at most PCB fabs.
-- Revs: `PCBs/v2.0/` (`MRF-Pro-v8`) adds the dedicated LiDAR LDO on the breakout and reworks the main board's LiDAR power delivery: v1's FPC pin 1 was wired to a spare Feather GPIO (D11) rather than a real rail and pin 6 was an undefined private net, so the Feather's 3.3 V never reached the breakout; v2 rewires them to `VBAT`/`3.3OUT` and splits the J4 switch into a DPDT for full deterministic shutdown (same component placement and board outline, traces rerouted). `PCBs/v1.0/` (`MRF-Pro-v7.5`) is the simpler, unfixed original design. See [Which board version?](#-which-board-version-v1-or-v2) and the [LiDAR power errata](Documentation/hardware-errata/README.md) for the design background.
+- Revs: `PCBs/v2.0/` (`MRF-Pro-v8`) adds the dedicated LiDAR LDO on the breakout and reworks the main board's LiDAR power delivery: v1's FPC pin 1 was wired to a spare Feather GPIO (D11) rather than a real rail and pin 6 was an undefined private net, so the Feather's 3.3 V never reached the breakout; v2 rewires them to `VBAT`/`3.3OUT` and splits the J4 switch into a DPDT for full deterministic shutdown (same component placement and board outline, traces rerouted). `PCBs/v1.0/` (`MRF-Pro-v7.5`) is the simpler, unfixed original design. See [Which board version?](#which-board-version-v1-or-v2) and the [LiDAR power errata](Documentation/hardware-errata/README.md) for the design background.
 
-## 💾 Firmware
+## Firmware
 
 Firmware source and build instructions live in `Firmware/README.md`. PlatformIO is used for builds/flash/monitoring. Calibrate lenses and film formats after first flash.
 
@@ -178,6 +178,6 @@ Then:
 2. Click **Copy Debug Report**.
 3. Send the JSON report back for diagnosis.
 
-## 📜 License
+## License
 
 Firmware and design files are released under the GNU GPL v3.0 (see `LICENSE`). 

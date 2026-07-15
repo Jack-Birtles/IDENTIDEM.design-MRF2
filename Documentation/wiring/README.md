@@ -2,7 +2,7 @@
 
 Wiring reference for the two off-board harnesses you solder yourself: the **power switch + buttons** (main board connector **J4**) and the **breakout-to-LiDAR** link (breakout connector **J7**, plus the FPC ribbon between the boards).
 
-Both board revisions are covered. **The latest firmware runs on both** — nothing here changes the firmware. The main board, connectors, and pin map are common to both revisions; only the breakout's LiDAR power path differs. If you're choosing a revision, see [Which board version?](../../README.md#-which-board-version-v1-or-v2).
+Both board revisions are covered. **The latest firmware runs on both** — nothing here changes the firmware. The main board, connectors, and pin map are common to both revisions; only the breakout's LiDAR power path differs. If you're choosing a revision, see [Which board version?](../../README.md#which-board-version-v1-or-v2).
 
 ## Read this before you solder
 

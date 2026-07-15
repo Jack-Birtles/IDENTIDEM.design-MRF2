@@ -21,19 +21,21 @@ MRF2 Firmware drives the ESP32-S3-based medium format LiDAR rangefinder camera. 
 
 The project uses PlatformIO with the following libraries (declared in `platformio.ini`):
 
-- Adafruit SSD1306 (^2.5.9)
-- Adafruit GFX Library (^1.11.9)
-- U8g2_for_Adafruit_GFX (^1.8.0)
-- Adafruit MAX1704X (^1.0.3)
-- DTS6012M_UART (^3.0.0)
-- BH1750 (^1.3.0)
-- Bounce2 (^2.72)
-- Adafruit SH110X (^2.1.10)
-- Adafruit seesaw Library (^1.7.6)
-- Adafruit ADS1X15 (^2.5.0)
-- Adafruit MPU6050 (^2.2.6)
-- Adafruit BusIO (^1.16.0)
-- Adafruit Unified Sensor (^1.1.14)
+- Adafruit SSD1306 (2.5.17)
+- Adafruit GFX Library (1.12.6)
+- U8g2_for_Adafruit_GFX (1.8.0)
+- Adafruit MAX1704X (1.0.3)
+- DTS6012M_UART (3.0.0)
+- BH1750 (1.3.0)
+- Bounce2 (2.72)
+- Adafruit SH110X (2.1.14)
+- Adafruit seesaw Library (1.7.9)
+- Adafruit ADS1X15 (2.6.2)
+- Adafruit MPU6050 (2.2.9)
+- Adafruit BusIO (1.17.4)
+- Adafruit Unified Sensor (1.1.15)
+
+Versions are pinned exactly so CI tag rebuilds reproduce the shipped binaries; bump them deliberately in `platformio.ini`.
 
 ## Project Structure
 
@@ -46,17 +48,27 @@ Firmware/
 │   ├── lenses.h          # Lens profiles and calibration data
 │   ├── formats.h         # Film format definitions
 │   ├── interface.h       # UI drawing functions
+│   ├── interface_layout_constants.h # Shared UI layout constants
+│   ├── interface_menu_helpers.h # Config menu drawing helpers
 │   ├── helpers.h         # Utility functions
+│   ├── prefs_keys.h      # All NVS keys (guarded by the native suite)
 │   ├── cyclefuncs.h      # Cycling and selection functions
 │   ├── setfuncs.h        # Sensor reading and setting functions
 │   ├── inputs.h          # Input handling functions
 │   ├── activity.h        # Shared activity/sleep state helpers
 │   ├── loop_runtime.h    # Runtime scheduler and awake/sleep loop orchestration
+│   ├── sleep_timeout_logic.h # Sleep/idle timeout mode tables
+│   ├── boot_animation_logic.h # Boot animation frame geometry
+│   ├── formatting_logic.h # Shared display formatting helpers
+│   ├── frameline_layout_logic.h # Viewfinder frameline geometry
 │   ├── lidar_logic.h     # LiDAR fusion and correction logic
 │   ├── lidar_recovery_logic.h # LiDAR error recovery state machine
+│   ├── lidar_recovery_actions.h # Recovery attempt sequence (host-testable)
 │   ├── lens_logic.h      # Lens sensor-to-distance mapping logic
+│   ├── lens_spike_logic.h # Lens ADC spike filter
 │   ├── film_counter_logic.h # Film counter interpolation logic
 │   ├── lightmeter_logic.h # Shutter speed formatting logic
+│   ├── ui_signature_logic.h # Redraw-skip signature hashing
 │   ├── calibration_logic.h # Lens calibration sample validation
 │   └── prefs_migration_logic.h # Preferences schema migration
 ├── src/              # Implementation files
@@ -66,19 +78,28 @@ Firmware/
 │   ├── lenses.cpp        # Lens data arrays
 │   ├── formats.cpp       # Film format data
 │   ├── interface.cpp     # UI rendering implementation
+│   ├── interface_config_screens.cpp # Setup/calibration/health screens
 │   ├── helpers.cpp       # Helper function implementations
 │   ├── activity.cpp      # Activity and sleep state implementation
 │   ├── loop_runtime.cpp  # Runtime scheduler and task execution pipeline
+│   ├── sleep_timeout_logic.cpp # Sleep/idle timeout mode tables
 │   ├── cyclefuncs.cpp    # Cycling logic
 │   ├── setfuncs.cpp      # Sensor orchestration
+│   ├── boot_animation_logic.cpp # Boot animation frame geometry
+│   ├── formatting_logic.cpp # Shared display formatting helpers
+│   ├── frameline_layout_logic.cpp # Viewfinder frameline geometry
 │   ├── lidar_logic.cpp   # LiDAR processing pipeline
 │   ├── lidar_recovery_logic.cpp # LiDAR error recovery state machine
 │   ├── lens_logic.cpp    # Lens distance estimation
+│   ├── lens_spike_logic.cpp # Lens ADC spike filter
 │   ├── film_counter_logic.cpp # Film counter estimation
 │   ├── lightmeter_logic.cpp # Light-meter/shutter conversion
+│   ├── ui_signature_logic.cpp # Redraw-skip signature hashing
 │   ├── calibration_logic.cpp # Lens calibration sample validation
 │   ├── prefs_migration_logic.cpp # Preferences schema migration
 │   └── inputs.cpp        # Button and encoder handling
+├── test/             # Native (host) unit test suites
+├── test_stubs/       # Host-build stubs for hardware headers
 ├── platformio.ini    # PlatformIO configuration
 └── README.md         # This file
 ```
