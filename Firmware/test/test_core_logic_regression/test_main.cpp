@@ -1737,6 +1737,48 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+void test_exposure_compensation_direction_and_magnitude()
+{
+  // Sign convention: positive EC means deliberate overexposure, so effective
+  // lux must DROP (longer computed shutter). An inverted sign here is a
+  // silent full-roll exposure error, which is why the direction is pinned.
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 500.0f, applyExposureCompensationToLux(1000.0f, 1.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 2000.0f, applyExposureCompensationToLux(1000.0f, -1.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.05f, 793.70f, applyExposureCompensationToLux(1000.0f, 1.0f / 3.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, applyExposureCompensationToLux(0.0f, 1.0f));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, applyExposureCompensationToLux(-5.0f, -2.0f));
+}
+
+void test_calculate_ev100_reference_points_and_dark_guard()
+{
+  // EV100 = log2(lux * 100 / K) with K = 12.5: lux 0.125 -> EV 0, lux 32 -> EV 8.
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, calculateEV100(0.125f));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 8.0f, calculateEV100(32.0f));
+  TEST_ASSERT_FLOAT_IS_NAN(calculateEV100(0.0f));
+  TEST_ASSERT_FLOAT_IS_NAN(calculateEV100(-10.0f));
+}
+
+void test_meter_smoothing_mode_clamps_out_of_range()
+{
+  // A corrupted prefs value indexes METER_SMOOTHING_ALPHA/LABELS; the clamp
+  // is the only bounds defense, so out-of-range modes must map to the edges.
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, getMeterSmoothingAlpha(0), getMeterSmoothingAlpha(-1));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, getMeterSmoothingAlpha(LIGHTMETER_SMOOTHING_MODE_MAX),
+                           getMeterSmoothingAlpha(99));
+  TEST_ASSERT_EQUAL_STRING("Off", getMeterSmoothingLabel(-5));
+  TEST_ASSERT_EQUAL_STRING("High", getMeterSmoothingLabel(99));
+  TEST_ASSERT_EQUAL_STRING("Medium", getMeterSmoothingLabel(2));
+}
+
+void test_format_shutter_speed_iso_zero_caps_at_max()
+{
+  // iso=0 makes the computed speed infinite; the max-speed cap must absorb it
+  // and render the 25-minute ceiling instead of garbage or a crash.
+  char buffer[16] = {0};
+  formatShutterSpeed(1000.0f, 8.0f, 0, buffer, sizeof(buffer));
+  TEST_ASSERT_EQUAL_STRING("25m0s", buffer);
+}
+
 void test_lidar_rejected_frames_prevent_timeout_recovery()
 {
   // A camera aimed at open sky (or >18m, or hard sun) streams healthy frames
@@ -1894,6 +1936,10 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
   RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
   RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
+  RUN_TEST(test_exposure_compensation_direction_and_magnitude);
+  RUN_TEST(test_calculate_ev100_reference_points_and_dark_guard);
+  RUN_TEST(test_meter_smoothing_mode_clamps_out_of_range);
+  RUN_TEST(test_format_shutter_speed_iso_zero_caps_at_max);
   RUN_TEST(test_lidar_rejected_frames_prevent_timeout_recovery);
   RUN_TEST(test_lidar_rejected_frame_stands_down_active_recovery);
   RUN_TEST(test_lidar_true_silence_still_escalates_to_recovery);
