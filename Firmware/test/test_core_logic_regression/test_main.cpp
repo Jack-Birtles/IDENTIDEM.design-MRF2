@@ -1427,6 +1427,60 @@ void test_ui_signature_hash_cstring_treats_null_as_empty()
 
 namespace
 {
+MainUiSnapshot baselineMainSnapshot()
+{
+  MainUiSnapshot s = {};
+  s.ui_mode = 0;
+  s.selected_lens = 2;
+  s.selected_format = 1;
+  s.iso = 400;
+  s.aperture = 8.0f;
+  s.show_ev_readout = false;
+  s.ev_readout = 11.0f;
+  s.shutter_speed = "1/125 sec.";
+  s.distance_cm = "123";
+  s.lens_distance_cm = "456";
+  s.distance = 123;
+  s.lens_distance_raw = 456;
+  s.lidar_quality_level = 3;
+  s.lidar_high_sunlight = false;
+  s.parallaxEnabled = true;
+  s.reticle_offset_x = 0;
+  s.reticle_offset_y = 0;
+  s.show_horizon_line = true;
+  return s;
+}
+
+struct MainUiFieldMutation
+{
+  const char *name;
+  void (*apply)(MainUiSnapshot &);
+};
+
+// One entry per MainUiSnapshot field. A field missing from the hash leaves
+// the main shooting screen showing stale values (the shipped v10.6.x menu
+// bug class), so every field must flip the signature.
+const MainUiFieldMutation MAIN_UI_FIELD_MUTATIONS[] = {
+    {"ui_mode", [](MainUiSnapshot &s) { s.ui_mode = 5; }},
+    {"selected_lens", [](MainUiSnapshot &s) { s.selected_lens = 9; }},
+    {"selected_format", [](MainUiSnapshot &s) { s.selected_format = 9; }},
+    {"iso", [](MainUiSnapshot &s) { s.iso = 800; }},
+    {"aperture", [](MainUiSnapshot &s) { s.aperture = 11.0f; }},
+    {"show_ev_readout", [](MainUiSnapshot &s) { s.show_ev_readout = true; }},
+    {"ev_readout", [](MainUiSnapshot &s) { s.ev_readout = 12.5f; }},
+    {"shutter_speed", [](MainUiSnapshot &s) { s.shutter_speed = "1/250 sec."; }},
+    {"distance_cm", [](MainUiSnapshot &s) { s.distance_cm = "999"; }},
+    {"lens_distance_cm", [](MainUiSnapshot &s) { s.lens_distance_cm = "999"; }},
+    {"distance", [](MainUiSnapshot &s) { s.distance = 999; }},
+    {"lens_distance_raw", [](MainUiSnapshot &s) { s.lens_distance_raw = 999; }},
+    {"lidar_quality_level", [](MainUiSnapshot &s) { s.lidar_quality_level = 1; }},
+    {"lidar_high_sunlight", [](MainUiSnapshot &s) { s.lidar_high_sunlight = true; }},
+    {"parallaxEnabled", [](MainUiSnapshot &s) { s.parallaxEnabled = false; }},
+    {"reticle_offset_x", [](MainUiSnapshot &s) { s.reticle_offset_x = 4; }},
+    {"reticle_offset_y", [](MainUiSnapshot &s) { s.reticle_offset_y = -4; }},
+    {"show_horizon_line", [](MainUiSnapshot &s) { s.show_horizon_line = false; }},
+};
+
 ExternalUiSnapshot baselineExternalSnapshot()
 {
   return {/* selected_format */ 1,
@@ -1488,7 +1542,95 @@ MenuUiSnapshot baselineMenuSnapshot()
           /* prefsLoadedLegacy                */ false,
           /* prefsSchemaVersionLoaded         */ 2};
 }
+
+struct MenuUiFieldMutation
+{
+  const char *name;
+  void (*apply)(MenuUiSnapshot &);
+};
+
+// One entry per MenuUiSnapshot field, same guard as the Main table.
+const MenuUiFieldMutation MENU_UI_FIELD_MUTATIONS[] = {
+    {"ui_mode", [](MenuUiSnapshot &s) { s.ui_mode = 4; }},
+    {"config_step", [](MenuUiSnapshot &s) { s.config_step = 7; }},
+    {"calib_step", [](MenuUiSnapshot &s) { s.calib_step = 1; }},
+    {"selected_lens", [](MenuUiSnapshot &s) { s.selected_lens = 9; }},
+    {"selected_format", [](MenuUiSnapshot &s) { s.selected_format = 9; }},
+    {"calib_lens", [](MenuUiSnapshot &s) { s.calib_lens = 2; }},
+    {"current_calib_distance", [](MenuUiSnapshot &s) { s.current_calib_distance = 3; }},
+    {"calib_capture_status", [](MenuUiSnapshot &s) { s.calib_capture_status = 1; }},
+    {"calib_capture_status_ms", [](MenuUiSnapshot &s) { s.calib_capture_status_ms = 12345ul; }},
+    {"lens_sensor_reading", [](MenuUiSnapshot &s) { s.lens_sensor_reading = 999; }},
+    {"lens_focus_offset", [](MenuUiSnapshot &s) { s.lens_focus_offset = -5; }},
+    {"iso", [](MenuUiSnapshot &s) { s.iso = 800; }},
+    {"aperture", [](MenuUiSnapshot &s) { s.aperture = 11.0f; }},
+    {"exposure_comp_thirds", [](MenuUiSnapshot &s) { s.exposure_comp_thirds = 3; }},
+    {"meter_smoothing_mode", [](MenuUiSnapshot &s) { s.meter_smoothing_mode = 2; }},
+    {"show_ev_readout", [](MenuUiSnapshot &s) { s.show_ev_readout = true; }},
+    {"parallaxEnabled", [](MenuUiSnapshot &s) { s.parallaxEnabled = false; }},
+    {"sleep_timeout_mode", [](MenuUiSnapshot &s) { s.sleep_timeout_mode = 3; }},
+    {"lidar_idle_timeout_mode", [](MenuUiSnapshot &s) { s.lidar_idle_timeout_mode = 2; }},
+    {"lidar_distance_offset_mm", [](MenuUiSnapshot &s) { s.lidar_distance_offset_mm = 500; }},
+    {"level_trim_landscape_deci_deg", [](MenuUiSnapshot &s) { s.level_trim_landscape_deci_deg = 15; }},
+    {"level_trim_portrait_pos_deci_deg", [](MenuUiSnapshot &s) { s.level_trim_portrait_pos_deci_deg = 15; }},
+    {"level_trim_portrait_neg_deci_deg", [](MenuUiSnapshot &s) { s.level_trim_portrait_neg_deci_deg = -15; }},
+    {"reticle_offset_x", [](MenuUiSnapshot &s) { s.reticle_offset_x = 4; }},
+    {"reticle_offset_y", [](MenuUiSnapshot &s) { s.reticle_offset_y = -4; }},
+    {"reticle_adjust_step", [](MenuUiSnapshot &s) { s.reticle_adjust_step = 1; }},
+    {"brightness_auto", [](MenuUiSnapshot &s) { s.brightness_auto = false; }},
+    {"brightness_manual_pct", [](MenuUiSnapshot &s) { s.brightness_manual_pct = 80; }},
+    {"brightness_auto_top_pct", [](MenuUiSnapshot &s) { s.brightness_auto_top_pct = 60; }},
+    {"show_horizon_line", [](MenuUiSnapshot &s) { s.show_horizon_line = false; }},
+    {"frame_one_offset", [](MenuUiSnapshot &s) { s.frame_one_offset = 5; }},
+    {"frame_spacing_offset", [](MenuUiSnapshot &s) { s.frame_spacing_offset = -5; }},
+    {"film_counter", [](MenuUiSnapshot &s) { s.film_counter = 6; }},
+    {"last_lidar_error_code", [](MenuUiSnapshot &s) { s.last_lidar_error_code = 6; }},
+    {"lidar_recovery_count", [](MenuUiSnapshot &s) { s.lidar_recovery_count = 2; }},
+    {"lidarEnabled", [](MenuUiSnapshot &s) { s.lidarEnabled = false; }},
+    {"adsReady", [](MenuUiSnapshot &s) { s.adsReady = false; }},
+    {"mpuReady", [](MenuUiSnapshot &s) { s.mpuReady = false; }},
+    {"mainDisplayReady", [](MenuUiSnapshot &s) { s.mainDisplayReady = false; }},
+    {"externalDisplayReady", [](MenuUiSnapshot &s) { s.externalDisplayReady = false; }},
+    {"batteryGaugeReady", [](MenuUiSnapshot &s) { s.batteryGaugeReady = false; }},
+    {"lightMeterReady", [](MenuUiSnapshot &s) { s.lightMeterReady = false; }},
+    {"statusPixelReady", [](MenuUiSnapshot &s) { s.statusPixelReady = false; }},
+    {"encoderReady", [](MenuUiSnapshot &s) { s.encoderReady = false; }},
+    {"lidarSensorReady", [](MenuUiSnapshot &s) { s.lidarSensorReady = false; }},
+    {"prefsSchemaValid", [](MenuUiSnapshot &s) { s.prefsSchemaValid = false; }},
+    {"prefsLoadedLegacy", [](MenuUiSnapshot &s) { s.prefsLoadedLegacy = true; }},
+    {"prefsSchemaVersionLoaded", [](MenuUiSnapshot &s) { s.prefsSchemaVersionLoaded = 3; }},
+};
 } // namespace
+
+void test_ui_signature_main_changes_when_any_field_changes()
+{
+  const MainUiSnapshot base = baselineMainSnapshot();
+  const uint32_t baseline = buildMainUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildMainUiSignature(baselineMainSnapshot()));
+
+  for (const MainUiFieldMutation &mutation : MAIN_UI_FIELD_MUTATIONS)
+  {
+    MainUiSnapshot mutated = base;
+    mutation.apply(mutated);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(baseline, buildMainUiSignature(mutated), mutation.name);
+  }
+}
+
+void test_ui_signature_menu_changes_when_any_field_changes()
+{
+  const MenuUiSnapshot base = baselineMenuSnapshot();
+  const uint32_t baseline = buildMenuUiSignature(base);
+
+  TEST_ASSERT_EQUAL_UINT32(baseline, buildMenuUiSignature(baselineMenuSnapshot()));
+
+  for (const MenuUiFieldMutation &mutation : MENU_UI_FIELD_MUTATIONS)
+  {
+    MenuUiSnapshot mutated = base;
+    mutation.apply(mutated);
+    TEST_ASSERT_NOT_EQUAL_MESSAGE(baseline, buildMenuUiSignature(mutated), mutation.name);
+  }
+}
 
 void test_ui_signature_external_changes_when_any_field_changes()
 {
@@ -1764,5 +1906,7 @@ int main(int, char **)
   RUN_TEST(test_all_nvs_prefs_keys_are_unique);
   RUN_TEST(test_cycle_seed_points_roundtrip_to_the_same_frame_across_tuning_range);
   RUN_TEST(test_adjusted_sensor_points_stay_monotonic_with_negative_spacing);
+  RUN_TEST(test_ui_signature_main_changes_when_any_field_changes);
+  RUN_TEST(test_ui_signature_menu_changes_when_any_field_changes);
   return UNITY_END();
 }
