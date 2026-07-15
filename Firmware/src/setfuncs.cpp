@@ -514,6 +514,11 @@ void setLightMeter()
     lux = 0.0f;
     ev_readout = NAN;
     snprintf(shutter_speed, sizeof(shutter_speed), "No meter");
+    // Sync the pending-settings markers or getLightMeterIntervalMs sees a
+    // permanent aperture/iso change and latches the fast 100ms cadence
+    // forever, redrawing "No meter" at 10Hz on builds without a BH1750.
+    prev_aperture = aperture;
+    prev_iso = iso;
     return;
   }
 
