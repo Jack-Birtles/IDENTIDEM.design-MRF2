@@ -14,6 +14,7 @@
 #include "lidar_recovery_logic.h"
 #include "lidar_logic.h"
 #include "lightmeter_logic.h"
+#include "lidar_recovery_actions.h"
 #include "mrfconstants.h"
 #include "prefs_keys.h"
 #include "prefs_migration_logic.h"
@@ -1737,6 +1738,92 @@ void test_boot_sprocket_offset_spacing_guard()
   TEST_ASSERT_EQUAL_INT(0, bootSprocketOffsetForFrame(5, 3, 0));
 }
 
+namespace
+{
+// Call-recording fake for the recovery-sequence guard. Only the methods the
+// recovery path may touch exist here; the assertions pin the exact sequence.
+struct FakeLidarSensor
+{
+  int clear_error_calls = 0;
+  int reset_state_calls = 0;
+  int enable_sensor_calls = 0;
+  int set_frame_rate_calls = 0;
+  int set_distance_scale_calls = 0;
+  int set_distance_offset_calls = 0;
+  int call_counter = 0;
+  int reset_order = 0;
+  int enable_order = 0;
+  int last_profile_order = 0;
+  DTSError reset_result = DTSError::NONE;
+  DTSError enable_result = DTSError::NONE;
+
+  void clearError() { clear_error_calls++; call_counter++; }
+  DTSError resetState()
+  {
+    reset_state_calls++;
+    reset_order = ++call_counter;
+    return reset_result;
+  }
+  DTSError enableSensor()
+  {
+    enable_sensor_calls++;
+    enable_order = ++call_counter;
+    return enable_result;
+  }
+  void setFrameRate(int) { set_frame_rate_calls++; call_counter++; }
+  void setDistanceScale(float)
+  {
+    set_distance_scale_calls++;
+    last_profile_order = ++call_counter;
+  }
+  void setDistanceOffset(int16_t)
+  {
+    set_distance_offset_calls++;
+    last_profile_order = ++call_counter;
+  }
+};
+} // namespace
+
+void test_lidar_recovery_attempt_never_touches_frame_rate()
+{
+  // The v10.4.7 incident: re-sending setFrameRate right after enableSensor()
+  // in the recovery path destabilises some DTS6012M units into a
+  // self-perpetuating recovery loop. The whole recovery attempt — sequence
+  // plus calibration profile — must never touch the frame rate, and the
+  // profile must be re-applied after enable (resetState clears it).
+  FakeLidarSensor fake;
+  bool recovered = performLidarRecoveryAttempt(fake, [&]() {
+    applyLidarCalibrationProfileTo(fake, 1.0f, static_cast<int16_t>(400));
+  });
+
+  TEST_ASSERT_TRUE(recovered);
+  TEST_ASSERT_EQUAL_INT(0, fake.set_frame_rate_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.clear_error_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.reset_state_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.enable_sensor_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_scale_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_offset_calls);
+  TEST_ASSERT_TRUE(fake.reset_order < fake.enable_order);
+  TEST_ASSERT_TRUE(fake.enable_order < fake.last_profile_order);
+}
+
+void test_lidar_recovery_attempt_reapplies_profile_even_on_failure()
+{
+  // A partial recovery where enableSensor() fails transiently must still
+  // re-apply scale + offset, or every later reading is short by the
+  // configured offset until a fully successful recovery.
+  FakeLidarSensor fake;
+  fake.enable_result = DTSError::TIMEOUT;
+  bool recovered = performLidarRecoveryAttempt(fake, [&]() {
+    applyLidarCalibrationProfileTo(fake, 1.0f, static_cast<int16_t>(400));
+  });
+
+  TEST_ASSERT_FALSE(recovered);
+  TEST_ASSERT_EQUAL_INT(0, fake.set_frame_rate_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_scale_calls);
+  TEST_ASSERT_EQUAL_INT(1, fake.set_distance_offset_calls);
+}
+
 void test_prefs_load_mode_covers_downgrade_and_legacy_branches()
 {
   const size_t expected_blob = expectedLegacyLensBlobSize(4);
@@ -1972,6 +2059,8 @@ int main(int, char **)
   RUN_TEST(test_lidar_recovery_event_mapping_treats_no_new_data_as_benign);
   RUN_TEST(test_lidar_no_new_data_polls_do_not_trip_spurious_recovery);
   RUN_TEST(test_lidar_recovery_reset_on_enable_prevents_instant_wake_recovery);
+  RUN_TEST(test_lidar_recovery_attempt_never_touches_frame_rate);
+  RUN_TEST(test_lidar_recovery_attempt_reapplies_profile_even_on_failure);
   RUN_TEST(test_prefs_load_mode_covers_downgrade_and_legacy_branches);
   RUN_TEST(test_prefs_health_label_distinguishes_downgrade_from_defaults);
   RUN_TEST(test_exposure_compensation_direction_and_magnitude);
