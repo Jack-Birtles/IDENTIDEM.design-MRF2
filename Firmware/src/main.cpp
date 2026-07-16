@@ -285,7 +285,7 @@ void initializePowerAndInputPeripherals()
   if (hardware.encoder)
   {
     delay(SEESAW_INIT_DELAY_MS);
-    encoder.setEncoderPosition(encoder_value);
+    encoder.setEncoderPosition(-encoder_value);
     encoder.enableEncoderInterrupt();
   }
 }

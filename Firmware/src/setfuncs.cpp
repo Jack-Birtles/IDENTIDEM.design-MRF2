@@ -445,7 +445,7 @@ void setFilmCounter()
     rawPositionInitialized = false;
   }
 
-  int encoder_position = encoder.getEncoderPosition();
+  int encoder_position = -encoder.getEncoderPosition();
 
   if (!rawPositionInitialized)
   {
