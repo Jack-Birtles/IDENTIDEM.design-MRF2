@@ -22,8 +22,8 @@ const int LIDAR_SERIAL_PORT = 2;               // ESP32 hardware serial index us
 // ---------------------------------------------------------------------------
 // User input buttons
 // ---------------------------------------------------------------------------
-const int BUTTON_LEFT_PIN = 9;                 // Left button GPIO.
-const int BUTTON_RIGHT_PIN = 10;               // Right button GPIO.
+const int BUTTON_LEFT_PIN = 10;                 // Left button GPIO.
+const int BUTTON_RIGHT_PIN = 9;               // Right button GPIO.
 const int BUTTON_DEBOUNCE_MS = 5;              // Software debounce interval.
 const unsigned long BUTTON_SHORT_PRESS_MAX_MS = 1000; // Max press duration treated as "short".
 const unsigned long BUTTON_LONG_PRESS_MIN_MS = 3000;  // Min press duration treated as "long".
