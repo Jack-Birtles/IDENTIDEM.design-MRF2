@@ -166,7 +166,7 @@ void cycleCurrentFrame()
       getAdjustedSensorPointForFrame(selectedFilmFormat, nextFrame, encoder_value);
   if (hardware.encoder)
   {
-    encoder.setEncoderPosition(nextEncoderPosition);
+    encoder.setEncoderPosition(-nextEncoderPosition);
   }
 
   encoder_value = nextEncoderPosition;
