@@ -312,8 +312,8 @@ const uint16_t PREFS_SCHEMA_VERSION = 2;            // Preferences schema versio
 // ---------------------------------------------------------------------------
 // Film frame tuning ranges
 // ---------------------------------------------------------------------------
-const int FRAME_TUNING_MIN = -10; // Minimum frame tuning value.
-const int FRAME_TUNING_MAX = 10;  // Maximum frame tuning value.
+const int FRAME_TUNING_MIN = -20; // Minimum frame tuning value.
+const int FRAME_TUNING_MAX = 20;  // Maximum frame tuning value.
 
 // ---------------------------------------------------------------------------
 // Main loop scheduler cadence and wake thresholds
