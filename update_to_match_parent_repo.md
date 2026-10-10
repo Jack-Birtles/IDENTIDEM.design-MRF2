@@ -13,6 +13,7 @@ Then updating becomes:
 ```Shell
 git checkout main
 git fetch upstream
-git reset --hard upstream/maingit checkout my-changes
+git reset --hard upstream/main
+git checkout my-changes
 git rebase main
 ```
